@@ -1,0 +1,27 @@
+{
+  "description": "项目配置文件",
+  "appid": "wxb62ed54d3d2d51a8",
+  "projectname": "dsh-mini",
+  "compileType": "miniprogram",
+  "miniprogramRoot": "miniprogram/",
+  "srcMiniprogramRoot": "miniprogram/",
+  "libVersion": "2.32.3",
+  "setting": {
+    "useCompilerPlugins": [
+      "typescript",
+      "less"
+    ],
+    "lessSetting": {
+      "commonUseFilePath": "app.less"
+    },
+    "es6": true,
+    "postcss": true,
+    "minified": true,
+    "urlCheck": true,
+    "ignoreUploadUnusedFiles": true
+  },
+  "editorSetting": {
+    "tabIndent": "insertSpaces",
+    "tabSize": 2
+  }
+}

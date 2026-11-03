@@ -1,0 +1,13 @@
+# dependencies
+node_modules/
+
+# WeChat DevTools local settings
+project.private.config.json
+
+# system
+.DS_Store
+
+# 业主文档
+# 不参与小程序build, 是我们开发小程序的文档和参考系位置
+docs/
+context/
