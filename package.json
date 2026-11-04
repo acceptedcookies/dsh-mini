@@ -13,6 +13,7 @@
   },
   "devDependencies": {
     "miniprogram-api-typings": "^5.2.3",
+    "miniprogram-automator": "^0.13.0",
     "typescript": "^5.9.3"
   },
   "engines": {
