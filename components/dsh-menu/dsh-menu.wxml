@@ -1,0 +1,37 @@
+<view wx:if="{{render}}" class="menu-layer" catchtap="close" catchtouchmove="noop">
+  <view class="menu-surface theme-{{theme}} {{closing ? 'menu-closing' : ''}}" style="{{surfaceStyle}}" catchtap="noop">
+    <view wx:if="{{title}}" class="menu-title">{{title}}</view>
+    <scroll-view class="menu-scroll" scroll-y>
+      <view
+        wx:for="{{items}}"
+        wx:key="id"
+        class="menu-item {{item.danger ? 'menu-danger' : ''}} {{item.disabled ? 'menu-disabled' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="onSelect"
+      >
+        <dsh-icon
+          wx:if="{{item.icon}}"
+          name="{{item.icon}}"
+          tone="{{item.danger ? 'danger' : (item.tone || 'secondary')}}"
+          theme="{{theme}}"
+          size="{{16}}"
+        />
+        <view class="menu-copy">
+          <view class="menu-line">
+            <text class="menu-label">{{item.label}}</text>
+            <text wx:if="{{item.badge}}" class="menu-badge">{{item.badge}}</text>
+          </view>
+          <text wx:if="{{item.description}}" class="menu-description">{{item.description}}</text>
+        </view>
+        <dsh-icon
+          wx:if="{{item.checked}}"
+          name="check-outline"
+          tone="accent"
+          theme="{{theme}}"
+          size="{{14}}"
+        />
+        <text wx:if="{{item.shortcut}}" class="menu-shortcut">{{item.shortcut}}</text>
+      </view>
+    </scroll-view>
+  </view>
+</view>

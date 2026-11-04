@@ -1,0 +1,25 @@
+:host {
+  display: block;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 16px;
+  margin-left: -6px;
+}
+
+.action {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--dsw-radius-sm);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.action:active {
+  background: var(--dsw-alias-interactive-bg-hover);
+}

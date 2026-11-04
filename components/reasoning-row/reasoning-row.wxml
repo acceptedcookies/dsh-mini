@@ -1,0 +1,18 @@
+<view class="reasoning">
+  <view class="reasoning-head" bindtap="toggle">
+    <dsh-icon class="reasoning-icon" name="think-outline" theme="{{theme}}" size="{{14}}" />
+    <text class="reasoning-title">思考</text>
+    <text wx:if="{{!expanded && summary}}" class="reasoning-sep">·</text>
+    <text wx:if="{{!expanded && summary}}" class="reasoning-summary">{{summary}}</text>
+    <view class="reasoning-chevron">
+      <dsh-icon
+        name="{{expanded ? 'chevron-up-outline' : 'chevron-down-outline'}}"
+        theme="{{theme}}"
+        size="{{12}}"
+      />
+    </view>
+  </view>
+  <view wx:if="{{expanded}}" class="reasoning-body">
+    <markdown-view text="{{text}}" theme="{{theme}}" />
+  </view>
+</view>

@@ -1,0 +1,8 @@
+{
+  "component": true,
+  "styleIsolation": "apply-shared",
+  "usingComponents": {
+    "markdown-view": "/components/markdown-view/markdown-view",
+    "dsh-icon": "/components/dsh-icon/dsh-icon"
+  }
+}

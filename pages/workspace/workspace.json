@@ -1,0 +1,20 @@
+{
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "backgroundColor": "#f7f7f8",
+  "usingComponents": {
+    "chat-bubble": "/components/chat-bubble/chat-bubble",
+    "trajectory-view": "/components/trajectory-view/trajectory-view",
+    "composer-bar": "/components/composer-bar/composer-bar",
+    "command-menu": "/components/command-menu/command-menu",
+    "approval-sheet": "/components/approval-sheet/approval-sheet",
+    "question-sheet": "/components/question-sheet/question-sheet",
+    "model-picker": "/components/model-picker/model-picker",
+    "right-panel": "/components/right-panel/right-panel",
+    "dsh-icon": "/components/dsh-icon/dsh-icon",
+    "dsh-menu": "/components/dsh-menu/dsh-menu",
+    "dsh-dialog": "/components/dsh-dialog/dsh-dialog",
+    "dsh-switch": "/components/dsh-switch/dsh-switch",
+    "dsh-toast": "/components/dsh-toast/dsh-toast"
+  }
+}

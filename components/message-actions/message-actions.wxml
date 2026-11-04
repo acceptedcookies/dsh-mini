@@ -1,0 +1,11 @@
+<view class="actions">
+  <view class="action" bindtap="copy">
+    <dsh-icon name="copy-outline" theme="{{theme}}" size="{{14}}" />
+  </view>
+  <view class="action" bindtap="retry">
+    <dsh-icon name="refresh-outline" theme="{{theme}}" size="{{14}}" />
+  </view>
+  <view class="action" bindtap="branch">
+    <dsh-icon name="branch-outline" theme="{{theme}}" size="{{14}}" />
+  </view>
+</view>

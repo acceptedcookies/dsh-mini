@@ -1,0 +1,46 @@
+<view class="row row-{{item.kind}}">
+  <block wx:if="{{item.kind === 'user_message'}}">
+    <view class="user-stack">
+      <view class="bubble user-bubble">
+        <text class="user-text">{{item.text}}</text>
+        <view wx:if="{{item.images && item.images.length}}" class="images">
+          <image
+            wx:for="{{item.images}}"
+            wx:key="id"
+            class="image"
+            src="{{item.url}}"
+            mode="aspectFill"
+          />
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <block wx:elif="{{item.kind === 'assistant_message'}}">
+    <view class="assistant">
+      <reasoning-row wx:if="{{item.thinking}}" text="{{item.thinking}}" theme="{{theme}}" />
+      <markdown-view text="{{item.text}}" html="{{item.html}}" theme="{{theme}}" />
+      <message-actions text="{{item.text}}" theme="{{theme}}" bind:retry="onRetry" bind:branch="onBranch" />
+    </view>
+  </block>
+
+  <block wx:elif="{{item.kind === 'tool_call' || item.kind === 'tool_result'}}">
+    <view class="full">
+      <tool-card item="{{item}}" theme="{{theme}}" />
+    </view>
+  </block>
+
+  <block wx:elif="{{item.kind === 'diff'}}">
+    <view class="full diff">
+      <view class="diff-head">
+        <text class="diff-path">{{item.path}}</text>
+        <text class="diff-summary">{{item.summary}}</text>
+      </view>
+      <text class="diff-text mono">{{item.text}}</text>
+    </view>
+  </block>
+
+  <block wx:else>
+    <view class="notice notice-{{item.level}}">{{item.text}}</view>
+  </block>
+</view>

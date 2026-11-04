@@ -1,0 +1,255 @@
+/* dsh design tokens, ported from packages/client/ui-theme/src/styles/design-platform.css. */
+page {
+  --dsw-alias-bg-base: #ffffff;
+  --dsw-alias-bg-layer-1: #ffffff;
+  --dsw-alias-bg-layer-2: #ffffff;
+  --dsw-alias-bg-layer-3: #ffffff;
+  --dsw-alias-label-primary: #0f1115;
+  --dsw-alias-label-secondary: #61666b;
+  --dsw-alias-label-tertiary: #81858c;
+  --dsw-alias-label-caption: #adb2b8;
+  --dsw-alias-bg-mask-1: rgba(0, 0, 0, 0.24);
+  --dsw-alias-border-l1: rgba(0, 0, 0, 0.04);
+  --dsw-alias-border-l2: rgba(0, 0, 0, 0.1);
+  --dsw-alias-border-l3: rgba(0, 0, 0, 0.12);
+  --dsw-alias-border-l4: rgba(0, 0, 0, 0.16);
+  --dsw-alias-interactive-bg-hover: rgba(38, 49, 72, 0.06);
+  --dsw-alias-interactive-bg-active: rgba(38, 49, 72, 0.1);
+  --dsw-alias-interactive-bg-hover-solid: #f1f3f5;
+  --dsw-alias-button-elevated-fill: #ffffff;
+  --dsw-alias-button-floating-hover: #f1f3f5;
+  --dsw-alias-brand-primary: #0f1115;
+  --dsw-alias-button-primary-fill: #0f1115;
+  --dsw-alias-button-info-fill: #4176e6;
+  --dsw-alias-button-info-hover: #7aaaff;
+  --dsw-alias-label-primary-foreground: #ffffff;
+  --dsw-alias-label-primary-bluish: #1d3f8f;
+  --dsw-alias-switch-thumb: #ffffff;
+  --dsw-alias-toast-bg: #353638;
+  --dsw-alias-toast-label: #ffffff;
+  --dsw-menu-surface-fill: rgba(252, 253, 254, 0.94);
+  --dsw-elevation-prominent: 0 8px 32px rgba(15, 17, 21, 0.16), 0 1px 2px rgba(15, 17, 21, 0.08);
+  --dsw-alias-state-business-primary: #4176e6;
+  --dsw-alias-label-deep-diving: #345eba;
+  --dsw-alias-label-deep-diving-shimmer: #243d80;
+  --dsw-alias-state-business-tertiary: #e4edfd;
+  --dsw-alias-state-error-primary: #ec1313;
+  --dsw-alias-state-warn-primary: #f59e0b;
+  --dsw-alias-state-warn-secondary: #f7ad31;
+  --dsw-alias-state-warn-tertiary: #fef5e7;
+  --dsw-alias-state-warn-label: #dd8629;
+  --dsw-alias-state-success-primary: #22c55e;
+  --dsw-alias-state-success-tertiary: #e6faed;
+  --dsw-alias-button-ghost-active-fill: #ebedf0;
+  --dsw-alias-markdown-code-block: #f9fafb;
+  --dsw-alias-markdown-code-block-banner: #f9fafb;
+  --dsw-alias-markdown-inline-code: #fafafa;
+  --dsw-alias-markdown-tag: #f1f3f5;
+  --dsw-specific-bubble: #edf3fe;
+  --dsw-specific-input-major: #ffffff;
+  --dsw-specific-selector: #f9fafb;
+  --dsw-specific-sidebar-fill: #f9fafb;
+  --dsw-specific-sidebar-nav-item-active: #ebedf0;
+
+  --dsw-radius-xs: 4px;
+  --dsw-radius-sm: 8px;
+  --dsw-radius-md: 12px;
+  --dsw-radius-lg: 16px;
+  --dsw-radius-xl: 20px;
+  --dsw-radius-panel: 28px;
+  --dsw-elevation-soft: 0 1px 2px rgba(15, 17, 21, 0.04), 0 4px 16px rgba(15, 17, 21, 0.04);
+
+  --dsw-font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", sans-serif;
+  --ds-font-family-code: Menlo, "SFMono-Regular", Consolas, monospace;
+
+  /* Existing component aliases. */
+  --bg: var(--dsw-alias-bg-base);
+  --bg-elevated: var(--dsw-alias-bg-layer-1);
+  --bg-muted: var(--dsw-alias-interactive-bg-hover-solid);
+  --text: var(--dsw-alias-label-primary);
+  --text-secondary: var(--dsw-alias-label-secondary);
+  --text-tertiary: var(--dsw-alias-label-tertiary);
+  --border: var(--dsw-alias-border-l2);
+  --accent: var(--dsw-alias-state-business-primary);
+  --accent-soft: var(--dsw-alias-state-business-tertiary);
+  --danger: var(--dsw-alias-state-error-primary);
+  --success: var(--dsw-alias-state-success-primary);
+  --warn: var(--dsw-alias-state-warn-primary);
+  --user-bubble: var(--dsw-specific-bubble);
+  --user-text: var(--dsw-alias-label-primary);
+  --assistant-bubble: var(--dsw-alias-bg-base);
+  --shadow: var(--dsw-elevation-soft);
+  --radius: var(--dsw-radius-md);
+
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--dsw-font-family);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.theme-dark {
+  --dsw-alias-bg-base: #151517;
+  --dsw-alias-bg-layer-1: #232324;
+  --dsw-alias-bg-layer-2: #2c2c2e;
+  --dsw-alias-bg-layer-3: #353436;
+  --dsw-alias-label-primary: #f9fafb;
+  --dsw-alias-label-secondary: #cfd3d6;
+  --dsw-alias-label-tertiary: #adb2b8;
+  --dsw-alias-label-caption: #81858c;
+  --dsw-alias-bg-mask-1: rgba(0, 0, 0, 0.5);
+  --dsw-alias-border-l1: rgba(255, 255, 255, 0.06);
+  --dsw-alias-border-l2: rgba(255, 255, 255, 0.12);
+  --dsw-alias-border-l3: rgba(255, 255, 255, 0.16);
+  --dsw-alias-border-l4: rgba(255, 255, 255, 0.2);
+  --dsw-alias-interactive-bg-hover: rgba(255, 255, 255, 0.08);
+  --dsw-alias-interactive-bg-active: rgba(255, 255, 255, 0.14);
+  --dsw-alias-interactive-bg-hover-solid: #2c2c2e;
+  --dsw-alias-button-elevated-fill: #2c2c2e;
+  --dsw-alias-button-floating-hover: #353436;
+  --dsw-alias-brand-primary: #f9fafb;
+  --dsw-alias-button-primary-fill: #f9fafb;
+  --dsw-alias-button-info-fill: #7aaaff;
+  --dsw-alias-button-info-hover: #4176e6;
+  --dsw-alias-label-primary-foreground: #0f1115;
+  --dsw-alias-label-primary-bluish: #f9fafb;
+  --dsw-alias-switch-thumb: #adb2b8;
+  --dsw-alias-toast-bg: #43454a;
+  --dsw-alias-toast-label: #ffffff;
+  --dsw-menu-surface-fill: rgba(48, 49, 54, 0.94);
+  --dsw-elevation-prominent: 0 8px 32px rgba(0, 0, 0, 0.48), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --dsw-alias-state-business-primary: #7aaaff;
+  --dsw-alias-label-deep-diving: #7d9ade;
+  --dsw-alias-label-deep-diving-shimmer: #8abcfe;
+  --dsw-alias-state-business-tertiary: #343f5b;
+  --dsw-alias-state-error-primary: #f25a5a;
+  --dsw-alias-button-ghost-active-fill: #43454a;
+  --dsw-alias-state-warn-secondary: #f7ad31;
+  --dsw-alias-state-warn-tertiary: #2a241a;
+  --dsw-alias-state-warn-label: #dd8629;
+  --dsw-alias-markdown-code-block: #1b1b1c;
+  --dsw-alias-markdown-code-block-banner: #232324;
+  --dsw-alias-markdown-inline-code: #2c2c2e;
+  --dsw-alias-markdown-tag: #2c2c2e;
+  --dsw-specific-bubble: #2c2c2e;
+  --dsw-specific-input-major: #2c2c2e;
+  --dsw-specific-selector: #353436;
+  --dsw-specific-sidebar-fill: #1b1b1c;
+  --dsw-specific-sidebar-nav-item-active: #353436;
+  --dsw-elevation-soft: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+view,
+text,
+button,
+input,
+textarea,
+scroll-view,
+image {
+  box-sizing: border-box;
+}
+
+button {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  line-height: normal;
+}
+
+button::after {
+  border: 0;
+}
+
+.page-root {
+  min-height: 100vh;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.muted {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.tiny {
+  font-size: 12px;
+}
+
+.mono {
+  font-family: var(--ds-font-family-code);
+}
+
+.btn {
+  transition: background-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 14px;
+  height: 36px;
+  border-radius: var(--dsw-radius-md);
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-button-elevated-fill);
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 500;
+}
+
+.btn-sm {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--dsw-radius-sm);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.btn-primary {
+  background: var(--dsw-alias-label-primary);
+  border-color: var(--dsw-alias-label-primary);
+  color: var(--dsw-alias-bg-base);
+}
+
+.btn-ghost {
+  background: transparent;
+}
+
+.btn-danger {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.btn[disabled] {
+  opacity: 0.4;
+}
+
+.btn:not([disabled]):active {
+  transform: scale(0.97);
+}
+
+.card {
+  background: var(--dsw-alias-bg-layer-1);
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-radius-lg);
+}
+
+.icon-btn {
+  transition: background-color 120ms ease, color 120ms ease, transform 120ms ease;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--dsw-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dsw-alias-label-secondary);
+  background: transparent;
+}
+
+.icon-btn:active {
+  background: var(--dsw-alias-interactive-bg-hover);
+  transform: scale(0.94);
+}

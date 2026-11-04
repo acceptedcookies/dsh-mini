@@ -1,0 +1,39 @@
+<view wx:if="{{visible && request.id}}" class="question-card">
+  <view class="question-head">
+    <view>
+      <view class="question-eyebrow">Agent 提问</view>
+      <view class="question-title">需要你的选择</view>
+    </view>
+    <view class="question-close" bindtap="close">
+      <dsh-icon name="close-outline" theme="{{theme}}" size="{{14}}" />
+    </view>
+  </view>
+
+  <scroll-view class="question-body" scroll-y enhanced show-scrollbar="{{false}}">
+    <view wx:for="{{view}}" wx:key="id" wx:for-item="q" class="question">
+      <view class="question-text">{{q.text}}</view>
+      <view
+        wx:for="{{q.options}}"
+        wx:key="id"
+        wx:for-item="o"
+        class="option {{o.selected ? 'option-selected' : ''}}"
+        data-qid="{{q.id}}"
+        data-oid="{{o.id}}"
+        bindtap="onOptionTap"
+      >
+        <view class="option-mark">
+          <dsh-icon wx:if="{{o.selected}}" name="check-outline" tone="accent" theme="{{theme}}" size="{{10}}" />
+        </view>
+        <view class="option-body">
+          <view class="option-label">{{o.label}}</view>
+          <view wx:if="{{o.detail}}" class="option-detail">{{o.detail}}</view>
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <view class="question-actions">
+    <view class="question-action question-later" bindtap="close">稍后</view>
+    <view class="question-action question-submit" bindtap="submit">提交</view>
+  </view>
+</view>

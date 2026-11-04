@@ -1,0 +1,62 @@
+<view class="composer-card {{hero ? 'composer-hero' : 'composer-docked'}}">
+  <view wx:if="{{images.length}}" class="composer-attachments">
+    <view wx:for="{{images}}" wx:key="id" class="composer-attachment">
+      <image class="composer-attachment-image" src="{{item.url}}" mode="aspectFill" />
+      <view class="composer-attachment-remove" data-index="{{index}}" bindtap="onRemoveImage">
+        <dsh-icon name="close-fill" tone="inverse" theme="{{theme}}" size="{{10}}" />
+      </view>
+    </view>
+  </view>
+
+  <textarea
+    class="composer-input"
+    value="{{value}}"
+    placeholder="{{placeholder}}"
+    placeholder-class="composer-placeholder"
+    auto-height
+    maxlength="-1"
+    cursor-spacing="24"
+    confirm-type="send"
+    show-confirm-bar="{{false}}"
+    bindinput="onInput"
+    bindconfirm="onSend"
+  />
+
+  <view class="composer-row">
+    <view class="composer-tools">
+      <view class="composer-add" bindtap="onAttach">
+        <dsh-icon name="plus-outline" theme="{{theme}}" size="{{18}}" />
+      </view>
+      <view class="composer-chip" bindtap="onPermission">
+        <dsh-icon name="shield-outline" theme="{{theme}}" size="{{14}}" />
+        <text class="composer-chip-label">{{permissionLabel}}</text>
+      </view>
+      <view wx:if="{{planMode}}" class="composer-chip composer-chip-plan">
+        <dsh-icon name="plan-outline" theme="{{theme}}" size="{{14}}" />
+        <text class="composer-chip-label">计划</text>
+      </view>
+      <view wx:if="{{goalLabel}}" class="composer-chip composer-chip-goal">
+        <dsh-icon name="checklist-outline" theme="{{theme}}" size="{{14}}" />
+        <text class="composer-chip-label">{{goalLabel}}</text>
+      </view>
+    </view>
+    <view class="composer-trailing">
+      <view class="composer-model" bindtap="onModel">
+        <view class="composer-model-icon"><dsh-icon name="layers-outline" theme="{{theme}}" size="{{14}}" /></view>
+        <text class="composer-model-label">{{modelLabel}}</text>
+        <dsh-icon name="chevron-down-outline" theme="{{theme}}" size="{{12}}" />
+      </view>
+      <view wx:if="{{running}}" class="composer-send composer-stop" bindtap="onStop">
+        <dsh-icon name="stop-fill" tone="inverse" theme="{{theme}}" size="{{14}}" />
+      </view>
+      <view
+        wx:else
+        class="composer-send {{(!value || sending) ? 'composer-send-disabled' : ''}}"
+        bindtap="onSend"
+      >
+        <view wx:if="{{sending}}" class="composer-spinner"></view>
+        <dsh-icon wx:else name="paper-plane-outline" tone="inverse" theme="{{theme}}" size="{{16}}" />
+      </view>
+    </view>
+  </view>
+</view>

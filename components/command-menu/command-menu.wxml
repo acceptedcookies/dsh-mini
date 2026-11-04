@@ -1,0 +1,26 @@
+<view wx:if="{{render}}" class="cm-mask {{closing ? 'cm-closing' : ''}}" catchtouchmove="noop" bindtap="close"></view>
+<view wx:if="{{render}}" class="cm-layer">
+  <view class="cm-menu theme-{{theme}} {{closing ? 'cm-closing' : ''}}" style="{{surfaceStyle}}" catchtap="noop">
+    <scroll-view class="cm-viewport" style="height: {{viewportHeight}}px;" scroll-y enhanced show-scrollbar="{{false}}">
+      <block wx:for="{{groups}}" wx:for-item="group" wx:key="key">
+        <view wx:if="{{group.title}}" class="cm-section">{{group.title}}</view>
+        <view
+          wx:for="{{group.rows}}"
+          wx:for-item="row"
+          wx:key="id"
+          class="cm-item {{row.active ? 'cm-item-active' : ''}}"
+          data-id="{{row.id}}"
+          bindtap="onSelect"
+        >
+          <view class="cm-icon">
+            <dsh-icon name="{{row.icon}}" theme="{{theme}}" size="{{14}}" />
+          </view>
+          <text class="cm-name">{{row.label}}</text>
+          <text wx:if="{{row.alias}}" class="cm-alias">{{row.alias}}</text>
+          <text wx:if="{{row.description}}" class="cm-desc">{{row.description}}</text>
+        </view>
+      </block>
+      <view wx:if="{{count === 0}}" class="cm-status">无匹配指令</view>
+    </scroll-view>
+  </view>
+</view>

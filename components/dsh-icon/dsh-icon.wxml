@@ -1,0 +1,7 @@
+<image
+  wx:if="{{src}}"
+  class="dsh-icon"
+  src="{{src}}"
+  mode="aspectFit"
+  style="width: {{size}}px; height: {{size}}px;"
+/>

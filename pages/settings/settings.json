@@ -1,0 +1,11 @@
+{
+  "navigationStyle": "custom",
+  "disableScroll": true,
+  "backgroundColor": "#f7f7f8",
+  "usingComponents": {
+    "dsh-icon": "/components/dsh-icon/dsh-icon",
+    "dsh-dialog": "/components/dsh-dialog/dsh-dialog",
+    "dsh-toast": "/components/dsh-toast/dsh-toast",
+    "dsh-switch": "/components/dsh-switch/dsh-switch"
+  }
+}

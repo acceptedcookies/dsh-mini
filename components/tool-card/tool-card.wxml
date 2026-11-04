@@ -1,0 +1,17 @@
+<view class="tool-card" bindtap="toggle">
+  <view class="tool-head">
+    <view class="status status-{{item.status}}"></view>
+    <dsh-icon class="tool-icon" name="{{iconName}}" theme="{{theme}}" size="{{14}}" />
+    <text class="tool-name">{{item.tool}}</text>
+    <text class="tool-title">{{item.title || item.summary}}</text>
+    <view class="tool-chevron">
+      <dsh-icon
+        name="{{expanded ? 'chevron-up-outline' : 'chevron-down-outline'}}"
+        theme="{{theme}}"
+        size="{{12}}"
+      />
+    </view>
+  </view>
+  <view wx:if="{{expanded && item.detail}}" class="tool-detail mono">{{item.detail}}</view>
+  <view wx:if="{{expanded && item.callId}}" class="tool-meta">call {{item.callId}}</view>
+</view>

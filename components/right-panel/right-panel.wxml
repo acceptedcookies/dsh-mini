@@ -1,0 +1,100 @@
+<view wx:if="{{visible}}" class="right-panel theme-{{theme}}" catchtap="noop">
+  <view class="rp-strip">
+    <scroll-view class="rp-tabs" scroll-x enhanced show-scrollbar="{{false}}">
+      <view
+        wx:for="{{tabs}}"
+        wx:key="id"
+        class="rp-tab {{active === item.id ? 'rp-tab-active' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="select"
+      >
+        <dsh-icon name="{{item.icon}}" theme="{{theme}}" size="{{14}}" />
+        <text class="rp-tab-label">{{item.label}}</text>
+      </view>
+    </scroll-view>
+    <view class="rp-close" bindtap="close">
+      <dsh-icon name="close-outline" theme="{{theme}}" size="{{14}}" />
+    </view>
+  </view>
+
+  <scroll-view class="rp-body" scroll-y enhanced show-scrollbar="{{false}}">
+    <block wx:if="{{active === 'files'}}">
+      <view class="rp-head">
+        <text class="rp-path mono">workspace</text>
+        <view class="rp-action" bindtap="refresh">
+          <dsh-icon name="refresh-outline" theme="{{theme}}" size="{{14}}" />
+        </view>
+      </view>
+      <view wx:if="{{loading}}" class="rp-note">正在读取工作区文件…</view>
+      <view wx:elif="{{error}}" class="rp-note rp-error">{{error}}</view>
+      <view wx:elif="{{!files.length}}" class="rp-empty">
+        <text class="rp-empty-title">工作区没有文件</text>
+        <text class="rp-empty-copy">{{connected ? '当前会话的 workspace 为空。' : '登录 nano-agent 后显示真实工作区文件。'}}</text>
+      </view>
+      <view wx:else class="rp-tree">
+        <view wx:for="{{files}}" wx:key="path" class="tree-row tree-file">
+          <dsh-icon name="list-pen-outline" theme="{{theme}}" size="{{14}}" />
+          <text class="tree-name">{{item.path}}</text>
+          <text class="tree-size">{{item.size}}</text>
+        </view>
+      </view>
+    </block>
+
+    <block wx:elif="{{active === 'terminal'}}">
+      <view class="rp-head">
+        <text class="rp-title">终端</text>
+        <view class="rp-action" bindtap="noop">
+          <dsh-icon name="plus-outline" theme="{{theme}}" size="{{14}}" />
+        </view>
+      </view>
+      <view class="terminal-box">
+        <view class="term-line"><text class="term-prompt">$</text> pnpm test</view>
+        <view class="term-muted">{{connected ? 'nano-agent 当前不暴露 PTY 终端。' : '本地运行时不提供 PTY。登录 nano-agent 后仍以远端能力为准。'}}</view>
+      </view>
+    </block>
+
+    <block wx:elif="{{active === 'browser'}}">
+      <view class="browser-bar">
+        <dsh-icon name="globe-outline" theme="{{theme}}" size="{{14}}" />
+        <input class="browser-input" placeholder="输入 URL" placeholder-class="rp-placeholder" />
+      </view>
+      <view class="rp-empty">
+        <text class="rp-empty-title">浏览器面板</text>
+        <text class="rp-empty-copy">{{connected ? 'nano-agent 当前不暴露 browser-use。' : '登录后由远端 runtime 能力决定。'}}</text>
+      </view>
+    </block>
+
+    <block wx:elif="{{active === 'jobs'}}">
+      <view class="rp-head"><text class="rp-title">后台任务</text></view>
+      <view class="rp-empty">
+        <text class="rp-empty-title">没有后台任务</text>
+        <text class="rp-empty-copy">{{connected ? 'nano-agent 当前不暴露后台任务列表。' : '登录后由远端 runtime 能力决定。'}}</text>
+      </view>
+    </block>
+
+    <block wx:elif="{{active === 'plan'}}">
+      <view class="rp-head"><text class="rp-title">计划</text></view>
+      <view wx:if="{{loading}}" class="rp-note">正在读取会话计划…</view>
+      <view wx:elif="{{error}}" class="rp-note rp-error">{{error}}</view>
+      <view wx:elif="{{!todos.length}}" class="rp-empty">
+        <text class="rp-empty-title">当前会话没有计划</text>
+        <text class="rp-empty-copy">{{connected ? 'Agent 写入的 todo 会出现在这里。' : '登录 nano-agent 后显示真实会话计划。'}}</text>
+      </view>
+      <view wx:else class="todo-list">
+        <view wx:for="{{todos}}" wx:key="id" class="todo-row">
+          <view class="todo-dot todo-{{item.status}}"></view>
+          <text class="todo-content">{{item.content}}</text>
+          <text class="todo-status">{{item.status}}</text>
+        </view>
+      </view>
+    </block>
+
+    <block wx:else>
+      <view class="rp-head"><text class="rp-title">团队</text></view>
+      <view class="rp-empty">
+        <text class="rp-empty-title">没有子 agent</text>
+        <text class="rp-empty-copy">{{connected ? 'nano-agent 当前不暴露 Agent Team 面板。' : '登录后由远端 runtime 能力决定。'}}</text>
+      </view>
+    </block>
+  </scroll-view>
+</view>

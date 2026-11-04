@@ -1,0 +1,109 @@
+.picker-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+}
+
+/* dsh ModelSelect menu card: anchored above the composer trigger, 4px pad,
+   l1 hairline, prominent elevation. */
+.picker-menu {
+  position: fixed;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: 260px;
+  max-height: 360px;
+  padding: 4px;
+  overflow: hidden;
+  border-radius: var(--dsw-radius-lg);
+  background: var(--dsw-menu-surface-fill);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: var(--dsw-elevation-prominent), 0 0 0 0.5px var(--dsw-alias-border-l1);
+  transform-origin: bottom right;
+  animation: picker-in 150ms ease-out;
+}
+
+.picker-menu.picker-closing {
+  animation: picker-out 120ms ease-in forwards;
+}
+
+@keyframes picker-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(3px) scale(0.98);
+  }
+}
+
+@keyframes picker-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.picker-group {
+  flex: none;
+  padding: 6px 8px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 15px;
+}
+
+.picker-list {
+  flex: 1;
+  min-height: 0;
+}
+
+.picker-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 5px 7px;
+  border-radius: var(--dsw-radius-md);
+}
+
+.picker-option:active {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.picker-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.picker-name {
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.picker-desc {
+  overflow: hidden;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.picker-check {
+  flex: 0 0 14px;
+  display: grid;
+  place-items: center;
+  color: var(--dsw-alias-label-primary);
+}

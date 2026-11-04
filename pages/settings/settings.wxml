@@ -1,0 +1,449 @@
+<view class="settings-page theme-{{theme}}" style="{{appStyle}}">
+  <view class="settings-overlay">
+    <view class="settings-mask" bindtap="back"></view>
+
+    <view class="settings-panel">
+      <view class="settings-title">设置</view>
+
+      <view class="settings-header" style="padding-right: {{capsuleInsetRight}}px;">
+        <view class="settings-close" bindtap="back">
+          <dsh-icon name="close-outline" theme="{{theme}}" size="{{14}}" />
+        </view>
+      </view>
+
+      <view class="settings-nav">
+        <view class="settings-nav-list">
+          <view
+            wx:for="{{sections}}"
+            wx:key="id"
+            class="nav-cell {{activeId === item.id ? 'nav-cell-active' : ''}}"
+            data-id="{{item.id}}"
+            bindtap="selectSection"
+          >
+            <dsh-icon class="nav-icon" name="{{item.icon}}" theme="{{theme}}" size="{{16}}" />
+            <text class="nav-label">{{item.label}}</text>
+          </view>
+        </view>
+      </view>
+
+      <scroll-view class="settings-options" scroll-y enhanced show-scrollbar="{{false}}">
+        <block wx:if="{{activeId === 'general'}}">
+          <view class="section-head">
+            <view class="section-title">通用</view>
+            <view class="section-desc">客户端外观与默认行为</view>
+          </view>
+
+          <view class="field">
+            <view class="field-label">主题</view>
+            <view class="segmented">
+              <view class="segment {{themeMode === 'system' ? 'segment-active' : ''}}" data-mode="system" bindtap="onThemeMode">跟随系统</view>
+              <view class="segment {{themeMode === 'light' ? 'segment-active' : ''}}" data-mode="light" bindtap="onThemeMode">浅色</view>
+              <view class="segment {{themeMode === 'dark' ? 'segment-active' : ''}}" data-mode="dark" bindtap="onThemeMode">深色</view>
+            </view>
+            <view class="field-hint">浅色与深色对应 dsh Web 的两套设计令牌。</view>
+          </view>
+
+          <view class="field">
+            <view class="field-label">默认权限</view>
+            <view class="permission-grid">
+              <view
+                wx:for="{{permissions}}"
+                wx:key="id"
+                class="permission-option {{permission === item.id ? 'permission-option-active' : ''}}"
+                data-id="{{item.id}}"
+                bindtap="onPermission"
+              >
+                <view class="permission-option-head">
+                  <text class="permission-name">{{item.label}}</text>
+                  <text wx:if="{{item.badge}}" class="permission-badge">{{item.badge}}</text>
+                </view>
+                <text class="permission-desc">{{item.description}}</text>
+              </view>
+            </view>
+            <view class="field-hint">新会话默认使用该权限；composer 的权限 chip 可随时切换。</view>
+          </view>
+
+          <view class="field field-row">
+            <view class="field-copy">
+              <view class="field-label">默认模型</view>
+              <view class="field-hint">{{modelLabel}}</view>
+            </view>
+            <view class="field-chevron" data-id="models" bindtap="selectSection">
+              <dsh-icon name="chevron-right-outline" theme="{{theme}}" size="{{14}}" />
+            </view>
+          </view>
+
+          <view class="field field-row">
+            <view class="field-copy">
+              <view class="field-label">版本</view>
+              <view class="field-hint">dsh-mini v{{version}}</view>
+            </view>
+          </view>
+        </block>
+
+        <block wx:elif="{{activeId === 'account'}}">
+          <view class="section-head">
+            <view class="section-title">账户</view>
+            <view class="section-desc">{{nanoConnected ? '已连接 nano-agent' : '连接后使用真实 agent runtime'}}</view>
+          </view>
+
+          <view wx:if="{{nanoConnected}}" class="profile-card">
+            <view class="profile-avatar">{{nanoInitial}}</view>
+            <view class="profile-copy">
+              <view class="profile-name">{{nanoUser || 'nano-agent'}}</view>
+              <view class="profile-sub">nano-agent · 真实会话运行在远端 runtime</view>
+            </view>
+            <view class="profile-dot"></view>
+          </view>
+
+          <block wx:if="{{nanoConnected}}">
+            <view class="field">
+              <view class="field-label">连接方式</view>
+              <view class="field-hint">Bearer JWT · 凭证保存在本机 wx.storage，不进入小程序包。</view>
+            </view>
+            <view class="field">
+              <view class="field-label">运行模式</view>
+              <view class="field-hint">nano-agent orchestrator · WebSocket 流式事件</view>
+            </view>
+            <view class="field action-row" bindtap="signOut">
+              <view class="field-copy">
+                <view class="field-label">退出登录</view>
+                <view class="field-hint">清除本机保存的 access / refresh token</view>
+              </view>
+              <text class="action-danger">退出</text>
+            </view>
+          </block>
+
+          <block wx:else>
+            <view class="profile-card">
+              <view class="profile-avatar">d</view>
+              <view class="profile-copy">
+                <view class="profile-name">未连接</view>
+                <view class="profile-sub">当前使用本地运行时，登录后切换到 nano-agent</view>
+              </view>
+              <view class="profile-dot profile-dot-off"></view>
+            </view>
+
+            <view class="field auth-field">
+              <view class="field-label">{{authMode === 'login' ? '登录 nano-agent' : '创建 nano-agent 账户'}}</view>
+              <view class="field-hint">使用邮箱密码或微信登录。凭证只保存在本机。</view>
+              <input
+                class="settings-input"
+                value="{{email}}"
+                placeholder="邮箱"
+                placeholder-class="settings-placeholder"
+                type="text"
+                bindinput="onEmailInput"
+              />
+              <input
+                class="settings-input"
+                value="{{password}}"
+                password
+                placeholder="密码"
+                placeholder-class="settings-placeholder"
+                bindinput="onPasswordInput"
+              />
+              <input
+                wx:if="{{authMode === 'register'}}"
+                class="settings-input"
+                value="{{displayName}}"
+                placeholder="显示名（可选）"
+                placeholder-class="settings-placeholder"
+                bindinput="onDisplayNameInput"
+              />
+              <view class="auth-actions">
+                <view class="btn btn-primary auth-submit {{authBusy ? 'auth-busy' : ''}}" bindtap="submitEmailAuth">
+                  {{authBusy ? '连接中…' : (authMode === 'login' ? '登录' : '注册并登录')}}
+                </view>
+                <view class="auth-toggle" bindtap="toggleAuthMode">
+                  {{authMode === 'login' ? '没有账户？注册' : '已有账户？登录'}}
+                </view>
+              </view>
+              <view class="auth-divider"><text>或</text></view>
+              <view class="btn auth-wechat {{authBusy ? 'auth-busy' : ''}}" bindtap="wechatLogin">微信登录</view>
+              <view wx:if="{{authError}}" class="auth-error">{{authError}}</view>
+            </view>
+          </block>
+        </block>
+
+        <block wx:elif="{{activeId === 'models'}}">
+          <view class="section-head">
+            <view class="section-title">模型</view>
+            <view class="section-desc">选择新会话使用的默认模型</view>
+          </view>
+
+          <view
+            wx:for="{{models}}"
+            wx:key="id"
+            class="model-row {{model === item.id ? 'model-row-active' : ''}}"
+            data-id="{{item.id}}"
+            bindtap="selectModel"
+          >
+            <view class="model-copy">
+              <view class="model-name">{{item.label}}</view>
+              <view class="model-desc">{{item.description}}</view>
+            </view>
+            <view class="model-radio">
+              <dsh-icon wx:if="{{model === item.id}}" name="check-outline" tone="accent" theme="{{theme}}" size="{{14}}" />
+            </view>
+          </view>
+        </block>
+
+        <block wx:elif="{{activeId === 'providers'}}">
+          <view class="section-head">
+            <view class="section-title">供应商</view>
+            <view class="section-desc">本地运行时密钥托管 · 路由：{{routeLabel}}</view>
+          </view>
+
+          <view class="provider-row">
+            <view class="provider-mark">
+              <dsh-icon name="globe-outline" theme="{{theme}}" size="{{14}}" />
+            </view>
+            <view class="model-copy">
+              <view class="model-name">magpie</view>
+              <view class="model-desc">OpenAI 兼容端点 · 信封加密托管 · 按 openid 隔离</view>
+            </view>
+            <text class="provider-status">{{enrolled ? '已注入' : (fxRoute === 'local' ? '直连' : '未注入')}}</text>
+          </view>
+
+          <block wx:if="{{fxRoute === 'local'}}">
+            <view class="field">
+              <view class="field-label">本地直连模式</view>
+              <view class="field-hint">当前经 .local.development.json 直连供应商，不经云端托管；切换到云端路由后可在此注入密钥。</view>
+            </view>
+          </block>
+          <block wx:else>
+            <view class="field">
+              <view class="field-label">生物识别门禁</view>
+              <view class="field-hint">{{bioText}}</view>
+            </view>
+
+            <block wx:if="{{enrolled}}">
+              <view class="profile-card">
+                <view class="profile-avatar">k</view>
+                <view class="profile-copy">
+                  <view class="profile-name">{{enrolledProvider}} · 已托管</view>
+                  <view class="profile-sub">{{enrolledBaseUrl}}</view>
+                </view>
+                <view class="profile-dot"></view>
+              </view>
+              <view class="field">
+                <view class="field-label">注入信息</view>
+                <view class="field-hint">模型 {{enrollModel}} · {{enrolledAt}} · 密钥密文仅存云端，本机不留明文</view>
+              </view>
+              <view class="field action-row" bindtap="revokeProvider">
+                <view class="field-copy">
+                  <view class="field-label">撤回注入</view>
+                  <view class="field-hint">删除云端密钥记录并清除本机登记</view>
+                </view>
+                <text class="action-danger">撤回</text>
+              </view>
+            </block>
+            <block wx:else>
+              <view class="field auth-field">
+                <view class="field-label">注入供应商密钥</view>
+                <view class="field-hint">密钥经 TLS 上行后信封加密存于云端（按 openid 隔离），本机不留存明文。生效模型：{{injectModelLabel}}（在「模型」中切换）。无生物识别时禁止注入。</view>
+                <input
+                  class="settings-input"
+                  value="{{baseUrl}}"
+                  placeholder="供应商地址（base_url）"
+                  placeholder-class="settings-placeholder"
+                  type="text"
+                  bindinput="onBaseUrlInput"
+                />
+                <input
+                  class="settings-input"
+                  value="{{apiKey}}"
+                  password
+                  placeholder="API Key（供应商无鉴权时可留空）"
+                  placeholder-class="settings-placeholder"
+                  bindinput="onApiKeyInput"
+                />
+                <view class="auth-actions">
+                  <view class="btn btn-primary auth-submit {{(!bioOk || enrollBusy) ? 'auth-busy' : ''}}" bindtap="submitEnroll">
+                    {{enrollBusy ? '注入中…' : (bioOk ? '生物验证并注入' : '生物识别不可用')}}
+                  </view>
+                </view>
+                <view wx:if="{{enrollError}}" class="auth-error">{{enrollError}}</view>
+              </view>
+            </block>
+          </block>
+        </block>
+
+        <block wx:elif="{{activeId === 'storage'}}">
+          <view class="section-head">
+            <view class="section-title">存储</view>
+            <view class="section-desc">工作区五根 VFS · 对象后端占位（rules/filesystem.md）</view>
+          </view>
+
+          <view class="provider-row">
+            <view class="provider-mark">
+              <dsh-icon name="folder-open-outline" theme="{{theme}}" size="{{14}}" />
+            </view>
+            <view class="model-copy">
+              <view class="model-name">本地对象层</view>
+              <view class="model-desc">USER_DATA_PATH content-addressed · placement=local-*（cache-tier 非 durable 承诺）</view>
+            </view>
+            <text class="provider-status">生效中</text>
+          </view>
+
+          <view class="field auth-field">
+            <view class="field-label">S3 对象后端（占位 · 未启用）</view>
+            <view class="field-hint">合约先行：登记 endpoint/bucket 后，后续版本可将 /root 与 /data 行的 placement 升级为 s3-pinned。密钥不落本机——access key 将走供应商同一条云端托管管道。当前配置不产生任何网络请求。</view>
+            <input
+              class="settings-input"
+              value="{{s3Endpoint}}"
+              placeholder="endpoint（如 s3.example.com）"
+              placeholder-class="settings-placeholder"
+              type="text"
+              bindinput="onS3EndpointInput"
+            />
+            <input
+              class="settings-input"
+              value="{{s3Bucket}}"
+              placeholder="bucket"
+              placeholder-class="settings-placeholder"
+              type="text"
+              bindinput="onS3BucketInput"
+            />
+            <input
+              class="settings-input"
+              value="{{s3Region}}"
+              placeholder="region（可选，默认 auto）"
+              placeholder-class="settings-placeholder"
+              type="text"
+              bindinput="onS3RegionInput"
+            />
+            <view class="auth-actions">
+              <view class="btn btn-primary auth-submit" bindtap="saveS3Config">登记配置</view>
+            </view>
+            <view wx:if="{{s3Error}}" class="auth-error">{{s3Error}}</view>
+            <view wx:if="{{s3Configured}}" class="field-hint">已登记 · {{s3ConfiguredAt}} · 后端仍未启用（s3-pinned 写入将返回 backend-unavailable）</view>
+          </view>
+
+          <view wx:if="{{s3Configured}}" class="field action-row" bindtap="clearS3Config">
+            <view class="field-copy">
+              <view class="field-label">清除 S3 配置</view>
+              <view class="field-hint">移除登记的 endpoint/bucket/region</view>
+            </view>
+            <text class="action-danger">清除</text>
+          </view>
+        </block>
+
+        <block wx:elif="{{activeId === 'plugins'}}">
+          <view class="section-head">
+            <view class="section-title">插件</view>
+            <view class="section-desc">Cordis 插件清单</view>
+          </view>
+
+          <view wx:for="{{plugins}}" wx:key="name" class="plugin-row">
+            <view class="plugin-mark">
+              <dsh-icon name="plugin-pinwheel-outline" theme="{{theme}}" size="{{14}}" />
+            </view>
+            <view class="model-copy">
+              <view class="model-name mono">{{item.name}}</view>
+              <view class="model-desc">{{item.description}}</view>
+            </view>
+            <text class="plugin-status">已加载</text>
+          </view>
+
+          <view class="field action-row">
+            <view class="field-copy">
+              <view class="field-label">插件管理</view>
+              <view class="field-hint">安装、启用与停用由 dsh Host 的插件管理器负责</view>
+            </view>
+            <view class="action-muted">
+              <dsh-icon name="chevron-right-outline" theme="{{theme}}" size="{{14}}" />
+            </view>
+          </view>
+        </block>
+
+        <block wx:elif="{{activeId === 'archived'}}">
+          <view class="section-head">
+            <view class="section-title">归档</view>
+            <view class="section-desc">归档会话不会出现在侧栏</view>
+          </view>
+          <view class="empty-state">
+            <view class="empty-mark">
+              <dsh-icon name="archive-outline" theme="{{theme}}" size="{{18}}" />
+            </view>
+            <view class="empty-title">没有归档会话</view>
+            <view class="empty-copy">归档后的会话会保留在这里，可随时恢复。</view>
+          </view>
+        </block>
+
+        <block wx:elif="{{activeId === 'conversations'}}">
+          <view class="section-head">
+            <view class="section-title">会话</view>
+            <view class="section-desc">本机保存的会话与消息</view>
+          </view>
+
+          <view class="field field-row">
+            <view class="field-copy">
+              <view class="field-label">本地会话</view>
+              <view class="field-hint">{{sessionCount}} 个会话</view>
+            </view>
+          </view>
+
+          <view class="field action-row" bindtap="clearConversations">
+            <view class="field-copy">
+              <view class="field-label">清空所有会话</view>
+              <view class="field-hint">删除本机保存的会话与消息</view>
+            </view>
+            <text class="action-danger">清空</text>
+          </view>
+
+          <view class="field action-row" bindtap="resetAll">
+            <view class="field-copy">
+              <view class="field-label">恢复初始状态</view>
+              <view class="field-hint">同时清除主题与模型偏好</view>
+            </view>
+            <text class="action-danger">恢复</text>
+          </view>
+        </block>
+
+        <block wx:else>
+          <view class="section-head">
+            <view class="section-title">关于</view>
+            <view class="section-desc">dsh-mini 原生客户端</view>
+          </view>
+
+          <view class="kv-row"><text class="kv-key">版本</text><text class="kv-value">v{{version}}</text></view>
+          <view class="kv-row"><text class="kv-key">AppID</text><text class="kv-value mono">{{appId}}</text></view>
+          <view class="kv-row"><text class="kv-key">运行方式</text><text class="kv-value">小程序原生客户端</text></view>
+          <view class="kv-row"><text class="kv-key">本地会话</text><text class="kv-value">{{sessionCount}} 个</text></view>
+
+          <view class="field action-row" bindtap="copyFxLicense">
+            <view class="field-copy">
+              <view class="field-label">fx 本地运行时许可</view>
+              <view class="field-hint">Apache-2.0 · vercel-labs/fx — 点击复制 GitHub 许可地址</view>
+            </view>
+            <view class="action-muted">
+              <dsh-icon name="copy-outline" theme="{{theme}}" size="{{14}}" />
+            </view>
+          </view>
+          <view class="about-foot">DeepSeek Harness · 探索未至之境</view>
+        </block>
+      </scroll-view>
+    </view>
+  </view>
+
+  <dsh-dialog
+    visible="{{dialogVisible}}"
+    theme="{{theme}}"
+    tone="warning"
+    title="{{dialogTitle}}"
+    description="{{dialogDescription}}"
+    confirm-text="{{dialogConfirmText}}"
+    danger="{{true}}"
+    bind:confirm="onDialogConfirm"
+    bind:cancel="closeDialog"
+  />
+  <dsh-toast
+    visible="{{toastVisible}}"
+    message="{{toastMessage}}"
+    tone="{{toastTone}}"
+    theme="{{theme}}"
+    bind:close="closeToast"
+  />
+</view>

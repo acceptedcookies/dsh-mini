@@ -1,0 +1,22 @@
+<view wx:if="{{render}}" class="picker-layer" catchtap="close" catchtouchmove="noop">
+  <view class="picker-menu theme-{{theme}} {{closing ? 'picker-closing' : ''}}" style="{{surfaceStyle}}" catchtap="noop">
+    <view class="picker-group">{{providerLabel}}</view>
+    <scroll-view class="picker-list" scroll-y enhanced show-scrollbar="{{false}}">
+      <view
+        wx:for="{{models}}"
+        wx:key="id"
+        class="picker-option {{item.id === current ? 'picker-selected' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="select"
+      >
+        <view class="picker-copy">
+          <view class="picker-name">{{item.label}}</view>
+          <view wx:if="{{item.description}}" class="picker-desc">{{item.description}}</view>
+        </view>
+        <view class="picker-check">
+          <dsh-icon wx:if="{{item.id === current}}" name="check-outline" theme="{{theme}}" size="{{14}}" />
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+</view>

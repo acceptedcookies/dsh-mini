@@ -1,0 +1,213 @@
+<view class="trajectory-root theme-{{theme}}">
+  <view class="traj-toolbar">
+    <view class="traj-toolbar-inner">
+      <view class="traj-toolbar-actions">
+        <view class="traj-toggle {{duration ? 'traj-toggle-on' : ''}}" bindtap="toggleDuration">
+          <dsh-icon name="clock-outline" theme="{{theme}}" size="{{12}}" />
+          <text>时长</text>
+        </view>
+        <view class="traj-action" bindtap="toggleAllTurns">
+          <view class="traj-fold {{allTurnsCollapsed ? 'traj-fold-plus' : 'traj-fold-minus'}}"></view>
+          <text>轮次</text>
+        </view>
+        <view class="traj-action" bindtap="toggleAllCalls">
+          <view class="traj-fold {{callsCollapsed ? 'traj-fold-plus' : 'traj-fold-minus'}}"></view>
+          <text>调用</text>
+        </view>
+        <view class="traj-action" bindtap="noop">
+          <view class="traj-fold traj-fold-plus"></view>
+          <text>子调用</text>
+        </view>
+      </view>
+      <view class="traj-search">
+        <dsh-icon name="search-outline" theme="{{theme}}" size="{{11}}" />
+        <input
+          class="traj-search-input"
+          value="{{search}}"
+          placeholder="搜索"
+          placeholder-class="traj-search-placeholder"
+          confirm-type="search"
+          bindinput="onSearch"
+        />
+      </view>
+    </view>
+  </view>
+
+  <view class="traj-timeline">
+    <view class="traj-timeline-labels">
+      <text>输入</text>
+      <text>模型</text>
+      <text>工具</text>
+    </view>
+    <view class="traj-timeline-track">
+      <view
+        wx:for="{{boundaries}}"
+        wx:key="turn"
+        class="traj-timeline-boundary"
+        style="left: {{item.left}};"
+      ></view>
+      <view
+        wx:for="{{spans}}"
+        wx:key="index"
+        class="traj-timeline-span traj-span-{{item.kind}} {{item.selected ? 'traj-span-selected' : ''}} {{item.dimmed ? 'traj-span-dimmed' : ''}} {{item.isError ? 'traj-span-error' : ''}}"
+        style="left: {{item.left}}; width: {{item.width}}; top: {{item.lane * 14 + 7}}px;"
+        data-index="{{item.index}}"
+        bindtap="onTimelineTap"
+      ></view>
+    </view>
+  </view>
+
+  <view class="traj-body">
+    <scroll-view
+      class="traj-ledger"
+      scroll-y
+      enhanced
+      show-scrollbar="{{false}}"
+      scroll-into-view="{{scrollTarget}}"
+      scroll-with-animation
+    >
+      <view wx:if="{{empty}}" class="traj-empty">
+        <text class="traj-empty-title">还没有轨迹记录</text>
+        <text class="traj-empty-copy">发送一条消息后，这里会按轮次展开请求、工具调用与结果。</text>
+      </view>
+
+      <view wx:elif="{{noResults}}" class="traj-empty">
+        <text class="traj-empty-title">没有匹配的记录</text>
+        <text class="traj-empty-copy">换个关键词试试。</text>
+      </view>
+
+      <view wx:else class="traj-table">
+        <view
+          wx:for="{{rows}}"
+          wx:key="key"
+          id="traj-row-{{item.key}}"
+          class="traj-row {{item.turnStart ? 'traj-turn-start' : ''}} {{item.selected ? 'traj-row-selected' : ''}} {{item.isError ? 'traj-row-error' : ''}} {{item.type !== 'cell' ? 'traj-row-summary' : ''}} {{item.turnActive ? 'traj-row-turn-active' : ''}}"
+          data-key="{{item.key}}"
+          data-index="{{item.index}}"
+          data-type="{{item.type}}"
+          data-turn="{{item.turn}}"
+          bindtap="onRowTap"
+        >
+          <view class="traj-event">
+            <view wx:if="{{item.showRequest}}" class="traj-request-dot"></view>
+            <view wx:if="{{item.turnStart}}" class="traj-turn-label">{{item.turnLabel}}</view>
+            <view class="traj-kind-slot">
+              <view wx:if="{{item.type === 'cell'}}" class="traj-kind-tag traj-kind-{{item.kind}}">{{item.kindLabel}}</view>
+            </view>
+          </view>
+          <view class="traj-content">
+            <view wx:if="{{item.type !== 'cell'}}" class="traj-collapsed">
+              <text class="traj-collapsed-ellipsis">…</text>
+              <text class="traj-collapsed-text">{{item.text}}</text>
+            </view>
+            <view wx:else class="traj-content-line {{item.resultText ? 'traj-result-preview' : ''}}">
+              <text class="traj-content-text {{item.kind === 'tool' || item.kind === 'subtool' ? 'traj-mono' : ''}}">{{item.text}}</text>
+              <view wx:if="{{item.resultText}}" class="traj-inline-result {{item.isError ? 'traj-error' : ''}}">
+                <text class="traj-arrow">→</text>
+                <text class="traj-result-text">{{item.resultText}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="traj-bottom-anchor"></view>
+    </scroll-view>
+
+    <view
+      wx:if="{{wide && detail}}"
+      class="traj-details {{detailClosing ? 'traj-details-closing' : ''}}"
+    >
+      <view class="traj-details-header">
+        <view class="traj-details-title">
+          <view class="traj-kind-tag traj-kind-{{detail.kind}}">{{detail.kindLabel}}</view>
+          <text class="traj-details-location">{{detail.location}}</text>
+        </view>
+        <view class="traj-details-close" bindtap="closeDetail">
+          <dsh-icon name="close-outline" theme="{{theme}}" size="{{14}}" />
+        </view>
+      </view>
+      <scroll-view class="traj-details-tabs" scroll-x enhanced show-scrollbar="{{false}}">
+        <view
+          wx:for="{{detail.tabs}}"
+          wx:key="id"
+          class="traj-details-tab {{detailTab === item.id ? 'traj-details-tab-active' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="onDetailTab"
+        >{{item.label}}</view>
+      </scroll-view>
+      <scroll-view class="traj-details-body" scroll-y enhanced show-scrollbar="{{false}}">
+        <block wx:if="{{detailTab === 'overview'}}">
+          <view wx:for="{{detail.overview}}" wx:key="label" class="traj-overview-row">
+            <text class="traj-overview-label">{{item.label}}</text>
+            <text class="traj-overview-value {{item.error ? 'traj-error' : ''}}">{{item.value}}</text>
+          </view>
+        </block>
+        <block wx:elif="{{detailTab === 'timing'}}">
+          <view wx:for="{{detail.timing}}" wx:key="label" class="traj-overview-row">
+            <text class="traj-overview-label">{{item.label}}</text>
+            <text class="traj-overview-value">{{item.value}}</text>
+          </view>
+        </block>
+        <block wx:elif="{{detailTab === 'input'}}">
+          <text class="traj-pre">{{detail.input || '未捕获参数'}}</text>
+        </block>
+        <block wx:elif="{{detailTab === 'output'}}">
+          <text class="traj-pre">{{detail.output || '无输出'}}</text>
+        </block>
+        <block wx:elif="{{detailTab === 'thinking'}}">
+          <text class="traj-pre traj-thinking">{{detail.thinking || '未记录思考'}}</text>
+        </block>
+      </scroll-view>
+    </view>
+  </view>
+
+  <view
+    wx:if="{{!wide && detail}}"
+    class="traj-sheet-mask {{detailClosing ? 'traj-sheet-closing' : ''}}"
+    bindtap="onDetailMask"
+  ></view>
+  <view wx:if="{{!wide && detail}}" class="traj-sheet {{detailClosing ? 'traj-sheet-closing' : ''}}">
+    <view class="traj-sheet-grab"></view>
+    <view class="traj-details-header">
+      <view class="traj-details-title">
+        <view class="traj-kind-tag traj-kind-{{detail.kind}}">{{detail.kindLabel}}</view>
+        <text class="traj-details-location">{{detail.location}}</text>
+      </view>
+      <view class="traj-details-close" bindtap="closeDetail">
+        <dsh-icon name="close-outline" theme="{{theme}}" size="{{14}}" />
+      </view>
+    </view>
+    <scroll-view class="traj-details-tabs" scroll-x enhanced show-scrollbar="{{false}}">
+      <view
+        wx:for="{{detail.tabs}}"
+        wx:key="id"
+        class="traj-details-tab {{detailTab === item.id ? 'traj-details-tab-active' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="onDetailTab"
+      >{{item.label}}</view>
+    </scroll-view>
+    <scroll-view class="traj-details-body traj-sheet-body" scroll-y enhanced show-scrollbar="{{false}}">
+      <block wx:if="{{detailTab === 'overview'}}">
+        <view wx:for="{{detail.overview}}" wx:key="label" class="traj-overview-row">
+          <text class="traj-overview-label">{{item.label}}</text>
+          <text class="traj-overview-value {{item.error ? 'traj-error' : ''}}">{{item.value}}</text>
+        </view>
+      </block>
+      <block wx:elif="{{detailTab === 'timing'}}">
+        <view wx:for="{{detail.timing}}" wx:key="label" class="traj-overview-row">
+          <text class="traj-overview-label">{{item.label}}</text>
+          <text class="traj-overview-value">{{item.value}}</text>
+        </view>
+      </block>
+      <block wx:elif="{{detailTab === 'input'}}">
+        <text class="traj-pre">{{detail.input || '未捕获参数'}}</text>
+      </block>
+      <block wx:elif="{{detailTab === 'output'}}">
+        <text class="traj-pre">{{detail.output || '无输出'}}</text>
+      </block>
+      <block wx:elif="{{detailTab === 'thinking'}}">
+        <text class="traj-pre traj-thinking">{{detail.thinking || '未记录思考'}}</text>
+      </block>
+    </scroll-view>
+  </view>
+</view>

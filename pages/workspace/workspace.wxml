@@ -1,0 +1,351 @@
+<view class="app {{isWide ? 'app-wide' : ''}} theme-{{theme}}" style="{{appStyle}}">
+  <view wx:if="{{!isWide && sidebarOpen}}" class="mask" bindtap="closeSidebar"></view>
+
+  <aside class="sidebar {{sidebarOpen ? 'sidebar-open' : ''}}">
+    <view class="sidebar-top" style="padding-top: {{statusBarHeight}}px;">
+      <view class="logo-row">
+        <view class="brand-identity">
+          <image class="brand-fish" src="{{theme === 'dark' ? '/assets/fish-white.png' : '/assets/fish.png'}}" mode="aspectFit" />
+          <text class="brand-name">DeepSeek Harness</text>
+        </view>
+        <view class="icon-btn sidebar-toggle" bindtap="toggleSidebar">
+          <dsh-icon name="panel-left-outline" theme="{{theme}}" size="{{16}}" />
+        </view>
+      </view>
+
+      <view class="new-session" bindtap="newSession">
+        <dsh-icon name="new-chat-outline" theme="{{theme}}" size="{{16}}" />
+        <text class="new-session-label">新会话</text>
+      </view>
+    </view>
+
+    <scroll-view class="sidebar-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+      <view class="workspace-head">
+        <view class="workspace-title">
+          <dsh-icon name="folder-open-outline" theme="{{theme}}" size="{{14}}" />
+          <text class="workspace-title-text">{{workspaceName}}</text>
+        </view>
+        <view class="workspace-actions">
+          <view id="workspace-menu-button-sidebar" class="sidebar-icon" bindtap="openWorkspaceMenu">
+            <dsh-icon name="plus-outline" theme="{{theme}}" size="{{16}}" />
+          </view>
+        </view>
+      </view>
+
+      <view class="sidebar-search">
+        <dsh-icon class="search-icon" name="search-outline" theme="{{theme}}" size="{{14}}" />
+        <input
+          class="search-input"
+          value="{{query}}"
+          placeholder="搜索会话"
+          placeholder-class="search-placeholder"
+          bindinput="onSearch"
+        />
+      </view>
+
+      <view class="session-list">
+        <view
+          wx:for="{{rows}}"
+          wx:key="id"
+          class="session-row {{item.id === currentId ? 'session-selected' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="openSession"
+        >
+          <view class="row-state row-state-{{item.status}}"></view>
+          <text class="row-title">{{item.title}}</text>
+          <text wx:if="{{item.id !== currentId}}" class="row-time">{{item.timeLabel}}</text>
+          <view
+            wx:if="{{item.id === currentId}}"
+            id="session-more-{{item.id}}"
+            class="row-more"
+            data-id="{{item.id}}"
+            catchtap="onSessionMenu"
+          >
+            <dsh-icon name="ellipsis-outline" theme="{{theme}}" size="{{16}}" />
+          </view>
+        </view>
+        <view wx:if="{{!rows.length}}" class="sidebar-empty">{{query ? '没有匹配的会话' : '还没有会话'}}</view>
+      </view>
+    </scroll-view>
+
+    <view class="sidebar-foot">
+      <view class="foot-row" bindtap="openSettings">
+        <dsh-icon name="settings-outline" theme="{{theme}}" size="{{16}}" />
+        <text>设置</text>
+      </view>
+      <view class="foot-meta" bindtap="openAccountSettings">{{runtimeLabel}} · v{{version}}</view>
+    </view>
+  </aside>
+
+  <main class="main">
+    <header class="header {{showHero ? 'header-blank' : ''}}" style="padding-top: {{statusBarHeight}}px; padding-right: {{capsuleInsetRight}}px;">
+      <view class="header-row" style="height: {{navBarContentHeight}}px;">
+        <view class="header-leading">
+          <view wx:if="{{!isWide}}" class="icon-btn header-menu" bindtap="toggleSidebar">
+            <dsh-icon name="panel-left-outline" theme="{{theme}}" size="{{16}}" />
+          </view>
+          <view wx:if="{{!showHero}}" class="crumbs">
+            <text wx:if="{{isWide}}" class="crumb">{{workspaceName}}</text>
+            <text wx:if="{{isWide}}" class="crumb-sep">/</text>
+            <text class="crumb crumb-current">{{title}}</text>
+          </view>
+        </view>
+
+        <view class="header-actions">
+          <view class="icon-btn" bindtap="toggleRightPanel">
+            <view class="flip-horizontal">
+              <dsh-icon name="panel-left-outline" theme="{{theme}}" size="{{16}}" />
+            </view>
+          </view>
+          <view
+            wx:if="{{!showHero}}"
+            id="header-session-menu"
+            class="icon-btn"
+            bindtap="openHeaderSessionMenu"
+          >
+            <dsh-icon name="ellipsis-outline" theme="{{theme}}" size="{{16}}" />
+          </view>
+        </view>
+      </view>
+
+      <view wx:if="{{!showHero}}" class="tabs">
+        <view class="tab {{view === 'chat' ? 'tab-active' : ''}}" data-view="chat" bindtap="switchView">对话</view>
+        <view class="tab {{view === 'trajectory' ? 'tab-active' : ''}}" data-view="trajectory" bindtap="switchView">轨迹</view>
+      </view>
+    </header>
+
+    <trajectory-view
+      wx:if="{{!showHero && view === 'trajectory'}}"
+      class="trajectory-host"
+      items="{{state.current.items}}"
+      wide="{{windowWidth >= 900}}"
+      theme="{{theme}}"
+    />
+
+    <scroll-view
+      wx:else
+      class="viewport"
+      scroll-y
+      enhanced
+      show-scrollbar="{{false}}"
+      scroll-into-view="{{scrollTarget}}"
+      scroll-with-animation
+    >
+      <view wx:if="{{!state.current && !showHero}}" class="hero">
+        <text class="view-loading">正在打开会话…</text>
+      </view>
+
+      <view wx:elif="{{showHero}}" class="hero">
+        <view class="hero-stack">
+          <view class="hero-headline">
+            <image class="hero-fish" src="{{theme === 'dark' ? '/assets/fish-white.png' : '/assets/fish.png'}}" mode="aspectFit" />
+            <view class="hero-title-group">
+              <text class="hero-title">探索未至之境</text>
+              <text class="hero-badge">预览版</text>
+            </view>
+          </view>
+
+          <view class="hero-body">
+            <view id="workspace-menu-button" class="workspace-chip" bindtap="openWorkspaceMenu">
+              <dsh-icon name="folder-open-outline" theme="{{theme}}" size="{{14}}" />
+              <text class="workspace-chip-label">{{workspaceName}}</text>
+              <dsh-icon name="chevron-down-outline" theme="{{theme}}" size="{{12}}" />
+            </view>
+            <approval-sheet
+              wx:if="{{approval !== null}}"
+              visible="{{approval !== null}}"
+              request="{{approval}}"
+              theme="{{theme}}"
+              bind:respond="onApprovalRespond"
+            />
+            <question-sheet
+              wx:if="{{question !== null}}"
+              visible="{{question !== null}}"
+              request="{{question}}"
+              theme="{{theme}}"
+              bind:submit="onQuestionSubmit"
+              bind:close="onQuestionClose"
+            />
+            <composer-bar
+              hero="{{true}}"
+              theme="{{theme}}"
+              value="{{input}}"
+              placeholder="{{heroPlaceholder}}"
+              model-label="{{modelLabel}}"
+              running="{{state.current && state.current.status === 'running'}}"
+              sending="{{state.sending}}"
+              images="{{pendingImages}}"
+              permission-label="{{permissionLabel}}"
+              plan-mode="{{planMode}}"
+              goal-label="{{goalLabel}}"
+              bind:input="onComposerInput"
+              bind:send="send"
+              bind:stop="stop"
+              bind:command="openCommandMenu"
+              bind:permission="openPermissionMenu"
+              bind:model="openModelPicker"
+              bind:removeimage="removeImage"
+            />
+          </view>
+        </view>
+      </view>
+
+      <block wx:elif="{{view === 'chat'}}">
+        <view class="chat-column">
+          <view
+            wx:for="{{displayItems}}"
+            wx:key="id"
+            id="msg-{{item.id}}"
+            class="message-wrap"
+          >
+            <view wx:if="{{item.turnLabel}}" class="turn-process">
+              <text class="turn-label">{{item.turnLabel}}</text>
+              <dsh-icon class="turn-chevron" name="chevron-down-outline" theme="{{theme}}" size="{{12}}" />
+            </view>
+            <chat-bubble item="{{item}}" theme="{{theme}}" bind:retry="retryMessage" bind:branch="branchMessage" />
+          </view>
+
+          <view wx:if="{{state.current && (state.current.status === 'running' || state.streaming)}}" id="stream-anchor" class="running-row">
+            <image class="running-icon" src="/assets/running-whale.png" mode="aspectFit" />
+            <view class="running-copy">
+              <text class="running-text">{{runLabel}}</text>
+              <text class="running-shimmer">{{runLabel}}</text>
+            </view>
+          </view>
+        </view>
+      </block>
+
+      <view class="bottom-anchor"></view>
+    </scroll-view>
+
+    <view wx:if="{{isWide && turnMarks.length}}" class="turn-rail">
+      <view
+        wx:for="{{turnMarks}}"
+        wx:key="turn"
+        class="turn-mark {{item.active ? 'turn-mark-active' : ''}}"
+        data-target="{{item.target}}"
+        bindtap="jumpToTurn"
+      ></view>
+    </view>
+
+    <view wx:if="{{state.error}}" class="error-banner" bindtap="dismissError">
+      <text>{{state.error}}</text>
+      <dsh-icon class="error-close" name="close-outline" tone="danger" theme="{{theme}}" size="{{14}}" />
+    </view>
+
+    <view wx:if="{{state.current && !showHero}}" class="composer-dock safe-bottom">
+      <view class="composer-dock-inner">
+        <approval-sheet
+          wx:if="{{approval !== null}}"
+          visible="{{approval !== null}}"
+          request="{{approval}}"
+          theme="{{theme}}"
+          bind:respond="onApprovalRespond"
+        />
+        <question-sheet
+          wx:if="{{question !== null}}"
+          visible="{{question !== null}}"
+          request="{{question}}"
+          theme="{{theme}}"
+          bind:submit="onQuestionSubmit"
+          bind:close="onQuestionClose"
+        />
+        <composer-bar
+          hero="{{false}}"
+          theme="{{theme}}"
+          value="{{input}}"
+          placeholder="{{dockedPlaceholder}}"
+          model-label="{{modelLabel}}"
+          running="{{state.current && state.current.status === 'running'}}"
+          sending="{{state.sending}}"
+          images="{{pendingImages}}"
+          permission-label="{{permissionLabel}}"
+          plan-mode="{{planMode}}"
+          goal-label="{{goalLabel}}"
+          bind:input="onComposerInput"
+          bind:send="send"
+          bind:stop="stop"
+          bind:command="openCommandMenu"
+          bind:permission="openPermissionMenu"
+          bind:model="openModelPicker"
+          bind:removeimage="removeImage"
+        />
+      </view>
+    </view>
+  </main>
+
+  <view wx:if="{{rightOpen && windowWidth >= 1100}}" class="right-reserve"></view>
+
+  <command-menu
+    id="command-menu"
+    visible="{{commandMenuVisible}}"
+    query="{{commandMenuQuery}}"
+    surface-style="{{commandMenuStyle}}"
+    max-height="{{commandMenuMaxHeight}}"
+    theme="{{theme}}"
+    bind:select="onCommandSelect"
+    bind:close="closeCommandMenu"
+  />
+  <model-picker
+    visible="{{modelPickerVisible}}"
+    models="{{models}}"
+    current="{{model}}"
+    provider-label="DeepSeek"
+    surface-style="{{modelPickerStyle}}"
+    theme="{{theme}}"
+    bind:select="onModelSelect"
+    bind:close="closeModelPicker"
+  />
+  <right-panel
+    visible="{{rightOpen}}"
+    active="{{rightTab}}"
+    tabs="{{rightTabs}}"
+    theme="{{theme}}"
+    files="{{rightFiles}}"
+    todos="{{rightTodos}}"
+    loading="{{rightLoading}}"
+    error="{{rightError}}"
+    connected="{{nanoConnected}}"
+    bind:select="selectRightTab"
+    bind:refresh="refreshRightPanel"
+    bind:close="closeRightPanel"
+  />
+
+  <dsh-menu
+    visible="{{menuVisible}}"
+    items="{{menuItems}}"
+    title="{{menuTitle}}"
+    surface-style="{{menuStyle}}"
+    theme="{{theme}}"
+    bind:close="closeMenu"
+    bind:select="onMenuSelect"
+  />
+  <dsh-dialog
+    visible="{{dialogVisible}}"
+    theme="{{theme}}"
+    tone="{{dialogTone}}"
+    title="{{dialogTitle}}"
+    description="{{dialogDescription}}"
+    editable="{{dialogEditable}}"
+    value="{{dialogValue}}"
+    placeholder="{{dialogPlaceholder}}"
+    cancel-text="取消"
+    confirm-text="{{dialogConfirmText}}"
+    danger="{{dialogDanger}}"
+    confirm-disabled="{{dialogAction === 'permission-auto' && !riskAck}}"
+    bind:confirm="onDialogConfirm"
+    bind:cancel="closeDialog"
+  >
+    <view wx:if="{{dialogAction === 'permission-auto'}}" class="dialog-risk">
+      <dsh-switch checked="{{riskAck}}" bind:change="onRiskAck" />
+      <text class="dialog-risk-text">我已了解自动审查的风险</text>
+    </view>
+  </dsh-dialog>
+  <dsh-toast
+    visible="{{toastVisible}}"
+    message="{{toastMessage}}"
+    tone="{{toastTone}}"
+    theme="{{theme}}"
+    bind:close="closeToast"
+  />
+</view>

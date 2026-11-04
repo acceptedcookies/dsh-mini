@@ -1,0 +1,11 @@
+{
+  "component": true,
+  "styleIsolation": "apply-shared",
+  "usingComponents": {
+    "markdown-view": "/components/markdown-view/markdown-view",
+    "tool-card": "/components/tool-card/tool-card",
+    "reasoning-row": "/components/reasoning-row/reasoning-row",
+    "message-actions": "/components/message-actions/message-actions",
+    "dsh-icon": "/components/dsh-icon/dsh-icon"
+  }
+}

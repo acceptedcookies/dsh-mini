@@ -1,0 +1,34 @@
+{
+  "pages": [
+    "pages/workspace/workspace",
+    "pages/settings/settings"
+  ],
+  "subpackages": [
+    {
+      "root": "subpkg/fx",
+      "name": "fxcore",
+      "pages": []
+    }
+  ],
+  "window": {
+    "navigationStyle": "custom",
+    "navigationBarTitleText": "dsh",
+    "navigationBarTextStyle": "black",
+    "navigationBarBackgroundColor": "#ffffff",
+    "backgroundColor": "#f7f7f8",
+    "backgroundTextStyle": "dark"
+  },
+  "style": "v2",
+  "resizable": true,
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents",
+  "dsh": {
+    "localRuntimeRoute": "cloud-sim"
+  },
+  "networkTimeout": {
+    "request": 120000,
+    "connectSocket": 20000,
+    "uploadFile": 60000,
+    "downloadFile": 60000
+  }
+}

@@ -1,0 +1,6 @@
+<view
+  class="switch {{checked ? 'switch-on' : ''}} {{disabled ? 'switch-disabled' : ''}}"
+  bindtap="toggle"
+>
+  <view class="switch-thumb"></view>
+</view>
