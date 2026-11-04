@@ -1,0 +1,5 @@
+{
+  "name": "dsh-byok-fn",
+  "private": true,
+  "dependencies": { "wx-server-sdk": "~3.0.1" }
+}
