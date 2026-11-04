@@ -14,8 +14,10 @@ export interface RouteConfig {
   proxyBaseUrl?: string
   /** sim 控制面 base（challenge/enroll/unlock/revoke）。 */
   simBaseUrl?: string
-  /** 真云 env_id（wx.cloud.init——callFunction 与 callContainer 同 env，单 DB 拓扑）。 */
+  /** 真云 env_id（wx.cloud.init 默认 env——callFunction 控制面/DB 所在）。 */
   cloudEnvId?: string
+  /** callContainer 目标 env（config.env；容器与函数分属不同 env 时按调用指定，缺省=cloudEnvId）。 */
+  containerEnvId?: string
   /** callContainer 车道：服务名（X-WX-SERVICE）。 */
   cloudService?: string
 }
@@ -23,7 +25,7 @@ export interface RouteConfig {
 interface RouteSource {
   route?: RouteMode
   sim?: { baseUrl?: string }
-  cloud?: { envId?: string; proxyUrl?: string; service?: string }
+  cloud?: { envId?: string; containerEnvId?: string; proxyUrl?: string; service?: string }
 }
 
 const MODES: readonly RouteMode[] = ['local', 'cloud', 'cloud-sim']
@@ -44,7 +46,13 @@ export function resolveRoute(devConfig: RouteSource): RouteConfig {
     const service = devConfig.cloud?.service
     if (service !== undefined && service.length > 0) {
       // 容器车道（首选）：wx.cloud.callContainer 内网直连，免公网域名/合法域名
-      return { mode, proxyBaseUrl: `container://${service}`, cloudEnvId: devConfig.cloud?.envId, cloudService: service }
+      return {
+        mode,
+        proxyBaseUrl: `container://${service}`,
+        cloudEnvId: devConfig.cloud?.envId,
+        containerEnvId: devConfig.cloud?.containerEnvId || devConfig.cloud?.envId,
+        cloudService: service,
+      }
     }
     const proxyUrl = devConfig.cloud?.proxyUrl
     if (proxyUrl === undefined || proxyUrl.length === 0) {

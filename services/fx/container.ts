@@ -40,8 +40,14 @@ export interface ContainerResponse {
   body: unknown
 }
 
+/**
+ * @param targetEnv 容器所在 env（config.env，可与 init env 不同——双 env 拓扑下容器
+ *                  与函数/DB 分属不同云环境时必须按调用指定）
+ * @param initEnv   wx.cloud.init 默认 env（函数/DB 所在；一次 init 全局生效）
+ */
 export function callContainer(
-  envId: string,
+  targetEnv: string,
+  initEnv: string,
   url: string,
   init: { method: string; headers: Record<string, string>; body?: unknown },
 ): Promise<ContainerResponse> {
@@ -49,12 +55,12 @@ export function callContainer(
   if (api === undefined) return Promise.reject(new Error('wx.cloud.callContainer 不可用（需云开发基础库/Node 宿主不支持）'))
   if (!containerInited) {
     containerInited = true
-    api.init({ env: envId })
+    api.init({ env: initEnv })
   }
   const { service, path } = parseContainerUrl(url)
   return new Promise((resolve, reject) => {
     api.callContainer({
-      config: { env: envId },
+      config: { env: targetEnv.length > 0 ? targetEnv : initEnv },
       path,
       header: { 'X-WX-SERVICE': service, ...init.headers },
       method: init.method,

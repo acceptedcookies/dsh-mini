@@ -61,7 +61,7 @@ export const route: 'local' | 'cloud' | 'cloud-sim' = ${JSON.stringify(appRoute)
 /** 本地模拟微信云端端点（dev 面）。 */
 export const sim = ${JSON.stringify({ baseUrl: sim.base_url ?? "http://127.0.0.1:3426" }, null, 1)}
 /** 真微信云端端点：env_id + 云托管 proxy https。 */
-export const cloud = ${JSON.stringify({ envId: envFile.WX_CLOUD_ENV_ID || cloud.env_id || "", proxyUrl: cloud.proxy_url ?? "", service: envFile.WX_CLOUD_SERVICE_NAME || cloud.service || "" }, null, 1)}
+export const cloud = ${JSON.stringify({ envId: envFile.WX_CLOUD_ENV_ID || cloud.env_id || "", containerEnvId: envFile.WX_CLOUD_CONTAINER_ENV_ID || cloud.container_env || "", proxyUrl: cloud.proxy_url ?? "", service: envFile.WX_CLOUD_SERVICE_NAME || cloud.service || "" }, null, 1)}
 /** 直连 provider 的 api_key（local 模式 / sim enroll 明文用；仅存内存转发，不落 wx.storage）。 */
 export const providerApiKey = ${JSON.stringify(p.api_key ?? "")}
 /** enroll 时登记给代理的上游 base_url。 */

@@ -12,7 +12,7 @@ export interface DevConfig {
   model: string
   route: 'local' | 'cloud' | 'cloud-sim'
   sim: { baseUrl: string }
-  cloud: { envId: string; proxyUrl: string; service?: string }
+  cloud: { envId: string; containerEnvId?: string; proxyUrl: string; service?: string }
   providerApiKey: string
   upstreamBaseUrl: string
   allowedModels: string[]

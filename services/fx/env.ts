@@ -154,7 +154,9 @@ export function wxFetch(url: string, init: { method?: string; headers?: Record<s
 
 /** container:// URL → callContainer。请求 body bytes 尝试 JSON 反序列化（proxy 收 JSON）。 */
 function containerFetch(url: string, init: { method?: string; headers?: Record<string, string>; body?: Uint8Array }): Promise<FetchLikeResult> {
-  const envId = loadDevConfig()?.cloud?.envId ?? ''
+  const cloud = loadDevConfig()?.cloud
+  const envId = cloud?.envId ?? ''
+  const targetEnv = cloud?.containerEnvId || envId
   let data: unknown
   if (init.body !== undefined && init.body.byteLength > 0) {
     try {
@@ -163,7 +165,7 @@ function containerFetch(url: string, init: { method?: string; headers?: Record<s
       data = init.body
     }
   }
-  return callContainer(envId, url, { method: init.method ?? 'GET', headers: init.headers ?? {}, body: data })
+  return callContainer(targetEnv, envId, url, { method: init.method ?? 'GET', headers: init.headers ?? {}, body: data })
     .then((r) => {
     const bytes =
       r.body instanceof ArrayBuffer

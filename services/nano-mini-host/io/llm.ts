@@ -74,8 +74,9 @@ async function wxRequestJson(url: string, headers: Record<string, string>, data:
   // 传输层失败（env 错配/服务不可达）时回退公网 proxy_url；业务错误以 status 透传不回退。
   if (isContainerUrl(url)) {
     const cloud = loadDevConfig()?.cloud
+    const envId = cloud?.envId ?? ''
     try {
-      return await callContainer(cloud?.envId ?? '', url, { method: 'POST', headers, body: data })
+      return await callContainer(cloud?.containerEnvId || envId, envId, url, { method: 'POST', headers, body: data })
     } catch (e) {
       const pub = cloud?.proxyUrl
       if (pub === undefined || pub.length === 0) throw e
