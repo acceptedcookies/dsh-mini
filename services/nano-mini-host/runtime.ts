@@ -42,6 +42,14 @@ function fxLegacyKnob(): boolean {
   }
 }
 
+/** 跨轮历史：转录本中 user/assistant 文本行，截尾去本轮 input（已入 turn.messages），限量 20 条。 */
+function historyMessages(s: StoredSession): Array<{ role: string; content: string }> {
+  const msgs = s.items
+    .filter((i) => i.kind === 'user_message' || i.kind === 'assistant_message')
+    .map((i) => ({ role: i.kind === 'user_message' ? 'user' : 'assistant', content: i.text }))
+  return msgs.slice(0, -1).slice(-20)
+}
+
 export class KernelMiniRuntime {
   private readonly sessions = new Map<string, StoredSession>()
   private readonly listeners = new Set<(event: LocalEvent) => void>()
@@ -142,7 +150,9 @@ export class KernelMiniRuntime {
     const io: Io = {
       state: localCas,
       llm: async (messages) => {
-        const out = await createIoLlm()(messages)
+        // 跨轮历史 prepend（worker runtime-mainline 同构）：kernel turn.messages
+        // 只装当前 turn，历史由宿主从 UI 转录本临时前置、不回写 kernel buffer。
+        const out = await createIoLlm()([...historyMessages(s), ...messages])
         if (typeof out.text === 'string' && out.text.length > 0) assistantText += out.text
         return out
       },

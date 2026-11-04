@@ -111,6 +111,20 @@ function makeIo(cas, script = {}) {
   check('N3:claim-denied', r.outcome === 'claim-denied' && r.rival === 'rival', `outcome=${r.outcome} rival=${r.rival}`)
 }
 
+// ── N5 多轮回话（B-43 真机 400 回归）：complete_turn 后 idle 会话 + input
+//   → 必须 start_turn 再播种；修复前二轮 messages=[] 裸奔 llm_call。
+{
+  const cas = new MemCas()
+  const io1 = makeIo(cas, {})
+  const r1 = await host.runPump({ kernel, io: io1, owner: 'o1', holder: 'h1' }, 's-n5', { input: { role: 'user', content: 'q1' } })
+  const script2 = { expectSeed: 'q2' }
+  const io2 = makeIo(cas, script2)
+  const r2 = await host.runPump({ kernel, io: io2, owner: 'o1', holder: 'h1' }, 's-n5', { input: { role: 'user', content: 'q2' } })
+  check('N5:turn1-completed', r1.outcome === 'completed', `outcome=${r1.outcome}`)
+  check('N5:turn2-completed', r2.outcome === 'completed', `outcome=${r2.outcome} trace=${r2.trace.join('>')}`)
+  check('N5:turn2-input-seeded', script2.seededOk === true && (script2.firstLlmMessages?.length ?? 0) > 0, `二轮首步 messages=${JSON.stringify(script2.firstLlmMessages)?.slice(0, 140)}`)
+}
+
 // ── N4 alarm→sweep→resume：suspended 落 alarm → sweepTick 恢复 → 幂等
 {
   const cas = new MemCas()

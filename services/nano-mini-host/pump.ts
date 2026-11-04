@@ -87,9 +87,21 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
     if (typeof wr === 'object') return { outcome: 'fenced', trace: [] }
     if (typeof wr === 'string') etag = wr
   }
+  // idle 会话新一轮：complete_turn 后 phase=idle/activeTurn=null——须先 start_turn
+  // 再经下方正路播种；此前该路径缺失，scheduleNextStep 对 idle 快照照发 llm_call
+  // 导致 io.llm([]) 空 messages 400（真机 B-43 第二轮全灭根因）。
+  let phase = (snap.session as { phase?: string }).phase
+  if (phase === 'idle' || phase === 'ended') {
+    if (opts.input === undefined || phase === 'ended') return { outcome: 'completed', trace: [] }
+    const turnCount = (snap.session as { turnCount?: number }).turnCount ?? 0
+    snap = ctx.kernel.applyAction(snap, { type: 'start_turn', turnId: opts.turnId ?? `t-${sessionId}-t${turnCount}` })
+    const wr = await saveSnap(ctx, sessionId, snap, etag)
+    if (typeof wr === 'object') return { outcome: 'fenced', trace: [] }
+    if (typeof wr === 'string') etag = wr
+    phase = 'turn_running'
+  }
   // 输入播种（审查 F1）：input_arrived 只在 waiting 缓冲，经 resume 折叠进 messages——
   // 新 turn 走 interrupt→input_arrived→resume 正路，不得直接塞 activeTurn。
-  const phase = (snap.session as { phase?: string }).phase
   const needSeed = phase === 'turn_running' && opts.input !== undefined
   if (needSeed || phase === 'waiting') {
     // 'interrupted'（fatal_error 终态）不进 resume——resume 仅接受 waiting
