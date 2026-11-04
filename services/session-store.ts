@@ -1,5 +1,6 @@
 import { localRuntime } from './local-runtime'
 import { FxLocalRuntime, fxRuntime } from './fx/runtime'
+import { kernelRuntime, KernelMiniRuntime } from './nano-mini-host/runtime'
 import { nanoRuntime } from './nano/runtime'
 import { upsertItem } from './event-fold'
 import { storage } from './storage'
@@ -96,7 +97,15 @@ class SessionStore {
 
   private async bindRuntime(): Promise<void> {
     this.usingNano = nanoRuntime.isAvailable()
-    this.runtime = this.usingNano ? nanoRuntime : FxLocalRuntime.isUsable() ? fxRuntime : localRuntime
+    // 引擎选择缝（AP §4 P2-06）：nano 登录 > kernelRuntime（T2 状态机，T-O-1 默认）
+    // > fxLegacy knob 显式回退 fx > localRuntime demo 兜底。
+    this.runtime = this.usingNano
+      ? nanoRuntime
+      : KernelMiniRuntime.isUsable()
+        ? kernelRuntime
+        : FxLocalRuntime.isUsable()
+          ? fxRuntime
+          : localRuntime
     this.unsubscribeRuntime = this.runtime.subscribe((event) => this.apply(event))
     const sessions = await this.runtime.list()
     this.setState({ sessions, loadingSessions: false })
@@ -104,6 +113,7 @@ class SessionStore {
 
   runtimeLabel(): string {
     if (this.usingNano) return `nano-agent · ${nanoRuntime.userLabel()}`
+    if (this.runtime === kernelRuntime) return '本地运行时 · nano-kernel'
     return this.runtime === fxRuntime ? '本地运行时 · fx' : '本地运行时'
   }
 

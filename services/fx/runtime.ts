@@ -5,7 +5,8 @@
  */
 import type { AcpClient, AcpPromptBlock, AcpUpdate } from './acp'
 import { createAcpClient } from './acp'
-import { vfs, guessMime, VfsError } from '../vfs/api'
+import { guessMime } from '../vfs/api'
+import { runFileTool } from '../vfs/tool-surface'
 import type { FxRuntime as WasmRuntime, HostToolResult } from './fx-host'
 import { createFxRuntime } from './fx-host'
 import { createWxEnv } from './env'
@@ -115,48 +116,7 @@ function executeDemoTool(name: string, input: unknown): HostToolResult {
   return { content: `unknown tool ${name}`, isError: true }
 }
 
-/** file_* → services/vfs。dsh session 即 VFS session 作用域（cwd=/data/{dshId}）。 */
-function executeFileTool(name: string, input: unknown, dshSessionId: string): HostToolResult {
-  const args = (input ?? {}) as Record<string, unknown>
-  const path = typeof args.path === 'string' ? args.path : ''
-  try {
-    switch (name) {
-      case 'file_read': {
-        const r = vfs.read(path, {
-          sessionId: dshSessionId,
-          offset: typeof args.offset === 'number' ? args.offset : undefined,
-          maxBytes: typeof args.max_bytes === 'number' ? args.max_bytes : undefined,
-        })
-        return {
-          content: JSON.stringify({ path: r.path, text: r.text, object_version: r.object_version, size_bytes: r.size_bytes, eof: r.eof, truncated: r.truncated }),
-          isError: false,
-        }
-      }
-      case 'file_write': {
-        const s = vfs.write(path, typeof args.content === 'string' ? args.content : '', { sessionId: dshSessionId })
-        return { content: JSON.stringify(s), isError: false }
-      }
-      case 'file_list': {
-        const r = vfs.list(path, {
-          sessionId: dshSessionId,
-          cursor: typeof args.cursor === 'string' ? args.cursor : undefined,
-          limit: typeof args.limit === 'number' ? args.limit : undefined,
-        })
-        return { content: JSON.stringify(r), isError: false }
-      }
-      case 'file_stat':
-        return { content: JSON.stringify(vfs.stat(path, { sessionId: dshSessionId })), isError: false }
-      case 'file_remove':
-        return { content: JSON.stringify({ removed: vfs.remove(path, { sessionId: dshSessionId }) }), isError: false }
-      default:
-        return { content: `unknown file tool ${name}`, isError: true }
-    }
-  } catch (e) {
-    const code = e instanceof VfsError ? e.code : 'error'
-    return { content: JSON.stringify({ error: code, message: e instanceof Error ? e.message : String(e) }), isError: true }
-  }
-}
-
+/** file_* → services/vfs/tool-surface 共享层（T-O-8：fx 与 nano-mini host 同一实现源）。 */
 export class FxLocalRuntime {
   private readonly sessions = new Map<string, StoredSession>()
   private readonly listeners = new Set<(event: LocalEvent) => void>()
@@ -373,7 +333,7 @@ export class FxLocalRuntime {
     if (name.startsWith('file_')) {
       const dshId = acpId !== undefined ? this.findDshId(acpId) : this.activeDshId
       if (dshId === undefined) return { content: JSON.stringify({ error: 'no-session', message: '无会话上下文' }), isError: true }
-      return executeFileTool(name, input, dshId)
+      return runFileTool(name, input, dshId)
     }
     return executeDemoTool(name, input)
   }
