@@ -1,19 +1,33 @@
+<view
+  wx:if="{{variant === 'underline' && density === 'normal'}}"
+  class="dtabs dtabs-underline dtabs-underline-normal"
+>
+  <view
+    wx:for="{{tabs}}"
+    wx:key="id"
+    class="dtab {{active === item.id ? 'dtab-on' : ''}}"
+    data-id="{{item.id}}"
+    bindtap="onSelect"
+  >
+    <dsh-icon wx:if="{{item.icon}}" name="{{item.icon}}" theme="{{theme}}" size="{{14}}" />
+    <text class="dtab-label">{{item.label}}</text>
+  </view>
+</view>
 <scroll-view
+  wx:else
   class="dtabs dtabs-{{variant}} dtabs-{{variant}}-{{density}}"
   scroll-x
   enhanced
   show-scrollbar="{{false}}"
 >
-  <view class="dtabs-inner">
-    <view
-      wx:for="{{tabs}}"
-      wx:key="id"
-      class="dtab {{active === item.id ? 'dtab-on' : ''}}"
-      data-id="{{item.id}}"
-      bindtap="onSelect"
-    >
-      <dsh-icon wx:if="{{item.icon}}" name="{{item.icon}}" theme="{{theme}}" size="{{14}}" />
-      <text class="dtab-label">{{item.label}}</text>
-    </view>
+  <view
+    wx:for="{{tabs}}"
+    wx:key="id"
+    class="dtab {{active === item.id ? 'dtab-on' : ''}}"
+    data-id="{{item.id}}"
+    bindtap="onSelect"
+  >
+    <dsh-icon wx:if="{{item.icon}}" name="{{item.icon}}" theme="{{theme}}" size="{{14}}" />
+    <text class="dtab-label">{{item.label}}</text>
   </view>
 </scroll-view>
