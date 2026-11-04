@@ -7,7 +7,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck",
-    "build:kernel": "node scripts/build-kernel.mjs"
+    "build:kernel": "node scripts/build-kernel.mjs",
+    "build:fx-br": "node scripts/build-fx-br.mjs",
+    "pack:audit": "node scripts/pack-audit.mjs"
   },
   "devDependencies": {
     "miniprogram-api-typings": "^5.2.3",

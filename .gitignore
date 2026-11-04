@@ -17,9 +17,11 @@ context/
 
 # 本地开发秘钥
 .local.development.**
+.env.wx.cloud
 
 # fx wasm 分包产物（由 zig build + wasm-opt 再生成，见 .local.development.md）
 subpkg/fx/*.wasm
+subpkg/fx/*.wasm.br
 
 # kernel 分包产物（由 scripts/build-kernel.mjs 再生成）
 subpkg/kernel/kernel.js

@@ -81,6 +81,14 @@
       {
         "type": "file",
         "value": ".local.development.md"
+      },
+      {
+        "type": "file",
+        "value": "subpkg/fx/fx-core-async.wasm"
+      },
+      {
+        "type": "file",
+        "value": ".env.wx.cloud"
       }
     ],
     "include": []
