@@ -212,7 +212,8 @@ const server = createServer(async (req, res) => {
       const parseKey = (key) => {
         if (typeof key !== "string") return null;
         const m = key.match(/^(state|claims|alarms)\/(.+)$/);
-        if (m === null || m[2].includes("dsh-mini")) return null;
+        // rest 段拒 `..`/`//`/前导 `/`——与 worker 同纪律防穿越
+        if (m === null || /(^|\/)\.\.(\/|$)|\/\/|^\/|dsh-mini/.test(m[2])) return null;
         return `dsh-mini/${m[1]}/${openid}/${m[2]}`;
       };
       const casGet = (k) => db.cas[k] ?? null;

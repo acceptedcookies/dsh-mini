@@ -75,8 +75,8 @@ client
             minio.service  127.0.0.1:9000
                  └─ bucket nano-filebucket
                       ├─ dsh-mini/state/{openid}/{session_id}   CAS 状态对象
-                      ├─ dsh-mini/claims/{session_id}           单写者租约
-                      └─ dsh-mini/alarms/{due_ts}-{session_id}  报警队列键区
+                      ├─ dsh-mini/claims/{openid}/{session_id}           单写者租约
+                      └─ dsh-mini/alarms/{openid}/{due_ts}-{session_id}  报警队列键区
 ```
 
 **四层信任边界**：

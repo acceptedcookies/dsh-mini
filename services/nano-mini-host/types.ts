@@ -78,6 +78,10 @@ export interface ToolCallResult {
   byte_length?: number
   reason?: string
   message?: string
+  /** error/rejected 形态必填（kernel ErrorResultSchema——缺 error.code 渲染层即崩）。 */
+  error?: { code: string; message: string; details?: Record<string, unknown> }
+  effect_state?: 'result-recorded' | 'committed' | 'indeterminate' | 'not-started'
+  retryable?: boolean
   provenance?: ToolResultProvenance
 }
 

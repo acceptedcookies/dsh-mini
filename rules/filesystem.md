@@ -218,3 +218,9 @@ readObjectRange(uuid,ver,path,     ┘
 - DevTools 模块系统不解析目录 `index` 回退（`'../vfs'` → `services/vfs.js` 不是 `services/vfs/index.js`），且**多层缓存会让被污染的模块名长期残留**——barrel 命名避开 `index`（用 `api.ts`）。
 
 **未证/占位边界**：S3 后端仅合约占位（`S3ObjectBackend` 方法抛 `backend-unavailable`），未接未测（业主要求）；`cloud-pinned` placement 声明面在、上行通道未动工；USER_DATA_PATH/storage 在真机未实测（R 车道）；读视图是同构形状先行，不声称 nano 级 qualification 语义。
+
+---
+
+## §12 tool-surface 共享层（MN01 登记）
+
+`services/vfs/tool-surface.ts` 是 `file_*` 五工具的**唯一实现源**：fx `dispatchTool` 与 nano-mini host `io.tool` 同调 `runFileTool(name, input, dshSessionId)`（`executeFileTool` 已退役，静态守卫 grep=0）。返回 `{content, isError}`；host 侧包装为 kernel `ToolCallResult`（error 形态带 `error.code`/`effect_state`/`retryable`，见 `services/nano-mini-host/io/tool.ts`）。新文件工具入本层即可双 runtime 同源。

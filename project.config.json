@@ -65,6 +65,22 @@
       {
         "type": "folder",
         "value": "rules"
+      },
+      {
+        "type": "folder",
+        "value": ".anote"
+      },
+      {
+        "type": "folder",
+        "value": ".adocs"
+      },
+      {
+        "type": "file",
+        "value": ".local.development.json"
+      },
+      {
+        "type": "file",
+        "value": ".local.development.md"
       }
     ],
     "include": []

@@ -23,7 +23,9 @@ export function loadKernel(): KernelBundle | undefined {
     try {
       installKernelShims()
       cached = require('../../subpkg/kernel/kernel.js') as KernelBundle
-    } catch {
+    } catch (e) {
+      // 降级必须可观察（静默回退 fx/demo 的盲区——审查 P2）：console 为 mp 侧唯一通道
+      console.warn('[kernel-loader] subpkg/kernel 加载失败，回退 fx/localRuntime:', e)
       cached = undefined
     }
   }
@@ -32,9 +34,12 @@ export function loadKernel(): KernelBundle | undefined {
 
 export function kernelUsable(): boolean {
   const b = loadKernel()
-  return b !== undefined
-    && typeof b.kernel?.scheduleNextStep === 'function'
-    && typeof b.kernel?.restoreFromFragment === 'function'
+  const k = b?.kernel
+  // 探测全决策环所需导出面（非只验两函数——残缺 bundle 不得误判 usable）
+  return k !== undefined
+    && ['createInitialSessionState', 'createKernelSnapshot', 'applyAction',
+      'scheduleNextStep', 'buildCheckpointFragment', 'restoreFromFragment']
+      .every((fn) => typeof (k as unknown as Record<string, unknown>)[fn] === 'function')
 }
 
 /** 测试用：重置缓存（换产物后重测）。 */

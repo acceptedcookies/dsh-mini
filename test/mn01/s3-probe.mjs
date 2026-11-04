@@ -16,8 +16,9 @@ const results = []
 const check = (name, ok, detail) => { results.push({ name, ok }); console.log(`${ok ? 'PASS' : 'FAIL'} ${name} :: ${detail}`) }
 
 if (!configured) {
+  // SKIP 用专用退出码 3——与 PASS(0)/FAIL(1) 可区分，防闸门误把 SKIP 当绿（审查）
   console.log('SKIP s3-probe：S3_* env 未配置（业主授权项 T10——未观察，不算 PASS 也不算 FAIL）')
-  process.exit(0)
+  process.exit(3)
 }
 
 // ── SigV4（与 worker.mjs 同实现，node:crypto 版）

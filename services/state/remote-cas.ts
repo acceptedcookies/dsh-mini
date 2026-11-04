@@ -77,9 +77,13 @@ export function createRemoteCas(opts: RemoteCasOpts): IoState {
     },
 
     async del(key: string): Promise<void> {
-      // claim 行释放：worker 语义靠 claim TTL 自然过期；
-      // alarm 行：alarm/claim 端点原子消费（读+删一步）。均无显式 del。
-      void key
+      // alarm 行：接 /alarm/claim 原子消费端点（否则远端行永不消费——审查 P0）。
+      const m = key.match(/^dsh-mini\/alarms\/[^/]+\/(.+)$/)
+      if (m !== null) {
+        await call('alarm/claim', { key: m[1], holder: 'remote-cas' })
+        return
+      }
+      // claim 行释放：worker 语义靠 TTL 自然过期，无显式 del。
     },
   }
 }

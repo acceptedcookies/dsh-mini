@@ -211,6 +211,9 @@ export const vfs = {
   remove(path: string, opts: { sessionId: string }): boolean {
     const resolved = resolveVfsPath(path, opts.sessionId)
     assertWritable(resolved)
+    if (resolved.lane === 'session' && resolved.laneKey !== opts.sessionId) {
+      throw new VfsError('unsafe-workspace-path', `session lane 只允许删本会话 /data/${opts.sessionId}`)
+    }
     const id = vfsJournal.begin(resolved.absolute, 'remove')
     try {
       const row = vfsStore.removeRow(resolved.absolute)

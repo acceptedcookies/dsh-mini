@@ -6,7 +6,7 @@ import './wx-shim.mjs'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '../..')
@@ -33,10 +33,30 @@ const PENDING = 'dsh:mini:pending-catchup'
 nanoMiniStopTick()
 check('lifecycle:pending-on-hide', __store.get(PENDING) === true, `pending=${__store.get(PENDING)}`)
 
-// 2) kernel-loader 优雅降级（Node 侧 require subpkg 失败→catchUp 空跑不炸）
-const ran = await nanoMiniCatchUp()
-check('lifecycle:catchup-safe', Array.isArray(ran), `catchUp ran=${JSON.stringify(ran)}（Node 无 wx.require→kernel 不可用时安全空转）`)
-check('lifecycle:pending-cleared-or-kept', __store.get(PENDING) === true, `ran 为空时 pending 保持（下次启动再补）`)
+// 2) kernel 不可用时 catchUp 降级——但 kernel 存在时必须真扫（审查：kernel 缺位全绿曾是恒真式）
+const kernelExists = existsSync(join(repo, 'subpkg/kernel/kernel.js'))
+if (!kernelExists) {
+  const ran = await nanoMiniCatchUp()
+  check('lifecycle:catchup-degraded-honest', Array.isArray(ran) && ran.length === 0, `kernel.js 缺失 → ran=[]（降级诚实登记，非 PASS 语义）`)
+} else {
+  // kernel 可用时：种子一个 llmFinished 态 + due alarm → catchUp 必须 finish 并消费 alarm
+  const { kernel: k } = require(join(repo, 'subpkg/kernel/kernel.js'))
+  const sid = 'life2'
+  let snap = k.createKernelSnapshot(k.createInitialSessionState())
+  for (const a of [
+    { type: 'start_turn', turnId: 't-life2' },
+    { type: 'interrupt', reason: 'confirmation_pending' },
+    { type: 'input_arrived', input: { role: 'user', content: 'hi' } },
+    { type: 'resume' },
+    { type: 'llm_response', content: { role: 'assistant', content: 'done' }, usage: { inputTokens: 1, outputTokens: 1 } },
+  ]) snap = k.applyAction(snap, a)
+  await localCas.putCas(`dsh-mini/state/local/${sid}`, JSON.stringify(k.buildCheckpointFragment(snap)), {})
+  await localCas.putCas(`dsh-mini/alarms/local/1-${sid}`, JSON.stringify({ sessionId: sid, kind: 'turn-resume', dueAt: 1 }), {})
+  const ran2 = await nanoMiniCatchUp()
+  const consumed = (await localCas.listPrefix('dsh-mini/alarms/local/')).every((key) => !key.endsWith(sid))
+  const claimGone = (await localCas.get(`dsh-mini/claims/local/${sid}`)) === null
+  check('lifecycle:catchup-consumes-alarm', ran2.length === 1 && ran2[0] === `${sid}:completed` && consumed && claimGone, `ran=${JSON.stringify(ran2)} consumed=${consumed} claimGone=${claimGone}`)
+}
 
 // 3) startTick 置起 interval 且 stop 后清标记路径无竞态
 nanoMiniStartTick()

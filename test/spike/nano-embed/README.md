@@ -113,3 +113,9 @@ T4 = `workers/agent-core` 全量闭包 3.03MB/868 文件。三堵墙：
 - LLM/tool 真 I/O 的挂接（T2 已证注入式，但未联真 LLM）
 - `wait` 分支的 confirmation_pending/confirmation 语义未触
 - ws 流式退化：事件只能入 state，客户端轮询读（非 hibernation 等价物）
+
+---
+
+## §8 转正去向（MN01 完成后追记）
+
+本 spike 的全部结论已产品化转正：`kernel-do.mjs` → `services/nano-mini-host/pump.ts`（+ `scripts/mn01-harness.mjs` 保留 N1-N4+双负例回归）；打包器 → `scripts/build-kernel.mjs`（双出口+kernelPin+jitless banner+--upgrade）；smoke → `test/mn01/smoke.mjs`（三金丝雀）。本目录保留作取证底稿，不再演进——新工作一律在转正件上进行。

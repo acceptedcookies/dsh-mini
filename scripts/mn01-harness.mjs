@@ -42,12 +42,19 @@ function makeIo(cas, script = {}) {
   return {
     state: cas,
     toolExecs: () => toolExecs,
-    llm: async () => {
+    firstLlmMessages: undefined,
+    llm: async (messages) => {
       script.llmCalls = (script.llmCalls ?? 0) + 1
+      // F1 回归守卫：首步 llm_call 的 messages 必须含用户输入（input_arrived→resume 折叠正路）
+      if (script.llmCalls === 1) {
+        script.firstLlmMessages = messages
+        script.seededOk = script.expectSeed === undefined
+          || JSON.stringify(messages).includes(script.expectSeed)
+      }
       if (script.llmCalls === 1 && script.toolFirst) {
         return { text: null, toolCalls: [{ id: 'c1', name: 'file_read', input: { path: '/data/x' } }] }
       }
-      return { text: 'done', usage: { total_tokens: 5 } }
+      return { text: 'done', usage: { inputTokens: 5, outputTokens: 3 } }
     },
     tool: async (name) => {
       toolExecs += 1
@@ -59,10 +66,11 @@ function makeIo(cas, script = {}) {
 // ── N1 全 turn：llm→tool→llm→finish，每步 CAS 落盘
 {
   const cas = new MemCas()
-  const script = { toolFirst: true }
+  const script = { toolFirst: true, expectSeed: 'hi' }
   const io = makeIo(cas, script)
   const r = await host.runPump({ kernel, io, owner: 'o1', holder: 'h1' }, SID, { input: { role: 'user', content: 'hi' } })
   check('N1:completed', r.outcome === 'completed', `outcome=${r.outcome} trace=${r.trace.join('>')}`)
+  check('N1:input-seeded', script.seededOk === true, `首步 messages=${JSON.stringify(script.firstLlmMessages)?.slice(0, 120)}`)
   check('N1:tool-once', io.toolExecs() === 1, `toolExecs=${io.toolExecs()}`)
   check('N1:cas-state', cas.get('dsh-mini/state/o1/s-n1') !== null, 'state 行存在')
   check('N1:claim-released', cas.get('dsh-mini/claims/o1/s-n1') === null, 'claim 行已释放')
@@ -79,6 +87,19 @@ function makeIo(cas, script = {}) {
   const r2 = await host.runPump({ ...ctx, holder: 'h1' }, SID, {})
   check('N2:resumed-completed', r2.outcome === 'completed', `outcome=${r2.outcome} trace=${r2.trace.join('>')}`)
   check('N2:tool-exactly-once', io.toolExecs() === 1, `toolExecs=${io.toolExecs()}（kill 前已跑的步不重跑）`)
+}
+
+// ── N2b kill-after-tool 象限（AP §8.5 要求 kill×2）：tool 跑完后死 → 恢复不重跑
+{
+  const cas = new MemCas()
+  const script = { toolFirst: true }
+  const io = makeIo(cas, script)
+  const ctx = { kernel, io, owner: 'o1', holder: 'h1' }
+  const r1 = await host.runPump(ctx, 's-n2b', { input: { role: 'user', content: 'hi' }, killAfter: 3, claimTtlMs: 0 })
+  check('N2b:killed-after-tool', r1.outcome === 'killed' && io.toolExecs() === 1, `outcome=${r1.outcome} toolExecs=${io.toolExecs()}`)
+  const r2 = await host.runPump({ ...ctx, holder: 'h2' }, 's-n2b', {}) // 异 holder 接管过期 claim
+  check('N2b:resume-other-holder', r2.outcome === 'completed', `outcome=${r2.outcome} trace=${r2.trace.join('>')}`)
+  check('N2b:tool-still-once', io.toolExecs() === 1, `toolExecs=${io.toolExecs()}`)
 }
 
 // ── N3 单写者 fencing：陈旧 etag → fenced；他 holder 活租约 → claim-denied

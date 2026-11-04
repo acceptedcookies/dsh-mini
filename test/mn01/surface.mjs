@@ -7,7 +7,7 @@ import './wx-shim.mjs'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '../..')
@@ -61,6 +61,22 @@ const rm2 = runFileTool('file_remove', { path: 'a.txt' }, SID)
 check('tool:remove-idempotent-false', rm2.content.includes('"removed":false'), '二态字段（写工具不可逐字节比对——T03 纪律）')
 const bad = runFileTool('file_read', { path: '/etc/passwd' }, SID)
 check('tool:err-shape', bad.isError && bad.content.includes('"error"'), bad.content.slice(0, 60))
+
+// ── 跨会话隔离断言（审查：file_remove 曾无 session-lane 闸——回归守卫）
+{
+  runFileTool('file_write', { path: 'v.txt', content: 'victim-data' }, 'victim')
+  const crossRm = runFileTool('file_remove', { path: '/data/victim/v.txt' }, 'attacker')
+  check('iso:cross-session-remove-denied', crossRm.isError && crossRm.content.includes('unsafe-workspace-path'), crossRm.content.slice(0, 80))
+  const stillThere = runFileTool('file_stat', { path: 'v.txt' }, 'victim')
+  check('iso:victim-file-survives', stillThere.content.includes('"exists":true'), '受害会话文件仍在')
+}
+
+// ── T03 静态守卫：executeFileTool 必须保持清零（审查：此前靠人工 grep 无网）
+{
+  const src = readFileSync(join(repo, 'services/fx/runtime.ts'), 'utf8')
+  check('guard:executeFileTool-absent', !src.includes('executeFileTool'), 'fx/runtime.ts 无 executeFileTool 定义')
+  check('guard:runFileTool-wired', src.includes('runFileTool'), 'dispatchTool→runFileTool 共享面')
+}
 
 // ── remote-cas 线键映射（注入 post 替身抓线格式）
 {

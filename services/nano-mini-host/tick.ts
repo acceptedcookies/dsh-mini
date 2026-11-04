@@ -27,7 +27,9 @@ export async function nanoMiniCatchUp(): Promise<string[]> {
   if (bundle === undefined) return []
   const ctx: PumpCtx = { kernel: bundle.kernel, io: ioFor(''), owner: 'local', holder: HOLDER }
   const ran = await sweepTick(ctx, { batchLimit: 10 }, ioFor)
-  if (ran.length > 0) wx.setStorageSync(PENDING_KEY, false)
+  // fenced/claim-denied/step-exhausted 算 ran 但恢复未成——pending 不得误清（审查 B5）
+  const settled = ran.length > 0 && ran.every((r) => r.outcome === 'completed' || r.outcome === 'suspended')
+  if (settled) wx.setStorageSync(PENDING_KEY, false)
   return ran.map((r) => `${r.sessionId}:${r.outcome}`)
 }
 
@@ -35,7 +37,9 @@ export function nanoMiniStartTick(): void {
   if (timer !== undefined) return
   const pending = wx.getStorageSync(PENDING_KEY) as boolean | '' | undefined
   if (pending === true) void nanoMiniCatchUp()
-  timer = setInterval(() => { void nanoMiniCatchUp() }, TICK_MS)
+  timer = setInterval(() => {
+    nanoMiniCatchUp().catch((e) => console.warn('[nano-mini] tick catchUp failed:', e))
+  }, TICK_MS)
 }
 
 export function nanoMiniStopTick(): void {

@@ -13,8 +13,8 @@ App<IAppOption>({
     watchSystemTheme((theme) => {
       this.globalData.theme = theme
     })
-    // T-O-9：启动 catch-up（sweep due 闹钟/恢复挂起 turn）
-    void nanoMiniCatchUp()
+    // T-O-9：启动 catch-up（sweep due 闹钟/恢复挂起 turn）——catch 住防 unhandled rejection
+    nanoMiniCatchUp().catch((e) => console.warn('[nano-mini] catchUp failed:', e))
   },
   onShow() {
     // T-O-9：前台 30s tick

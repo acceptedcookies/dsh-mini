@@ -22,11 +22,18 @@ export function createIoTool(dshSessionId: string) {
     const r = runFileTool(name, args, dshSessionId)
     const filePath = (args as Record<string, unknown> | null)?.path
     if (r.isError) {
+      // kernel ErrorResultSchema 同构（tool-result.ts failedToolResult）：
+      // error.code 必填——缺则 renderToolCallResult 在 undefined.code 上 TypeError 崩泵
+      let code = 'tool-call-failed'
+      try { code = (JSON.parse(r.content) as { error?: string }).error ?? code } catch { /* 非 JSON 走默认 */ }
       return {
         kind: 'error',
+        error: { code, message: r.content.slice(0, 400) },
         message: r.content,
         text: r.content,
         byte_length: enc(r.content),
+        effect_state: 'indeterminate',
+        retryable: false,
         provenance: {
           context_layer: 'transcript',
           context_role: 'assistant',

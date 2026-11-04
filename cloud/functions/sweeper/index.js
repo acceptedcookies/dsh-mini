@@ -15,7 +15,6 @@ const db = cloud.database();
 const WORKER = () => (process.env.DURABLE_WORKER_URL ?? "").replace(/\/$/, "");
 const PROXY = () => (process.env.BYOK_PROXY_URL ?? "").replace(/\/$/, "");
 const TICKET_SECRET = () => process.env.TICKET_SECRET ?? "";
-const CLAIM_TTL_MS = 30000;
 const BATCH_LIMIT = 10;
 
 function signTicket(secret, claims) {
@@ -64,8 +63,9 @@ function ioState(openid) {
       return (r.body.keys ?? []).map(unwire);
     },
     async del(key) {
-      // claim 行靠 TTL 过期；alarm 行由 alarm/claim 原子消费
-      void key;
+      // alarm 行：接 alarm/claim 原子消费（否则远端行永不消费）；claim 行靠 TTL 过期。
+      const m = key.match(/^dsh-mini\/alarms\/[^/]+\/(.+)$/);
+      if (m !== null) await call(openid, "alarm/claim", { key: m[1], holder: `sweeper-${Date.now()}` });
     },
   };
 }
@@ -94,9 +94,12 @@ function ioLlm(openid, model) {
 function ioTool() {
   return async (name) => ({
     kind: "error",
-    message: `sweeper-side tool unavailable: ${name}（file_* 作用域在客户端 VFS）`,
+    // kernel ErrorResultSchema 同构——error.code 必填（否则渲染层 TypeError 崩泵）
+    error: { code: "tool-requires-local-vfs", message: `sweeper-side tool unavailable: ${name}（file_* 作用域在客户端 VFS）` },
     text: JSON.stringify({ error: "tool-requires-local-vfs", tool: name }),
     byte_length: 0,
+    effect_state: "not-started",
+    retryable: false,
     provenance: { context_layer: "transcript", context_role: "assistant", context_property: "tool-result" },
   });
 }

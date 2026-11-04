@@ -62,10 +62,14 @@ async function saveSnap(ctx: PumpCtx, sessionId: string, snap: KernelSnapshot, e
   const frag = ctx.kernel.buildCheckpointFragment(snap)
   const cond = etag !== null ? { ifMatch: etag } : { ifNoneMatch: '*' as const }
   const r = await ctx.io.state.putCas(`${ST}/${ctx.owner}/${sessionId}`, JSON.stringify(frag), cond)
-  return r.status === 200 && r.etag !== undefined ? r.etag : { fenced: true }
+  if (r.status === 200 && r.etag !== undefined) return r.etag
+  if (r.status === 412) return { fenced: true }
+  // 非 CAS 冲突的真实故障（413 超限/500 后端）不得误报「写者冲突」（审查 B4）
+  throw new Error(`saveSnap putCas ${r.status}: 非 412 故障不作 fenced 语义`)
 }
 
-async function writeAlarm(ctx: PumpCtx, sessionId: string, etag: string | null): Promise<void> {
+/** timed-wait alarm 写入面（当前 InterruptReason 闭集无定时等待——保留供扩约后的 timed-wait）。 */
+export async function writeAlarm(ctx: PumpCtx, sessionId: string, etag: string | null): Promise<void> {
   const dueAt = Date.now()
   const rec: AlarmRecord = { sessionId, kind: 'turn-resume', dueAt, fence: etag ?? 'new' }
   await ctx.io.state.putCas(`${AL}/${ctx.owner}/${dueAt}-${sessionId}`, JSON.stringify(rec), { ifNoneMatch: '*' })
@@ -79,9 +83,23 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
   if (snap === null) {
     snap = ctx.kernel.createKernelSnapshot(ctx.kernel.createInitialSessionState())
     snap = ctx.kernel.applyAction(snap, { type: 'start_turn', turnId: opts.turnId ?? `t-${sessionId}` })
-    if (opts.input !== undefined) snap = ctx.kernel.applyAction(snap, { type: 'input_arrived', input: opts.input })
     const wr = await saveSnap(ctx, sessionId, snap, etag)
-    if (wr === 'object' && typeof wr === 'object') return { outcome: 'fenced', trace: [] }
+    if (typeof wr === 'object') return { outcome: 'fenced', trace: [] }
+    if (typeof wr === 'string') etag = wr
+  }
+  // 输入播种（审查 F1）：input_arrived 只在 waiting 缓冲，经 resume 折叠进 messages——
+  // 新 turn 走 interrupt→input_arrived→resume 正路，不得直接塞 activeTurn。
+  const phase = (snap.session as { phase?: string }).phase
+  const needSeed = phase === 'turn_running' && opts.input !== undefined
+  if (needSeed || phase === 'waiting') {
+    // 'interrupted'（fatal_error 终态）不进 resume——resume 仅接受 waiting
+    if (needSeed) snap = ctx.kernel.applyAction(snap, { type: 'interrupt', reason: 'confirmation_pending' })
+    if (opts.input !== undefined) {
+      snap = ctx.kernel.applyAction(snap, { type: 'input_arrived', input: opts.input })
+    }
+    snap = ctx.kernel.applyAction(snap, { type: 'resume' })
+    const wr = await saveSnap(ctx, sessionId, snap, etag)
+    if (typeof wr === 'object') return { outcome: 'fenced', trace: [] }
     if (typeof wr === 'string') etag = wr
   }
 
@@ -105,14 +123,39 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
       if (out.toolCalls !== undefined && out.toolCalls.length > 0) {
         snap = ctx.kernel.applyAction(snap, { type: 'tool_calls_requested', calls: out.toolCalls, textContent: out.text ?? null })
       } else {
-        snap = ctx.kernel.applyAction(snap, { type: 'llm_response', content: out.text ?? '', usage: out.usage })
+        // llm_response.content 直接被 reducer 压入 messages——必须是消息对象非裸串（审查 F5）
+        snap = ctx.kernel.applyAction(snap, {
+          type: 'llm_response',
+          content: typeof out.text === 'string' ? { role: 'assistant', content: out.text } : null,
+          usage: out.usage,
+        })
       }
     } else if (d.kind === 'tool_exec') {
       const res = await ctx.io.tool(d.toolName ?? '', d.args)
       snap = ctx.kernel.applyAction(snap, { type: 'tool_result', callId: d.requestId, result: res })
     } else if (d.kind === 'wait') {
       snap = ctx.kernel.applyAction(snap, { type: 'interrupt', reason: d.reason })
-      await writeAlarm(ctx, sessionId, etag)
+      if (d.reason === 'cancel' || d.reason === 'timeout') {
+        // 终态中断：resume→complete_turn 干净收尾，不落 alarm（无东西可续）
+        snap = ctx.kernel.applyAction(snap, { type: 'resume' })
+        snap = ctx.kernel.applyAction(snap, { type: 'complete_turn', reason: d.reason })
+        const wr = await saveSnap(ctx, sessionId, snap, etag)
+        await ctx.io.state.del(`${CL}/${ctx.owner}/${sessionId}`)
+        return typeof wr === 'object' ? { outcome: 'fenced', trace } : { outcome: 'completed', trace }
+      }
+      if (d.reason === 'compact_required') {
+        // 宿主侧无 compaction 实现（T-O 未承诺）——resume 续跑；同决策重复即 bail 防死循环
+        snap = ctx.kernel.applyAction(snap, { type: 'resume' })
+        const wr = await saveSnap(ctx, sessionId, snap, etag)
+        if (typeof wr === 'object') return { outcome: 'fenced', trace }
+        etag = wr
+        if (trace.length >= 2 && trace[trace.length - 2].startsWith('wait:compact_required')) {
+          return { outcome: 'step-exhausted', trace }
+        }
+        continue
+      }
+      // confirmation_pending/fatal_error：挂起等外部输入——不落 due-now alarm
+      // （自动复活语义错误）；恢复走 runPump 的 waiting→resume 正路
       const wr = await saveSnap(ctx, sessionId, snap, etag)
       return typeof wr === 'object' ? { outcome: 'fenced', trace } : { outcome: 'suspended', trace }
     } else if (d.kind === 'finish') {
@@ -145,10 +188,18 @@ export async function sweepTick(
     let rec: AlarmRecord
     try { rec = JSON.parse(row.body) as AlarmRecord } catch { await ctx.io.state.del(key); continue }
     if (rec.dueAt > Date.now()) continue
-    await ctx.io.state.del(key) // claim alarm 行（替身语义：先删再跑；重入由 session claim 挡）
     const io = makeIo !== undefined ? makeIo(rec.sessionId) : ctx.io
-    const r = await runPump({ ...ctx, io }, rec.sessionId)
-    ran.push({ sessionId: rec.sessionId, outcome: r.outcome })
+    try {
+      // 先跑后删（at-least-once）：runPump 异常时 alarm 行仍在，下 tick 重试；
+      // 重入重复 fire 由 session claim 挡（工具不会双跑——N4 幂等面）。
+      const r = await runPump({ ...ctx, io }, rec.sessionId)
+      await ctx.io.state.del(key)
+      ran.push({ sessionId: rec.sessionId, outcome: r.outcome })
+    } catch (e) {
+      // 毒化行不终止整批：留 alarm 等下 tick（天然退避=周期），登记 outcome
+      ran.push({ sessionId: rec.sessionId, outcome: 'step-exhausted' })
+      void e
+    }
   }
   return ran
 }

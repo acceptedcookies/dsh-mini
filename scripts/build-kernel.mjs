@@ -48,8 +48,8 @@ const pin = pkg.kernelPin
 if (typeof pin !== 'string' || pin.length < 7) {
   if (UPGRADE === undefined) fail('package.json kernelPin 缺失 —— 先登记 pin 或用 --upgrade')
 }
-const head = gitNano(['rev-parse', 'HEAD'])
-const dirty = gitNano(['status', '--porcelain']).length > 0
+let head = gitNano(['rev-parse', 'HEAD'])
+const dirtyBefore = gitNano(['status', '--porcelain']).length > 0
 
 if (UPGRADE !== undefined) {
   // 升级通道：干跑打印计划；--apply 才执行 checkout + pin 更新
@@ -67,12 +67,16 @@ if (UPGRADE !== undefined) {
   gitNano(['checkout', UPGRADE])
   pkg.kernelPin = UPGRADE
   fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n')
-  log(`已切 ${UPGRADE} 并更新 kernelPin`)
+  head = gitNano(['rev-parse', 'HEAD']) // checkout 后重取——校验/banner 不得用陈旧值（审查 F8）
+  log(`已切 ${head} 并更新 kernelPin`)
 }
-if (pin !== undefined && pin !== head) {
-  fail(`kernelPin ${pin} != HEAD ${head} —— 参考系漂移，用 --upgrade 显式升级`)
+const currentPin = UPGRADE !== undefined ? UPGRADE : pin
+if (currentPin !== undefined && currentPin !== head) {
+  fail(`kernelPin ${currentPin} != HEAD ${head} —— 参考系漂移，用 --upgrade 显式升级`)
 }
-if (dirty) fail('context/nano-agent 工作树不干净 —— pin 校验拒绝构建')
+if (UPGRADE === undefined ? dirtyBefore : gitNano(['status', '--porcelain']).length > 0) {
+  fail('context/nano-agent 工作树不干净 —— pin 校验拒绝构建')
+}
 if (CHECK_ONLY) { log(`pin OK: ${head}`); process.exit(0) }
 
 // ── @haimang/* alias → context/nano-agent TS 源（移植 spike lib/bundle.mjs）──

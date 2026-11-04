@@ -19,14 +19,53 @@ interface ChatMessage {
 }
 
 function normalizeMessages(messages: unknown[]): ChatMessage[] {
-  // kernel turn.messages 元素形状由 kernel 管；此处做宽容映射成 OpenAI 消息
-  return messages.map((m) => {
+  // kernel turn.messages 真实形状（reducer.ts:189-298）：
+  //   assistant: {role:'assistant', content:[{kind:'text'}|{kind:'tool_call',id,name,arguments}]}
+  //   tool:      {role:'tool', toolCallId, content}
+  // 必须映射 OpenAI 合同：tool_call part→tool_calls[]；toolCallId→tool_call_id（审查 F5）
+  const out: ChatMessage[] = []
+  for (const m of messages) {
     const row = (m ?? {}) as Record<string, unknown>
     const role = typeof row.role === 'string' ? row.role : 'user'
+    if (role === 'tool' || row.toolCallId !== undefined) {
+      out.push({
+        role: 'tool',
+        tool_call_id: (row.toolCallId ?? row.tool_call_id) as string,
+        content: typeof row.content === 'string' ? row.content : JSON.stringify(row.content ?? ''),
+      })
+      continue
+    }
+    if (Array.isArray(row.content)) {
+      const texts: string[] = []
+      const toolCalls: NonNullable<ChatMessage['tool_calls']> = []
+      for (const part of row.content as Array<Record<string, unknown>>) {
+        if (part?.kind === 'text' && typeof part.text === 'string') texts.push(part.text)
+        else if (part?.kind === 'tool_call') {
+          toolCalls.push({
+            id: String(part.id ?? ''),
+            type: 'function',
+            function: { name: String(part.name ?? ''), arguments: typeof part.arguments === 'string' ? part.arguments : JSON.stringify(part.arguments ?? {}) },
+          })
+        }
+      }
+      const msg: ChatMessage = { role, content: texts.join('\n') || null }
+      if (toolCalls.length > 0) msg.tool_calls = toolCalls
+      out.push(msg)
+      continue
+    }
     const content = row.content ?? row.text ?? null
-    const out: ChatMessage = { role, content: typeof content === 'string' ? content : JSON.stringify(content) }
-    return out
-  })
+    out.push({ role, content: typeof content === 'string' ? content : JSON.stringify(content) })
+  }
+  return out
+}
+
+/** OpenAI usage {prompt_tokens,completion_tokens} → kernel {inputTokens,outputTokens}（F5 修复 NaN）。 */
+function normalizeUsage(u: unknown): LlmOutput['usage'] {
+  const r = (u ?? {}) as Record<string, unknown>
+  return {
+    inputTokens: (r.prompt_tokens ?? r.inputTokens) as number | undefined,
+    outputTokens: (r.completion_tokens ?? r.outputTokens) as number | undefined,
+  }
 }
 
 function wxRequestJson(url: string, headers: Record<string, string>, data: unknown): Promise<{ status: number; body: unknown }> {
@@ -103,7 +142,7 @@ export function createIoLlm(deps: IoLlmDeps = {}): (messages: unknown[]) => Prom
     return {
       text: msg?.content ?? null,
       toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-      usage: body.usage,
+      usage: normalizeUsage(body.usage),
     }
   }
 }

@@ -102,7 +102,8 @@ async function casPut(env, fullKey, body, cond = {}) {
   if (cond.ifNoneMatch === "*") opts.ifNoneMatch = "*";
   const r = await s3(env, "PUT", fullKey, opts);
   if (r.status === 412) return { status: 412 };
-  if (!r.ok) return { status: r.status };
+  // 非 200/412 不得伪装成 etag-conflict——后端故障透传真实状态（审查修复）
+  if (!r.ok) return { status: r.status, backendError: true };
   const etag = (r.headers.get("etag") ?? "").replace(/"/g, "");
   return { status: 200, etag };
 }
@@ -134,7 +135,9 @@ export default {
     /** 线键 `{kind}/{rest}` → 全键 `dsh-mini/{kind}/{openid}/{rest}`；openid 注入。 */
     const full = (key) => {
       const m = typeof key === "string" && key.match(/^(state|claims|alarms)\/(.+)$/);
-      return m === null || m[2].includes("dsh-mini") ? null : `dsh-mini/${m[1]}/${openid}/${m[2]}`;
+      // rest 段拒 `..`/`//`/前导 `/`——对会做路径归一化的后端防穿越（审查 P2）
+      if (m === null || /(^|\/)\.\.(\/|$)|\/\/|^\/|dsh-mini/.test(m[2])) return null;
+      return `dsh-mini/${m[1]}/${openid}/${m[2]}`;
     };
     const ep = url.pathname.slice("/v1/".length);
     try {
@@ -150,6 +153,7 @@ export default {
         const body = String(j.body ?? "");
         if (body.length > MAX_BODY) return json({ error: "state body > 256KB" }, 413);
         const r = await casPut(env, k, body, j.cond ?? {});
+        if (r.backendError === true) return json({ error: `backend ${r.status}` }, r.status);
         return r.status === 200 ? json({ etag: r.etag }) : json({ error: "etag-conflict" }, 412);
       }
       if (ep === "claim") {
@@ -166,17 +170,18 @@ export default {
         }
         const rec = { holder: j.holder, expires: new Date(Date.now() + (j.ttlMs ?? 30000)).toISOString() };
         const r = await casPut(env, k, JSON.stringify(rec), cur !== null ? { ifMatch: cur.etag } : { ifNoneMatch: "*" });
+        if (r.backendError === true) return json({ error: `backend ${r.status}` }, r.status);
         return r.status === 200 ? json({ holder: j.holder }) : json({ error: "claim-held" }, 412);
       }
       if (ep === "alarm/due") {
         const prefix = `dsh-mini/alarms/${openid}/`;
         const now = j.now ?? Date.now();
         const keys = [];
+        // dueTs 已编码在键名 {dueTs}-{sid} 内——按键名过滤零读放大（审查修复：原逐行 GET）
         for (const k of await listKeys(env, prefix)) {
-          const row = await casGet(env, k);
-          let due = true;
-          if (row !== null) { try { due = JSON.parse(row.body).dueAt <= now; } catch { /* keep */ } }
-          if (due) keys.push(`alarms/${k.slice(prefix.length)}`);
+          const rest = k.slice(prefix.length);
+          const dueTs = Number(rest.split("-")[0]);
+          if (Number.isFinite(dueTs) && dueTs <= now) keys.push(`alarms/${rest}`);
         }
         return json({ keys });
       }
