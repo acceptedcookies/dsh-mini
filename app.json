@@ -30,7 +30,11 @@
   "preloadRule": {
     "pages/workspace/workspace": {
       "network": "all",
-      "packages": ["subpkg/kernel", "subpkg/fx"]
+      "packages": ["subpkg/kernel"]
+    },
+    "pages/settings/settings": {
+      "network": "all",
+      "packages": ["subpkg/fx"]
     }
   },
   "dsh": {
