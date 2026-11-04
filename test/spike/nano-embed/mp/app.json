@@ -1,0 +1,6 @@
+{
+  "pages": ["pages/probe/probe"],
+  "window": { "navigationBarTitleText": "nano-embed" },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

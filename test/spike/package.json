@@ -6,7 +6,9 @@
   "type": "module",
   "devDependencies": {
     "binaryen": "^132.0.0",
+    "esbuild": "^0.28.2",
     "miniprogram-automator": "^0.13.0",
-    "wabt": "^1.0.39"
+    "wabt": "^1.0.39",
+    "zod": "^4.6.7"
   }
 }
