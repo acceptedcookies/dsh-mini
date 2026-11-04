@@ -5,7 +5,7 @@
   "main": "server.mjs",
   "scripts": { "start": "node server.mjs" },
   "dependencies": {
-    "@cloudbase/node-sdk": "^3.11.0"
+    "wx-server-sdk": "~3.0.1"
   },
   "engines": { "node": ">=22" }
 }

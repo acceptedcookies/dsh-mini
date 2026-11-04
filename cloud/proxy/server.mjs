@@ -22,15 +22,14 @@ const TICKET_SECRET = process.env.TICKET_SECRET;
 const ALLOWED_MODELS = (process.env.ALLOWED_MODELS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 if (!MASTER_KEY || !TICKET_SECRET) throw new Error("MASTER_KEY/TICKET_SECRET required");
 
-// @cloudbase/node-sdk 为部署期依赖（见 package.json）；本地 sim 不走此文件。
-// env 缺省时用 SYMBOL_CURRENT_ENV 让 SDK 自动探测容器所在环境——注入凭证只对
-// 容器自身 env 生效，env 写死到别的环境会触发 "missing secretId or secretKey"。
-const tcb = require("@cloudbase/node-sdk");
-const dbEnv = process.env.TCB_ENV || tcb.SYMBOL_CURRENT_ENV;
-const app = tcb.init({ env: dbEnv });
-const db = app.database();
-const logEnv = process.env.TCB_ENV ?? "(current)";
-console.log(`[proxy] tcb env: ${logEnv}`);
+// wx-server-sdk 与云函数同构（微信侧 SDK 识别云托管注入凭证）；本地 sim 不走此文件。
+// env 用 DYNAMIC_CURRENT_ENV 自动探测容器所在环境——显式写死异 env 或 SDK 不认
+// 注入面都会触发 "missing secretId or secretKey"。
+const cloud = require("wx-server-sdk");
+const dbEnv = process.env.TCB_ENV || cloud.DYNAMIC_CURRENT_ENV;
+cloud.init({ env: dbEnv });
+const db = cloud.database();
+console.log(`[proxy] tcb env: ${process.env.TCB_ENV ?? "(current)"}`);
 const _ = db.command;
 
 const log = (...a) => console.log(`[proxy ${new Date().toISOString().slice(11, 19)}]`, ...a);
