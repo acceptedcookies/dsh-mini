@@ -7,6 +7,15 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const cfg = JSON.parse(readFileSync(join(root, ".local.development.json"), "utf8"));
+
+// 云端密钥面（gitignored）：WX_CLOUD_ENV_ID 优先于 .local.development.json 的 cloud.env_id
+let envFile = {};
+try {
+  for (const line of readFileSync(join(root, ".env.wx.cloud"), "utf8").split("\n")) {
+    const m = line.match(/^([A-Z_]+)=(.*)$/);
+    if (m) envFile[m[1]] = m[2].trim();
+  }
+} catch { /* 文件缺失时全部走 .local.development.json */ }
 const p = cfg.provider;
 if (!p?.base_url || !p?.model) throw new Error(".local.development.json provider.base_url/model required");
 
@@ -52,7 +61,7 @@ export const route: 'local' | 'cloud' | 'cloud-sim' = ${JSON.stringify(appRoute)
 /** 本地模拟微信云端端点（dev 面）。 */
 export const sim = ${JSON.stringify({ baseUrl: sim.base_url ?? "http://127.0.0.1:3426" }, null, 1)}
 /** 真微信云端端点：env_id + 云托管 proxy https。 */
-export const cloud = ${JSON.stringify({ envId: cloud.env_id ?? "", proxyUrl: cloud.proxy_url ?? "" }, null, 1)}
+export const cloud = ${JSON.stringify({ envId: envFile.WX_CLOUD_ENV_ID || cloud.env_id || "", proxyUrl: cloud.proxy_url ?? "" }, null, 1)}
 /** 直连 provider 的 api_key（local 模式 / sim enroll 明文用；仅存内存转发，不落 wx.storage）。 */
 export const providerApiKey = ${JSON.stringify(p.api_key ?? "")}
 /** enroll 时登记给代理的上游 base_url。 */
