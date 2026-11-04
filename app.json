@@ -27,6 +27,12 @@
   "resizable": true,
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents",
+  "preloadRule": {
+    "pages/workspace/workspace": {
+      "network": "all",
+      "packages": ["kernel", "fxcore"]
+    }
+  },
   "dsh": {
     "localRuntimeRoute": "cloud"
   },

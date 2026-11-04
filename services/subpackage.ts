@@ -1,19 +1,16 @@
 /**
  * 纯资源分包（app.json subpackages pages:[]）真机上永不被导航到 → 不自动下载；
  * require/instantiate 直接打到未下载分包 = "load wasm failed" 类错误。
- * 使用前必须显式触发下载；本模块提供带缓存的预热入口。
- * 真机实测（微信 8.0.80 / 基础库 3.17.6）：wx.loadSubpackage 不存在，
- * wx.preDownloadSubpackage 可用——双 API 探测，preload 优先。
+ * 真机+官方文档实测：
+ *  - wx.loadSubpackage 仅独立分包可用（本机 undefined）
+ *  - wx.preDownloadSubpackage 仅支持 packageType:"workers"，普通分包不可用
+ *  ⇒ 普通分包唯一预载通道 = app.json preloadRule（进入 workspace 页即触发）；
+ *    下载异步——消费端须轮询等待产物可用（loadKernelAsync / instantiate 重试）。
+ *  本模块保留 loadSubpackage 探测（独立分包/老基础库存在时仍走它）。
  */
 
 interface WxSubpackageApi {
   loadSubpackage?: (o: { name: string; success?: () => void; fail?: (e: { errMsg?: string }) => void }) => void
-  preDownloadSubpackage?: (o: {
-    packageType: 'subpackage'
-    name: string
-    success?: () => void
-    fail?: (e: { errMsg?: string }) => void
-  }) => void
 }
 
 /** app.json subpackages.root → name 映射（loadSubpackage 按 name 寻址）。 */
@@ -37,15 +34,7 @@ export function ensureSubpackage(name: string): Promise<void> {
         })
         return
       }
-      if (typeof api?.preDownloadSubpackage === 'function') {
-        api.preDownloadSubpackage({
-          packageType: 'subpackage',
-          name,
-          success: () => resolve(),
-          fail: (e) => reject(new Error(`preDownloadSubpackage ${name} → ${e.errMsg ?? 'failed'}`)),
-        })
-        return
-      }
+      // 无 API（普通分包常态）：preloadRule 已负责触发下载——直返，由消费端轮询等待
       resolve()
     }).catch((e: unknown) => {
       pending.delete(name)

@@ -1,8 +1,7 @@
 import { localRuntime } from './local-runtime'
 import { FxLocalRuntime, fxRuntime } from './fx/runtime'
 import { kernelRuntime, KernelMiniRuntime } from './nano-mini-host/runtime'
-import { kernelLoaderReset } from './nano-mini-host/kernel-loader'
-import { ensureSubpackage } from './subpackage'
+import { loadKernelAsync } from './nano-mini-host/kernel-loader'
 import { nanoRuntime } from './nano/runtime'
 import { upsertItem } from './event-fold'
 import { storage } from './storage'
@@ -99,10 +98,8 @@ class SessionStore {
 
   private async bindRuntime(): Promise<void> {
     this.usingNano = nanoRuntime.isAvailable()
-    // 真机：kernel 纯资源分包须先下载（pages:[] 不自动拉取）；
-    // 早期 require 失败会毒化探测缓存——下载完成后复位再判
-    await ensureSubpackage('kernel').catch(() => {})
-    kernelLoaderReset()
+    // 真机：kernel 纯资源分包经 preloadRule 异步下载——等可用再选车道（12s 上限防阻塞）
+    await loadKernelAsync(12000)
     // 引擎选择缝（AP §4 P2-06）：nano 登录 > kernelRuntime（T2 状态机，T-O-1 默认）
     // > fxLegacy knob 显式回退 fx > localRuntime demo 兜底。
     this.runtime = this.usingNano

@@ -205,11 +205,20 @@ export function createWxEnv(): FxEnv {
     instantiate: async (path, imports) => {
       const w = wxAny.WXWebAssembly
       if (w === undefined) throw new Error('WXWebAssembly unavailable')
-      // 纯资源分包真机不自动下载——先 loadSubpackage 再 instantiate（DevTools/已下载为直返）
       await ensureSubpackageForPath(path)
-      // 实测 resolve {module, instance}（typings 声明为 Instance，以实测为准）
-      const result = (await w.instantiate(path, imports)) as { instance: { exports: Record<string, any> } }
-      return result
+      // 普通分包经 preloadRule 异步下载——下载在途时 instantiate 报 load 错；
+      // 轮询重试等就绪（最长 ~10s），确定性错误则满次数后原样抛出
+      let lastErr: unknown
+      for (let i = 0; i < 25; i++) {
+        try {
+          // 实测 resolve {module, instance}（typings 声明为 Instance，以实测为准）
+          return (await w.instantiate(path, imports)) as { instance: { exports: Record<string, any> } }
+        } catch (e) {
+          lastErr = e
+          if (i < 24) await new Promise((r) => setTimeout(r, 400))
+        }
+      }
+      throw lastErr
     },
     TextEncoder: TextEncoderImpl as unknown as TextEncoderCtor,
     TextDecoder: TextDecoderImpl as unknown as TextDecoderCtor,

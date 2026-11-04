@@ -32,6 +32,36 @@ export function loadKernel(): KernelBundle | undefined {
   return cached
 }
 
+/** 静默探测：preloadRule 下载未完成时 require 必败——轮询期间不打 warn（避免刷屏）。 */
+function tryRequireQuiet(): KernelBundle | undefined {
+  try {
+    installKernelShims()
+    return require('../../subpkg/kernel/kernel.js') as KernelBundle
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * 等 kernel 分包就绪：普通分包无程序化下载 API（preloadRule 触发后是异步下载），
+ * 轮询 require 直至命中或超时；成功路径写入缓存（loadKernel 直读）。
+ */
+export async function loadKernelAsync(timeoutMs = 20000): Promise<KernelBundle | undefined> {
+  const deadline = Date.now() + timeoutMs
+  for (;;) {
+    const b = loadKernel()
+    if (b !== undefined) return b
+    const probe = tryRequireQuiet()
+    if (probe !== undefined) {
+      cached = probe
+      return probe
+    }
+    if (Date.now() >= deadline) return undefined
+    kernelLoaderReset()
+    await new Promise((r) => setTimeout(r, 400))
+  }
+}
+
 export function kernelUsable(): boolean {
   const b = loadKernel()
   const k = b?.kernel
