@@ -22,14 +22,19 @@ const TICKET_SECRET = process.env.TICKET_SECRET;
 const ALLOWED_MODELS = (process.env.ALLOWED_MODELS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 if (!MASTER_KEY || !TICKET_SECRET) throw new Error("MASTER_KEY/TICKET_SECRET required");
 
-// wx-server-sdk 与云函数同构（微信侧 SDK 识别云托管注入凭证）；本地 sim 不走此文件。
-// env 用 DYNAMIC_CURRENT_ENV 自动探测容器所在环境——显式写死异 env 或 SDK 不认
-// 注入面都会触发 "missing secretId or secretKey"。
-const cloud = require("wx-server-sdk");
-const dbEnv = process.env.TCB_ENV || cloud.DYNAMIC_CURRENT_ENV;
-cloud.init({ env: dbEnv });
-const db = cloud.database();
-console.log(`[proxy] tcb env: ${process.env.TCB_ENV ?? "(current)"}`);
+// @cloudbase/node-sdk：云托管容器访问云开发 DB 的官方路径（wx-server-sdk 无容器
+// 鉴权面，官方文档明示不可用）。容器无凭证注入，须显式密钥，按优先级：
+//   CLOUDBASE_APIKEY（服务端 API Key，env 级，推荐）
+//   TENCENTCLOUD_SECRETID/SECRETKEY（CAM 密钥对，兜底；SDK 亦自动读这两个 env）
+const tcb = require("@cloudbase/node-sdk");
+const initCfg = { env: process.env.TCB_ENV || tcb.SYMBOL_CURRENT_ENV };
+if (process.env.CLOUDBASE_APIKEY) initCfg.accessKey = process.env.CLOUDBASE_APIKEY;
+if (process.env.TENCENTCLOUD_SECRETID) initCfg.secretId = process.env.TENCENTCLOUD_SECRETID;
+if (process.env.TENCENTCLOUD_SECRETKEY) initCfg.secretKey = process.env.TENCENTCLOUD_SECRETKEY;
+const app = tcb.init(initCfg);
+const db = app.database();
+const authMode = process.env.CLOUDBASE_APIKEY ? "apikey" : process.env.TENCENTCLOUD_SECRETID ? "cam" : "none";
+console.log(`[proxy] tcb env: ${process.env.TCB_ENV ?? "(current)"} auth: ${authMode}`);
 const _ = db.command;
 
 const log = (...a) => console.log(`[proxy ${new Date().toISOString().slice(11, 19)}]`, ...a);
