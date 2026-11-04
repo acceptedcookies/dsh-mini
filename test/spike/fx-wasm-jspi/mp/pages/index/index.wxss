@@ -1,0 +1,16 @@
+.page {
+  padding: 24px;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.row {
+  margin: 4px 0;
+  word-break: break-all;
+}

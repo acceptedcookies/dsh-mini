@@ -1,0 +1,12 @@
+(module
+  (import "env" "host_read" (func $host_read (result i32)))
+  (memory (export "memory") 1)
+  (func (export "run") (result i32)
+    (local $a i32) (local $b i32)
+    (local.set $a (call $host_read))
+    (i32.store (i32.const 0)
+      (i32.add (i32.load (i32.const 0)) (i32.const 1)))
+    (local.set $b (call $host_read))
+    (i32.store (i32.const 0)
+      (i32.add (i32.load (i32.const 0)) (i32.const 1)))
+    (i32.add (local.get $a) (local.get $b))))

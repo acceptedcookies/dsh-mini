@@ -1,0 +1,4 @@
+# per-run evidence — regenerable via harness/run.mjs
+evidence/
+# generated wasm artifacts — regenerable via harness/run.mjs --build
+mp/wasm/*.wasm

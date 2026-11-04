@@ -1,0 +1,3 @@
+evidence/
+fixtures/*.wasm
+mp/subpkg/*.wasm

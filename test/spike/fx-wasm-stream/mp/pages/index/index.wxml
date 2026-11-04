@@ -1,0 +1,14 @@
+<view class="page">
+  <view class="title">fx-wasm-stream probe</view>
+  <input class="url" placeholder="http://<lan-ip>:<port>/sse" value="{{url}}" bindinput="onUrl" />
+  <button size="mini" bindtap="runFull">run full</button>
+  <button size="mini" bindtap="runAbort">run abort</button>
+  <view wx:if="{{!done}}" class="row">{{stage}}</view>
+  <block wx:if="{{done}}">
+    <view class="row">mode: {{r.mode}}</view>
+    <view class="row">chunks: {{r.chunks}} bytes: {{r.chunkBytes}}</view>
+    <view class="row">events: {{r.events.length}} deltas: {{r.deltas.length}} sawDone: {{r.sawDone}}</view>
+    <view class="row">aborted: {{r.aborted}} lateChunks: {{r.lateChunks}}</view>
+    <view class="row">error: {{r.error}}</view>
+  </block>
+</view>

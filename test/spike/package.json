@@ -1,0 +1,12 @@
+{
+  "name": "dsh-mini-spike",
+  "private": true,
+  "version": "0.0.0",
+  "description": "spike-only tooling; not part of the mini program product build",
+  "type": "module",
+  "devDependencies": {
+    "binaryen": "^132.0.0",
+    "miniprogram-automator": "^0.13.0",
+    "wabt": "^1.0.39"
+  }
+}

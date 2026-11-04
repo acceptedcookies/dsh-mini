@@ -1,0 +1,7 @@
+.page { padding: 24rpx; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
+.row { display: flex; gap: 16rpx; }
+.input { flex: 1; border: 1rpx solid #ccc; padding: 12rpx; font-size: 28rpx; }
+.btn { font-size: 28rpx; }
+.status { margin: 16rpx 0; color: #666; font-size: 24rpx; }
+.output { flex: 1; border: 1rpx solid #ddd; padding: 16rpx; font-size: 28rpx; min-height: 200rpx; }
+.log { height: 300rpx; border: 1rpx solid #eee; margin-top: 16rpx; padding: 12rpx; font-size: 22rpx; color: #888; }

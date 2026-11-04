@@ -1,0 +1,15 @@
+{
+  "pages": ["pages/index/index"],
+  "subpackages": [
+    {
+      "root": "subpkg",
+      "name": "fxcore",
+      "pages": []
+    }
+  ],
+  "window": {
+    "navigationBarTitleText": "fx-wasm-agent"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

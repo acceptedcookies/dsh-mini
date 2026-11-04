@@ -1,0 +1,11 @@
+# per-run evidence — regenerable via harness/run.mjs
+evidence/
+# fetched npm artifacts and wasm products — regenerable
+fixtures/fx-core.wasm
+fixtures/fx-core-*.wasm
+fixtures/libfx-*.tgz
+fixtures/extracted/
+fixtures/*.bin
+fixtures/zig-cache/
+fixtures/zig-out-*/
+fixtures/package-manifest.json

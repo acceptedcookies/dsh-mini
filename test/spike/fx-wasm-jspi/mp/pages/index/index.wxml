@@ -1,0 +1,15 @@
+<view class="page">
+  <view class="title">fx-wasm-jspi probe</view>
+  <view wx:if="{{!done}}" class="row">running… {{stage}}</view>
+  <block wx:if="{{done}}">
+    <view class="row">WXWebAssembly: {{r.apiSurface.wxWasm}}</view>
+    <view class="row">WXWA.Suspending: {{r.apiSurface.wxWasmSuspending}}</view>
+    <view class="row">WXWA.promising: {{r.apiSurface.wxWasmPromising}}</view>
+    <view class="row">WebAssembly: {{r.apiSurface.stdWasm}}</view>
+    <view class="row">WA.Suspending: {{r.apiSurface.stdWasmSuspending}}</view>
+    <view class="row">WA.promising: {{r.apiSurface.stdWasmPromising}}</view>
+    <view class="row">echo: {{r.echo.ok ? 'ok' : 'FAIL'}} {{r.echo.value}}</view>
+    <view class="row">bad.threw: {{r.bad.threw}}</view>
+    <view class="row">asyncToy: {{r.asyncToy.ok ? 'ok' : 'FAIL'}} sum={{r.asyncToy.sum}} calls={{r.asyncToy.calls}} suspends={{r.asyncToy.suspends}}</view>
+  </block>
+</view>
