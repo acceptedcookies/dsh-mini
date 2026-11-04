@@ -32,3 +32,6 @@ services/fx/dev-config.ts
 # cloud-sim 本地记录与云侧依赖
 cloud/sim/db.local.json
 cloud/**/node_modules
+
+# proxy 部署包（scripts/build-proxy-bundle.mjs 再生成）
+cloud/deploy/
