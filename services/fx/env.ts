@@ -3,7 +3,7 @@
 import { TextDecoderImpl, TextEncoderImpl } from './utf8'
 import { callContainer, isContainerUrl, parseContainerUrl } from './container'
 import { loadDevConfig } from './dev'
-import { ensureSubpackageForPath } from '../subpackage'
+import { ensureSubpackageForPath, navEnsureSubpackage } from '../subpackage'
 
 export interface FetchLikeResult {
   status: number
@@ -206,8 +206,8 @@ export function createWxEnv(): FxEnv {
       const w = wxAny.WXWebAssembly
       if (w === undefined) throw new Error('WXWebAssembly unavailable')
       await ensureSubpackageForPath(path)
-      // 普通分包经 preloadRule 异步下载——下载在途时 instantiate 报 load 错；
-      // 轮询重试等就绪（最长 ~10s），确定性错误则满次数后原样抛出
+      // 分包经 preloadRule/导航引导页异步下载——下载在途时 instantiate 报 load 错；
+      // 首次失败后导航到分包占位页触发下载，轮询重试等就绪（最长 ~10s）
       let lastErr: unknown
       for (let i = 0; i < 25; i++) {
         try {
@@ -215,6 +215,7 @@ export function createWxEnv(): FxEnv {
           return (await w.instantiate(path, imports)) as { instance: { exports: Record<string, any> } }
         } catch (e) {
           lastErr = e
+          if (i === 0) navEnsureSubpackage('/subpkg/fx/p/index')
           if (i < 24) await new Promise((r) => setTimeout(r, 400))
         }
       }

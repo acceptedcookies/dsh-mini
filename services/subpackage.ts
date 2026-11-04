@@ -50,3 +50,18 @@ export function ensureSubpackageForPath(path: string): Promise<void> {
   const name = NAME_BY_ROOT[path.split('/').slice(0, 2).join('/')]
   return name === undefined ? Promise.resolve() : ensureSubpackage(name)
 }
+
+/**
+ * 导航引导：普通分包无下载 API 时，navigateTo 分包内占位页 = 官方下载触发器。
+ * 页内 onReady 置全局标记 + navigateBack（一次空页闪现，dev 机制）。
+ */
+export function navEnsureSubpackage(pageUrl: string): void {
+  const nav = (globalThis as { wx?: { navigateTo?: (o: { url: string }) => void } }).wx
+  if (typeof nav?.navigateTo === 'function') {
+    try {
+      nav.navigateTo({ url: pageUrl })
+    } catch {
+      /* 导航冲突时静默——消费端轮询兜底 */
+    }
+  }
+}

@@ -43,21 +43,33 @@ function tryRequireQuiet(): KernelBundle | undefined {
 }
 
 /**
- * 等 kernel 分包就绪：普通分包无程序化下载 API（preloadRule 触发后是异步下载），
- * 轮询 require 直至命中或超时；成功路径写入缓存（loadKernel 直读）。
+ * 等 kernel 就绪：主包 require 分包被模块隔离禁止（真机实证：下载完成也
+ * module not defined）——导航引导页是唯一合法通道：navigateTo 触发下载，
+ * 分包页内同包 require 后挂 globalThis.__dshKernelBundle。
+ * 轮询静默探测直至就绪/超时；成功路径写缓存（loadKernel 直读）。
  */
-export async function loadKernelAsync(timeoutMs = 20000): Promise<KernelBundle | undefined> {
+export async function loadKernelAsync(timeoutMs = 25000): Promise<KernelBundle | undefined> {
+  const first = loadKernel()
+  if (first !== undefined) return first
+  const nav = (globalThis as { wx?: { navigateTo?: (o: { url: string }) => void } }).wx
+  let navigated = false
   const deadline = Date.now() + timeoutMs
   for (;;) {
-    const b = loadKernel()
-    if (b !== undefined) return b
-    const probe = tryRequireQuiet()
+    const probe = tryRequireQuiet() ?? ((globalThis as Record<string, unknown>).__dshKernelBundle as KernelBundle | undefined)
     if (probe !== undefined) {
       cached = probe
+      tried = true
       return probe
     }
     if (Date.now() >= deadline) return undefined
-    kernelLoaderReset()
+    if (!navigated && typeof nav?.navigateTo === 'function') {
+      navigated = true
+      try {
+        nav.navigateTo({ url: '/subpkg/kernel/p/index' })
+      } catch {
+        /* 导航冲突静默——轮询兜底 */
+      }
+    }
     await new Promise((r) => setTimeout(r, 400))
   }
 }
