@@ -44,6 +44,9 @@ export function applyNavigationBar(theme: Theme, surface: NavigationSurface = 'b
       : (theme === 'dark' ? '#151517' : '#ffffff'),
     animation: { duration: 120, timingFunc: 'easeIn' },
   })
+  // 手动切主题时同步回拉/overscroll 底色（darkmode 只接管系统主题）
+  const bg = theme === 'dark' ? '#151517' : '#f7f7f8'
+  wx.setBackgroundColor({ backgroundColor: bg, backgroundColorTop: bg, backgroundColorBottom: bg })
 }
 
 export function watchSystemTheme(onChange: (theme: Theme) => void): () => void {

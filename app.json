@@ -24,6 +24,8 @@
     "backgroundTextStyle": "dark"
   },
   "style": "v2",
+  "darkmode": true,
+  "themeLocation": "theme.json",
   "resizable": true,
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents",
