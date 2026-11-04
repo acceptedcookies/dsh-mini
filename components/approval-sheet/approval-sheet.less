@@ -5,7 +5,7 @@
 .approval-card {
   width: 100%;
   max-width: 760px;
-  margin: 0 auto 8px;
+  margin: 0 auto var(--dsw-space-8);
   overflow: hidden;
   border: 1px solid var(--dsw-alias-state-warn-secondary);
   border-radius: var(--dsw-radius-xl);
@@ -16,18 +16,18 @@
 .approval-strip {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
+  gap: var(--dsw-space-8);
+  padding: var(--dsw-space-10) var(--dsw-space-16);
   background: var(--dsw-alias-state-warn-tertiary);
   color: var(--dsw-alias-state-warn-primary);
-  font-size: 13px;
-  line-height: 18px;
+  font-size: var(--dsw-text-label);
+  line-height: var(--dsw-lh-18);
 }
 
 .approval-dot {
   width: 6px;
   height: 6px;
-  border-radius: 50%;
+  border-radius: var(--dsw-radius-circle);
   background: var(--dsw-alias-state-warn-primary);
 }
 
@@ -43,52 +43,52 @@
 .approval-body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--dsw-space-6);
   max-height: 336px;
   overflow-y: auto;
-  padding: 12px 16px 0;
+  padding: var(--dsw-space-12) var(--dsw-space-16) 0;
 }
 
 .approval-headline {
   color: var(--dsw-alias-label-primary);
-  font-size: 15px;
-  line-height: 24px;
-  font-weight: 500;
+  font-size: var(--dsw-text-subtitle);
+  line-height: var(--dsw-lh-24);
+  font-weight: var(--dsw-weight-medium);
 }
 
 .approval-command {
   color: var(--dsw-alias-label-tertiary);
   font-family: var(--ds-font-family-code);
-  font-size: 13px;
-  line-height: 20px;
+  font-size: var(--dsw-text-label);
+  line-height: var(--dsw-lh-20);
   word-break: break-all;
 }
 
 .approval-reason {
   color: var(--dsw-alias-label-secondary);
-  font-size: 13px;
-  line-height: 20px;
+  font-size: var(--dsw-text-label);
+  line-height: var(--dsw-lh-20);
 }
 
 .approval-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  padding: 14px 16px;
+  gap: var(--dsw-space-8);
+  padding: var(--dsw-space-14) var(--dsw-space-16);
 }
 
 .approval-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: var(--dsw-space-4);
   min-width: 88px;
   height: 32px;
-  padding: 0 14px;
+  padding: 0 var(--dsw-space-14);
   border-radius: var(--dsw-radius-md);
-  font-size: 13px;
-  line-height: 20px;
-  font-weight: 500;
+  font-size: var(--dsw-text-label);
+  line-height: var(--dsw-lh-20);
+  font-weight: var(--dsw-weight-medium);
   transition: background-color 120ms ease, opacity 120ms ease;
 }
 

@@ -83,15 +83,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 22px 14px 12px 24px;
+  gap: var(--dsw-space-8);
+  padding: 22px var(--dsw-space-14) var(--dsw-space-12) var(--dsw-panel-x);
 }
 
 .feedback-title {
   color: var(--dsw-alias-label-primary);
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 500;
+  font-size: var(--dsw-text-headline);
+  line-height: var(--dsw-lh-24);
+  font-weight: var(--dsw-weight-medium);
 }
 
 .feedback-close {
@@ -112,22 +112,22 @@
 .feedback-categories {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--dsw-space-8);
   margin-top: 24px;
-  padding: 0 24px;
+  padding: 0 var(--dsw-panel-x);
 }
 
 .feedback-chip {
   display: inline-flex;
   align-items: center;
   height: 28px;
-  padding: 0 12px;
+  padding: 0 var(--dsw-space-12);
   border: 0.5px solid var(--dsw-alias-border-l4);
   border-radius: var(--dsw-radius-sm);
   background: transparent;
   color: var(--dsw-alias-label-primary);
-  font-size: 13px;
-  line-height: 18px;
+  font-size: var(--dsw-text-label);
+  line-height: var(--dsw-lh-18);
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 
@@ -147,14 +147,14 @@
   min-height: 116px;
   max-height: 280px;
   box-sizing: border-box;
-  margin: 18px 24px 0;
-  padding: 12px 14px;
+  margin: 18px var(--dsw-panel-x) 0;
+  padding: var(--dsw-space-12) var(--dsw-space-14);
   border: 0.5px solid var(--dsw-alias-border-l4);
   border-radius: var(--dsw-radius-lg);
   background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-primary);
-  font-size: 14px;
-  line-height: 22px;
+  font-size: var(--dsw-text-body);
+  line-height: var(--dsw-lh-22);
   transition: border-color 120ms ease, box-shadow 120ms ease;
 }
 
@@ -172,13 +172,13 @@
   align-items: center;
   justify-content: center;
   height: 44px;
-  margin: 38px 24px 0;
+  margin: 38px var(--dsw-panel-x) 0;
   border-radius: var(--dsw-radius-lg);
   background: var(--dsw-alias-button-primary-fill);
   color: var(--dsw-alias-label-primary-foreground);
-  font-size: 14px;
-  line-height: 22px;
-  font-weight: 500;
+  font-size: var(--dsw-text-body);
+  line-height: var(--dsw-lh-22);
+  font-weight: var(--dsw-weight-medium);
   transition: opacity 120ms ease;
 }
 

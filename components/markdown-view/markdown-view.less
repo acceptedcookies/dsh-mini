@@ -7,15 +7,15 @@
   width: 100%;
   word-break: break-word;
   color: var(--dsw-alias-label-primary);
-  font-size: 14px;
-  line-height: 24px;
+  font-size: var(--dsw-text-body);
+  line-height: var(--dsw-lh-24);
 }
 
 .code-card {
-  margin: 0 0 16px;
+  margin: 0 0 var(--dsw-space-16);
   overflow: hidden;
   border: 0.5px solid var(--dsw-alias-border-l1);
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-sm);
   background: var(--dsw-alias-markdown-code-block);
 }
 
@@ -23,13 +23,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 6px 6px 6px 12px;
+  gap: var(--dsw-space-8);
+  padding: var(--dsw-space-6) var(--dsw-space-6) var(--dsw-space-6) var(--dsw-space-12);
   border-bottom: 0.5px solid var(--dsw-alias-border-l1);
   background: var(--dsw-alias-markdown-code-block-banner);
   color: var(--dsw-alias-label-tertiary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--dsw-text-micro);
+  line-height: var(--dsw-lh-16);
 }
 
 .code-lang {
@@ -43,7 +43,7 @@
 .code-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--dsw-space-2);
 }
 
 .code-copy {
@@ -69,11 +69,11 @@
 
 .code-text {
   display: block;
-  padding: 12px;
+  padding: var(--dsw-space-12);
   color: var(--dsw-alias-markdown-code-text, var(--dsw-alias-label-primary));
   font-family: var(--ds-font-family-code);
-  font-size: 12px;
-  line-height: 18px;
+  font-size: var(--dsw-text-caption);
+  line-height: var(--dsw-lh-18);
   white-space: pre-wrap;
   word-break: break-word;
 }

@@ -29,10 +29,10 @@
   z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--dsw-space-20);
   width: min(380px, 100%);
   max-height: 100%;
-  padding: 0 0 24px;
+  padding: 0 0 var(--dsw-space-24);
   overflow: hidden;
   border-radius: var(--dsw-radius-panel);
   background: var(--dsw-alias-bg-layer-2);
@@ -84,19 +84,19 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 22px 14px 12px 24px;
+  gap: var(--dsw-space-8);
+  padding: 22px var(--dsw-space-14) var(--dsw-space-12) var(--dsw-panel-x);
 }
 
 .dialog-title {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: var(--dsw-space-8);
   margin: 0;
   color: var(--dsw-alias-label-primary);
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 500;
+  font-size: var(--dsw-text-headline);
+  line-height: var(--dsw-lh-24);
+  font-weight: var(--dsw-weight-medium);
 }
 
 .dialog-title .dsh-icon {
@@ -121,29 +121,29 @@
 .dialog-description {
   display: block;
   margin: 0;
-  padding: 0 24px;
+  padding: 0 var(--dsw-panel-x);
   color: var(--dsw-alias-label-primary);
-  font-size: 14px;
-  line-height: 22px;
+  font-size: var(--dsw-text-body);
+  line-height: var(--dsw-lh-22);
 }
 
 .dialog-body {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  padding: 0 24px;
+  padding: 0 var(--dsw-panel-x);
 }
 
 .dialog-input {
   width: 100%;
   height: 36px;
-  padding: 0 10px;
+  padding: 0 var(--dsw-space-10);
   border: 0.5px solid var(--dsw-alias-border-l3);
   border-radius: var(--dsw-radius-md);
   background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-primary);
-  font-size: 14px;
-  line-height: 36px;
+  font-size: var(--dsw-text-body);
+  line-height: var(--dsw-lh-36);
 }
 
 .dialog-placeholder {
@@ -154,8 +154,8 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
-  padding: 0 24px;
+  gap: var(--dsw-space-8);
+  padding: 0 var(--dsw-panel-x);
 }
 
 .dialog-button {
@@ -164,12 +164,12 @@
   justify-content: center;
   min-width: 64px;
   height: 36px;
-  padding: 0 14px;
+  padding: 0 var(--dsw-space-14);
   border-radius: var(--dsw-radius-md);
   color: var(--dsw-alias-label-primary);
-  font-size: 14px;
-  line-height: 22px;
-  font-weight: 500;
+  font-size: var(--dsw-text-body);
+  line-height: var(--dsw-lh-22);
+  font-weight: var(--dsw-weight-medium);
   transition: background-color 120ms ease, opacity 120ms ease;
 }
 
@@ -188,7 +188,7 @@
 
 .dialog-button-danger {
   background: var(--dsw-alias-state-error-primary);
-  color: #ffffff;
+  color: var(--dsw-alias-label-on-dark);
 }
 
 .dialog-button-disabled {

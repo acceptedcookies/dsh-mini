@@ -11,7 +11,7 @@
 .menu-surface {
   position: fixed;
   box-sizing: border-box;
-  padding: 4px;
+  padding: var(--dsw-space-4);
   border: 0.5px solid var(--dsw-alias-border-l1);
   border-radius: var(--dsw-radius-lg);
   background: var(--dsw-menu-surface-fill);
@@ -45,11 +45,11 @@
 }
 
 .menu-title {
-  padding: 4px 7px 2px;
+  padding: var(--dsw-space-4) 7px var(--dsw-space-2);
   color: var(--dsw-alias-label-tertiary);
-  font-size: 11px;
-  line-height: 16px;
-  font-weight: 500;
+  font-size: var(--dsw-text-micro);
+  line-height: var(--dsw-lh-16);
+  font-weight: var(--dsw-weight-medium);
 }
 
 .menu-scroll {
@@ -59,13 +59,13 @@
 .menu-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--dsw-space-6);
   min-height: 34px;
-  padding: 6px 8px;
+  padding: var(--dsw-space-6) var(--dsw-space-8);
   border-radius: var(--dsw-radius-md);
   color: var(--dsw-alias-label-primary);
-  font-size: 13px;
-  line-height: 20px;
+  font-size: var(--dsw-text-label);
+  line-height: var(--dsw-lh-20);
 }
 
 .menu-item:active {
@@ -104,8 +104,8 @@
 
 .menu-description {
   color: var(--dsw-alias-label-tertiary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--dsw-text-micro);
+  line-height: var(--dsw-lh-16);
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -113,18 +113,18 @@
 
 .menu-badge {
   flex: none;
-  padding: 0 4px;
-  border-radius: 3px;
+  padding: 0 var(--dsw-space-4);
+  border-radius: var(--dsw-radius-xxs);
   color: var(--dsw-alias-state-warn-label);
   background: var(--dsw-alias-state-warn-tertiary);
-  font-size: 9px;
-  line-height: 14px;
-  font-weight: 600;
+  font-size: var(--dsw-text-badge);
+  line-height: var(--dsw-lh-14);
+  font-weight: var(--dsw-weight-semibold);
 }
 
 .menu-shortcut {
   flex: none;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--dsw-text-micro);
+  line-height: var(--dsw-lh-16);
 }
