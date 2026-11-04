@@ -5,21 +5,32 @@
 
 .dtabs {
   display: block;
+  flex: none;
   white-space: nowrap;
+}
+
+/* scroll-view 的 flex/gap 到不了内部滚动包裹层——布局语义放真实子容器上 */
+.dtabs-inner {
+  display: inline-flex;
+  align-items: stretch;
+  height: 100%;
 }
 
 .dtab {
   display: inline-flex;
   align-items: center;
+  flex: none;
   white-space: nowrap;
 }
 
 /* ── underline · normal ── */
 .dtabs-underline-normal {
-  display: flex;
-  gap: var(--dsw-space-32);
   height: 32px;
   padding-left: var(--dsw-space-8);
+}
+
+.dtabs-underline-normal .dtabs-inner {
+  gap: var(--dsw-space-32);
 }
 
 .dtabs-underline-normal .dtab {
@@ -58,12 +69,14 @@
 
 /* ── underline · compact ── */
 .dtabs-underline-compact {
-  display: flex;
   height: 34px;
   padding: 0 var(--dsw-space-8);
-  gap: 1px;
   border-bottom: 0.5px solid var(--dsw-alias-border-l2);
   box-sizing: border-box;
+}
+
+.dtabs-underline-compact .dtabs-inner {
+  gap: 1px;
 }
 
 .dtabs-underline-compact .dtab {
