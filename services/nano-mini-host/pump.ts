@@ -33,9 +33,9 @@ interface ClaimOutcome {
   holder?: string
 }
 
-function claim(ctx: PumpCtx, sessionId: string, ttlMs: number): ClaimOutcome {
+async function claim(ctx: PumpCtx, sessionId: string, ttlMs: number): Promise<ClaimOutcome> {
   const key = `${CL}/${ctx.owner}/${sessionId}`
-  const row = ctx.io.state.get(key)
+  const row = await ctx.io.state.get(key)
   if (row !== null) {
     try {
       const c = JSON.parse(row.body) as { holder: string; expires: string }
@@ -45,41 +45,42 @@ function claim(ctx: PumpCtx, sessionId: string, ttlMs: number): ClaimOutcome {
     } catch { /* 坏行视为可覆盖 */ }
   }
   const body = JSON.stringify({ holder: ctx.holder, expires: new Date(Date.now() + ttlMs).toISOString() })
-  const r = ctx.io.state.putCas(key, body, {})
+  // 过期/自持行接管必须条件写：防读-改-写竞态（TOCTOU）下双 holder。
+  const r = await ctx.io.state.putCas(key, body, row !== null ? { ifMatch: row.etag } : { ifNoneMatch: '*' })
   return r.status === 200 ? { status: 200 } : { status: 412 }
 }
 
-function loadSnap(ctx: PumpCtx, sessionId: string): { snap: KernelSnapshot | null; etag: string | null } {
-  const row = ctx.io.state.get(`${ST}/${ctx.owner}/${sessionId}`)
+async function loadSnap(ctx: PumpCtx, sessionId: string): Promise<{ snap: KernelSnapshot | null; etag: string | null }> {
+  const row = await ctx.io.state.get(`${ST}/${ctx.owner}/${sessionId}`)
   if (row === null) return { snap: null, etag: null }
   const frag = JSON.parse(row.body)
   // restoreFromFragment 内含 zod schema 校验 + KERNEL_VERSION 版本闸
   return { snap: ctx.kernel.restoreFromFragment(frag), etag: row.etag }
 }
 
-function saveSnap(ctx: PumpCtx, sessionId: string, snap: KernelSnapshot, etag: string | null): string | { fenced: true } {
+async function saveSnap(ctx: PumpCtx, sessionId: string, snap: KernelSnapshot, etag: string | null): Promise<string | { fenced: true }> {
   const frag = ctx.kernel.buildCheckpointFragment(snap)
   const cond = etag !== null ? { ifMatch: etag } : { ifNoneMatch: '*' as const }
-  const r = ctx.io.state.putCas(`${ST}/${ctx.owner}/${sessionId}`, JSON.stringify(frag), cond)
+  const r = await ctx.io.state.putCas(`${ST}/${ctx.owner}/${sessionId}`, JSON.stringify(frag), cond)
   return r.status === 200 && r.etag !== undefined ? r.etag : { fenced: true }
 }
 
-function writeAlarm(ctx: PumpCtx, sessionId: string, etag: string | null): void {
+async function writeAlarm(ctx: PumpCtx, sessionId: string, etag: string | null): Promise<void> {
   const dueAt = Date.now()
   const rec: AlarmRecord = { sessionId, kind: 'turn-resume', dueAt, fence: etag ?? 'new' }
-  ctx.io.state.putCas(`${AL}/${ctx.owner}/${dueAt}-${sessionId}`, JSON.stringify(rec), { ifNoneMatch: '*' })
+  await ctx.io.state.putCas(`${AL}/${ctx.owner}/${dueAt}-${sessionId}`, JSON.stringify(rec), { ifNoneMatch: '*' })
 }
 
 export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions & { cancelRequested?: () => boolean } = {}): Promise<PumpResult> {
-  const cl = claim(ctx, sessionId, opts.claimTtlMs ?? 30000)
+  const cl = await claim(ctx, sessionId, opts.claimTtlMs ?? 30000)
   if (cl.status !== 200) return { outcome: 'claim-denied', trace: [], rival: cl.holder }
 
-  let { snap, etag } = loadSnap(ctx, sessionId)
+  let { snap, etag } = await loadSnap(ctx, sessionId)
   if (snap === null) {
     snap = ctx.kernel.createKernelSnapshot(ctx.kernel.createInitialSessionState())
     snap = ctx.kernel.applyAction(snap, { type: 'start_turn', turnId: opts.turnId ?? `t-${sessionId}` })
     if (opts.input !== undefined) snap = ctx.kernel.applyAction(snap, { type: 'input_arrived', input: opts.input })
-    const wr = saveSnap(ctx, sessionId, snap, etag)
+    const wr = await saveSnap(ctx, sessionId, snap, etag)
     if (wr === 'object' && typeof wr === 'object') return { outcome: 'fenced', trace: [] }
     if (typeof wr === 'string') etag = wr
   }
@@ -111,18 +112,18 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
       snap = ctx.kernel.applyAction(snap, { type: 'tool_result', callId: d.requestId, result: res })
     } else if (d.kind === 'wait') {
       snap = ctx.kernel.applyAction(snap, { type: 'interrupt', reason: d.reason })
-      writeAlarm(ctx, sessionId, etag)
-      const wr = saveSnap(ctx, sessionId, snap, etag)
+      await writeAlarm(ctx, sessionId, etag)
+      const wr = await saveSnap(ctx, sessionId, snap, etag)
       return typeof wr === 'object' ? { outcome: 'fenced', trace } : { outcome: 'suspended', trace }
     } else if (d.kind === 'finish') {
       snap = ctx.kernel.applyAction(snap, { type: 'complete_turn', reason: d.reason })
-      const wr = saveSnap(ctx, sessionId, snap, etag)
-      ctx.io.state.del(`${CL}/${ctx.owner}/${sessionId}`)
+      const wr = await saveSnap(ctx, sessionId, snap, etag)
+      await ctx.io.state.del(`${CL}/${ctx.owner}/${sessionId}`)
       return typeof wr === 'object' ? { outcome: 'fenced', trace } : { outcome: 'completed', trace }
     }
     // hook_emit / compact：kernel 内部语义，本宿主按 step 推进（事件外发属后续 AP）
     snap = ctx.kernel.applyAction(snap, { type: 'complete_step', stepIndex: turn?.stepIndex ?? 0, result: null })
-    const wr = saveSnap(ctx, sessionId, snap, etag)
+    const wr = await saveSnap(ctx, sessionId, snap, etag)
     if (typeof wr === 'object') return { outcome: 'fenced', trace }
     etag = wr
     if (opts.killAfter !== undefined && i === opts.killAfter - 1) return { outcome: 'killed', trace }
@@ -136,15 +137,15 @@ export async function sweepTick(
   opts: { batchLimit?: number } = {},
   makeIo?: (sessionId: string) => Io,
 ): Promise<SweepResult[]> {
-  const due = ctx.io.state.listPrefix(`${AL}/${ctx.owner}/`)
+  const due = await ctx.io.state.listPrefix(`${AL}/${ctx.owner}/`)
   const ran: SweepResult[] = []
   for (const key of due.slice(0, opts.batchLimit ?? 10)) {
-    const row = ctx.io.state.get(key)
+    const row = await ctx.io.state.get(key)
     if (row === null) continue
     let rec: AlarmRecord
-    try { rec = JSON.parse(row.body) as AlarmRecord } catch { ctx.io.state.del(key); continue }
+    try { rec = JSON.parse(row.body) as AlarmRecord } catch { await ctx.io.state.del(key); continue }
     if (rec.dueAt > Date.now()) continue
-    ctx.io.state.del(key) // claim alarm 行（替身语义：先删再跑；重入由 session claim 挡）
+    await ctx.io.state.del(key) // claim alarm 行（替身语义：先删再跑；重入由 session claim 挡）
     const io = makeIo !== undefined ? makeIo(rec.sessionId) : ctx.io
     const r = await runPump({ ...ctx, io }, rec.sessionId)
     ran.push({ sessionId: rec.sessionId, outcome: r.outcome })

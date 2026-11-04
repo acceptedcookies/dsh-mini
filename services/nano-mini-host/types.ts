@@ -109,12 +109,15 @@ export interface CasPutResult {
   etag?: string
 }
 
-/** state 面：CAS 读写 + claim 租约 + alarm 记录读写删 + 前缀列举。 */
+/**
+ * state 面：CAS 读写 + claim 租约 + alarm 记录读写删 + 前缀列举。
+ * 同步或异步返回皆可（localCas 同步、remoteCas 走五端点异步）——泵内一律 await。
+ */
 export interface IoState {
-  get(key: string): CasGetResult | null
-  putCas(key: string, body: string, cond: CasPutCond): CasPutResult
-  listPrefix(prefix: string): string[]
-  del(key: string): void
+  get(key: string): CasGetResult | null | Promise<CasGetResult | null>
+  putCas(key: string, body: string, cond: CasPutCond): CasPutResult | Promise<CasPutResult>
+  listPrefix(prefix: string): string[] | Promise<string[]>
+  del(key: string): void | Promise<void>
 }
 
 export interface Io {

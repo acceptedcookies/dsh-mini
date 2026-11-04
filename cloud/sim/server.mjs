@@ -195,6 +195,93 @@ const server = createServer(async (req, res) => {
       });
     }
 
+    // ---------- durable 面（/sim/v1/* —— 与 BYOK /v1/* 代理不同键区）----------
+    // 五端点契约（T-O-5）：openid 服务端注入（sim 固定 SIM_OPENID，取自票据校验后），
+    // 客户端只送会话后缀 key；全键 = dsh-mini/{kind}/{openid}/{key}。
+    // CAS 替身与 worker 同语义：If-Match/If-None-Match:* → 412。
+    if (path.startsWith("/sim/v1/")) {
+      const ep = path.slice("/sim/v1/".length);
+      const auth = req.headers.authorization ?? "";
+      const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+      const payload = verifyTicket(SIM_TICKET_SECRET, token, "byok-proxy");
+      if (!payload) return json(res, 401, { error: "byok ticket required" });
+      const openid = payload.oid ?? SIM_OPENID;
+      db.cas ??= {};
+      // 线格式：key = "{kind}/{rest}"（kind ∈ state|claims|alarms；无 dsh-mini/ 前缀、
+      // 无 openid 段——服务端注入）。客户端送带 openid 段的键会被并入 rest 形成非法层级 → 拒。
+      const parseKey = (key) => {
+        if (typeof key !== "string") return null;
+        const m = key.match(/^(state|claims|alarms)\/(.+)$/);
+        if (m === null || m[2].includes("dsh-mini")) return null;
+        return `dsh-mini/${m[1]}/${openid}/${m[2]}`;
+      };
+      const casGet = (k) => db.cas[k] ?? null;
+      const casPut = (k, body, cond = {}) => {
+        const cur = casGet(k);
+        if (cond.ifNoneMatch === "*" && cur !== null) return { status: 412 };
+        if (cond.ifMatch !== undefined && (cur === null || cur.etag !== cond.ifMatch)) return { status: 412 };
+        const etag = `se${(db.casSeq = (db.casSeq ?? 0) + 1)}`;
+        db.cas[k] = { body, etag };
+        persist();
+        return { status: 200, etag };
+      };
+      const body = await readBody(req).catch(() => Buffer.alloc(0));
+      let j;
+      try { j = JSON.parse(body.toString("utf8") || "{}"); } catch { return json(res, 400, { error: "bad json" }); }
+
+      if (ep === "state/get") {
+        const k = parseKey(j.key);
+        if (k === null) return json(res, 400, { error: "bad key shape" });
+        const r = casGet(k);
+        return r === null ? json(res, 404, { error: "not-found" }) : json(res, 200, { body: r.body, etag: r.etag });
+      }
+      if (ep === "state/put-cas") {
+        const k = parseKey(j.key);
+        if (k === null) return json(res, 400, { error: "bad key shape" });
+        // durable 服务名 "state"，键区跨 state|claims|alarms 三 kind（claims/alarms 亦有便捷原子端点）
+        const r = casPut(k, String(j.body ?? ""), j.cond ?? {});
+        return r.status === 200 ? json(res, 200, { etag: r.etag }) : json(res, 412, { error: "etag-conflict" });
+      }
+      if (ep === "claim") {
+        const k = parseKey(`claims/${j.key}`);
+        if (k === null) return json(res, 400, { error: "bad key shape" });
+        const cur = casGet(k);
+        if (cur !== null) {
+          try {
+            const c = JSON.parse(cur.body);
+            if (c.holder !== j.holder && Date.parse(c.expires) > Date.now()) {
+              return json(res, 412, { error: "claim-held", holder: c.holder });
+            }
+          } catch { /* 坏行可覆盖 */ }
+        }
+        const rec = { holder: j.holder, expires: new Date(Date.now() + (j.ttlMs ?? 30000)).toISOString() };
+        // 过期/自持行可覆盖：live-rival 检查在上；若并发接管竞态存在，
+        // 以行 etag 条件写挡（cur 存在则 If-Match 其 etag）。
+        const r = casPut(k, JSON.stringify(rec), cur !== null ? { ifMatch: cur.etag } : { ifNoneMatch: "*" });
+        return r.status === 200 ? json(res, 200, { holder: j.holder }) : json(res, 412, { error: "claim-held" });
+      }
+      if (ep === "alarm/due") {
+        const prefix = `dsh-mini/alarms/${openid}/`;
+        const now = j.now ?? Date.now();
+        const keys = Object.keys(db.cas)
+          .filter((k) => k.startsWith(prefix))
+          .filter((k) => {
+            try { return JSON.parse(db.cas[k].body).dueAt <= now; } catch { return true; }
+          });
+        return json(res, 200, { keys: keys.map((k) => `alarms/${k.slice(prefix.length)}`) });
+      }
+      if (ep === "alarm/claim") {
+        const k = parseKey(`alarms/${j.key}`);
+        if (k === null) return json(res, 400, { error: "bad key shape" });
+        const row = casGet(k);
+        if (row === null) return json(res, 404, { error: "not-found" });
+        delete db.cas[k];
+        persist();
+        return json(res, 200, { body: row.body });
+      }
+      return json(res, 404, { error: `no durable route ${ep}` });
+    }
+
     // ---------- 数据面 ----------
     if (path.startsWith("/v1/")) {
       const auth = req.headers.authorization ?? "";

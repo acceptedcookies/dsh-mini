@@ -1,0 +1,12 @@
+# dsh-mini durable worker（T-O-5 五端点收窄面）
+# secrets（wrangler secret put，env-only——不入库）：
+#   TICKET_SECRET         BYOK 票据签发密钥（与 unlock 函数同值）
+#   S3_ENDPOINT           pgs3/S3 端点（含 scheme）
+#   S3_BUCKET             durable 桶
+#   S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY
+name = "dsh-mini-durable"
+main = "worker.mjs"
+compatibility_date = "2025-01-01"
+
+[vars]
+S3_REGION = "us-east-1"
