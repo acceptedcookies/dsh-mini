@@ -1,94 +1,94 @@
 {
   "description": "dsh-mini 微信小程序",
-  "appid": "wxb62ed54d3d2d51a8",
+  "appid": "wx356d3abb52825466",
   "projectname": "dsh-mini",
   "compileType": "miniprogram",
   "libVersion": "2.32.3",
   "packOptions": {
     "ignore": [
       {
-        "type": "folder",
-        "value": "context"
+        "value": "context",
+        "type": "folder"
       },
       {
-        "type": "folder",
-        "value": "docs"
+        "value": "docs",
+        "type": "folder"
       },
       {
-        "type": "folder",
-        "value": "node_modules"
+        "value": "node_modules",
+        "type": "folder"
       },
       {
-        "type": "folder",
-        "value": "typings"
+        "value": "typings",
+        "type": "folder"
       },
       {
-        "type": "folder",
-        "value": "test"
+        "value": "test",
+        "type": "folder"
       },
       {
-        "type": "folder",
-        "value": "scripts"
+        "value": "scripts",
+        "type": "folder"
       },
       {
-        "type": "folder",
-        "value": ".git"
+        "value": ".git",
+        "type": "folder"
       },
       {
-        "type": "file",
-        "value": "AGENTS.md"
+        "value": "AGENTS.md",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": "README.md"
+        "value": "README.md",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": "package.json"
+        "value": "package.json",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": "package-lock.json"
+        "value": "package-lock.json",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": "tsconfig.json"
+        "value": "tsconfig.json",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": "project.private.config.json"
+        "value": "project.private.config.json",
+        "type": "file"
       },
       {
-        "type": "folder",
-        "value": "cloud"
+        "value": "cloud",
+        "type": "folder"
       },
       {
-        "type": "folder",
-        "value": "rules"
+        "value": "rules",
+        "type": "folder"
       },
       {
-        "type": "folder",
-        "value": ".anote"
+        "value": ".anote",
+        "type": "folder"
       },
       {
-        "type": "folder",
-        "value": ".adocs"
+        "value": ".adocs",
+        "type": "folder"
       },
       {
-        "type": "file",
-        "value": ".local.development.json"
+        "value": ".local.development.json",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": ".local.development.md"
+        "value": ".local.development.md",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": "subpkg/fx/fx-core-async.wasm"
+        "value": "subpkg/fx/fx-core-async.wasm",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": ".env.wx.cloud"
+        "value": ".env.wx.cloud",
+        "type": "file"
       }
     ],
     "include": []
@@ -105,11 +105,28 @@
     "postcss": true,
     "minified": true,
     "urlCheck": false,
-    "ignoreUploadUnusedFiles": true
+    "ignoreUploadUnusedFiles": true,
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "uploadWithSourceMap": true,
+    "enhance": false,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "condition": false,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
   },
   "condition": {},
   "editorSetting": {
     "tabIndent": "insertSpaces",
     "tabSize": 2
-  }
+  },
+  "simulatorPluginLibVersion": {}
 }

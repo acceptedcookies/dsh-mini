@@ -29,7 +29,7 @@
 
 1. **一个 spike 一个目录**，用 feature 名命名（`fx-wasm-jspi`），不用阶段前缀。`test/spike/` 根下只放本 README 和工作区目录。
 2. **宪章 README 先行**：一句话定义、锚表（建档日期、HEAD、上游真相、环境、证据上限、组织先例）、边界声明、价值台账、判读门槛。**判读门槛在执行前写死，跑完不挪。**
-3. **只产证据**：不改公共合同，不改冻结真相，不在 spike 工作区里施工产品代码。结论要转正，走 [业主] 决定并 durable 登记（`AGENTS.md` §0 [不得擅自扩约]）。spike 探针一律放独立工程，**不混入产品小程序包**（工作区 `mp/` 自带 `project.config.json` + `app.json`；本机 DevTools 登录态下 `touristappid` 不可用，S 车道实测用产品 AppID `wxb62ed54d3d2d51a8`，仅作模拟器探针工程，不产生发布物）。
+3. **只产证据**：不改公共合同，不改冻结真相，不在 spike 工作区里施工产品代码。结论要转正，走 [业主] 决定并 durable 登记（`AGENTS.md` §0 [不得擅自扩约]）。spike 探针一律放独立工程，**不混入产品小程序包**（工作区 `mp/` 自带 `project.config.json` + `app.json`；本机 DevTools 登录态下 `touristappid` 不可用，S 车道实测用产品 AppID `wx356d3abb52825466`，仅作模拟器探针工程，不产生发布物）。
 4. **证据分级诚实**：结论写明环境与等级（见 §3），模拟器 PASS 不写成真机 PASS，本机 PASS 不写成设备 PASS。终态词用 `PASS` / `RED` / `NOT_RUN`（附原因）/ `deferred`（附前置）。first-red 是合法终态，补测另写新 receipt，不覆盖先红的那份。
 5. **证伪镜像（plants）**：凡是「探测某能力存在与否」的行，必须带至少一枚反例镜像——植入后断言必须变红、复原必须变绿，证明探针不是恒绿。镜像计入行的 `plants` 字段。
 6. **预算先行**：每行带 `objects` / `opsCap` / `bytesCap` / `stopCondition`；禁止定时器自唤醒、循环重试、后台预热。真实 provider 调用一律 `NOT_RUN`，除非 [业主] 提供 endpoint + key 并点收。

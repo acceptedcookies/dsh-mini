@@ -1,6 +1,6 @@
 export const APP_NAME = 'dsh'
 export const APP_VERSION = '0.3.0'
-export const APP_ID = 'wxb62ed54d3d2d51a8'
+export const APP_ID = 'wx356d3abb52825466'
 
 /** nano-agent orchestrator used by the native client when the owner signs in. */
 export const NANO_BASE_URL = 'https://nano-agent-orchestrator-core-preview.haimang.workers.dev'
