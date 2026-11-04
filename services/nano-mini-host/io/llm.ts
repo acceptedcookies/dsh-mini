@@ -8,7 +8,7 @@
 import { createTicketProvider } from '../../fx/ticket'
 import { loadDevConfig, currentRoute } from '../../fx/dev'
 import { readEnrollment } from '../../fx/enrollment'
-import { isContainerUrl, callContainer } from '../../fx/container'
+import { isContainerUrl, callContainer, parseContainerUrl } from '../../fx/container'
 import { storage } from '../../storage'
 import type { LlmOutput, LlmToolCall } from '../types'
 
@@ -69,11 +69,19 @@ function normalizeUsage(u: unknown): LlmOutput['usage'] {
   }
 }
 
-function wxRequestJson(url: string, headers: Record<string, string>, data: unknown): Promise<{ status: number; body: unknown }> {
-  // 容器车道：container://{service} → callContainer 内网直连（route.ts 判定）
+async function wxRequestJson(url: string, headers: Record<string, string>, data: unknown): Promise<{ status: number; body: unknown }> {
+  // 容器车道：container://{service} → callContainer 内网直连（route.ts 判定）。
+  // 传输层失败（env 错配/服务不可达）时回退公网 proxy_url；业务错误以 status 透传不回退。
   if (isContainerUrl(url)) {
-    const envId = loadDevConfig()?.cloud?.envId ?? ''
-    return callContainer(envId, url, { method: 'POST', headers, body: data })
+    const cloud = loadDevConfig()?.cloud
+    try {
+      return await callContainer(cloud?.envId ?? '', url, { method: 'POST', headers, body: data })
+    } catch (e) {
+      const pub = cloud?.proxyUrl
+      if (pub === undefined || pub.length === 0) throw e
+      console.warn(`[io.llm] callContainer 失败，回退公网 proxy: ${e instanceof Error ? e.message : String(e)}`)
+      url = pub + parseContainerUrl(url).path
+    }
   }
   return new Promise((resolve, reject) => {
     wx.request({

@@ -1,7 +1,7 @@
 /** WX 宿主能力适配：WXWebAssembly.instantiate + wx.request 分块 fetch + 随机数兜底。
  *  数据面 URL 以 `container://` 开头时改走 wx.cloud.callContainer（云托管内网车道）。 */
 import { TextDecoderImpl, TextEncoderImpl } from './utf8'
-import { callContainer, isContainerUrl } from './container'
+import { callContainer, isContainerUrl, parseContainerUrl } from './container'
 import { loadDevConfig } from './dev'
 
 export interface FetchLikeResult {
@@ -162,7 +162,8 @@ function containerFetch(url: string, init: { method?: string; headers?: Record<s
       data = init.body
     }
   }
-  return callContainer(envId, url, { method: init.method ?? 'GET', headers: init.headers ?? {}, body: data }).then((r) => {
+  return callContainer(envId, url, { method: init.method ?? 'GET', headers: init.headers ?? {}, body: data })
+    .then((r) => {
     const bytes =
       r.body instanceof ArrayBuffer
         ? new Uint8Array(r.body)
@@ -183,6 +184,13 @@ function containerFetch(url: string, init: { method?: string; headers?: Record<s
         return Promise.resolve(copy.buffer)
       },
     }
+  }, (e: unknown) => {
+    // 传输层失败回退公网 proxy_url（同 io.llm 语义）；挂在 then 第二参，
+    // 只兜 callContainer 拒绝，映射器异常不会误触发二次请求
+    const pub = loadDevConfig()?.cloud?.proxyUrl
+    if (pub === undefined || pub.length === 0) throw e
+    console.warn(`[fx.env] callContainer 失败，回退公网 proxy: ${e instanceof Error ? e.message : String(e)}`)
+    return wxFetch(pub + parseContainerUrl(url).path, init)
   })
 }
 

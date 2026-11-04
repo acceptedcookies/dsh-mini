@@ -28,7 +28,7 @@
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents",
   "dsh": {
-    "localRuntimeRoute": "cloud-sim"
+    "localRuntimeRoute": "cloud"
   },
   "networkTimeout": {
     "request": 120000,
