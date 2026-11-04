@@ -7,6 +7,7 @@ const PERMISSION_KEY = 'dsh:permission:v1'
 const PLAN_KEY = 'dsh:plan-mode:v1'
 const GOAL_KEY = 'dsh:goal:v1'
 const FEEDBACK_KEY = 'dsh:feedback:v1'
+const FEEDBACK_RATINGS_KEY = 'dsh:feedback-ratings:v1'
 
 /** wx.getStorageSync returns '' for a missing key; callers need absence. */
 function readStorage<T>(key: string): T | undefined {
@@ -62,9 +63,19 @@ export const storage = {
   getGoal(): string | undefined {
     return readStorage<string>(GOAL_KEY)
   },
-  addFeedback(text: string): void {
-    const list = readStorage<Array<{ text: string; at: number }>>(FEEDBACK_KEY) ?? []
-    const next = [...list, { text, at: Date.now() }].slice(-20)
+  getFeedbackRatings(): Record<string, string> {
+    return readStorage<Record<string, string>>(FEEDBACK_RATINGS_KEY) ?? {}
+  },
+  setFeedbackRating(messageId: string, rating: string): void {
+    if (messageId.length === 0) return
+    const ratings = this.getFeedbackRatings()
+    if (rating.length === 0) delete ratings[messageId]
+    else ratings[messageId] = rating
+    wx.setStorageSync(FEEDBACK_RATINGS_KEY, ratings)
+  },
+  addFeedback(text: string, meta: { rating?: string; category?: string; messageId?: string } = {}): void {
+    const list = readStorage<Array<{ text: string; at: number; rating?: string; category?: string; messageId?: string }>>(FEEDBACK_KEY) ?? []
+    const next = [...list, { text, at: Date.now(), ...meta }].slice(-20)
     wx.setStorageSync(FEEDBACK_KEY, next)
   },
   setGoal(value: string): void {
@@ -95,5 +106,6 @@ export const storage = {
     wx.removeStorageSync(PLAN_KEY)
     wx.removeStorageSync(GOAL_KEY)
     wx.removeStorageSync(FEEDBACK_KEY)
+    wx.removeStorageSync(FEEDBACK_RATINGS_KEY)
   },
 }

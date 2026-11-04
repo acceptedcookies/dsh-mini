@@ -423,9 +423,9 @@
 
 .tabs {
   display: flex;
-  gap: 24px;
+  gap: 32px;
   height: 32px;
-  padding-left: 6px;
+  padding-left: 8px;
 }
 
 .tab {
@@ -436,7 +436,7 @@
   padding: 0;
   color: var(--dsw-alias-label-tertiary);
   font-size: 13px;
-  line-height: 18px;
+  line-height: 16px;
   font-weight: 500;
   white-space: nowrap;
   transition: color 140ms ease;
@@ -479,9 +479,9 @@
 
 .chat-column {
   width: 100%;
-  max-width: 952px;
+  max-width: 984px;
   margin: 0 auto;
-  padding: 12px 16px;
+  padding: 16px 32px;
 }
 
 .message-wrap {
@@ -514,8 +514,8 @@
 
 .running-text,
 .running-shimmer {
-  font-size: 13px;
-  line-height: 20px;
+  font-size: 12px;
+  line-height: 22px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -571,7 +571,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: calc(100vh - var(--app-nav-height, 64px) - 48px);
+  min-height: calc(100vh - var(--app-nav-height, 64px) - 33px);
   padding: 0 16px;
   box-sizing: border-box;
 }
@@ -588,6 +588,8 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding-bottom: 32px;
+  box-sizing: border-box;
 }
 
 .hero-headline {
@@ -646,13 +648,20 @@
   min-width: 0;
 }
 
+.composer-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
 .workspace-chip {
   display: inline-flex;
   align-self: flex-start;
   margin-left: 8px;
   align-items: center;
   gap: 4px;
-  max-width: min(100%, 360px);
+  max-width: min(calc(100% - 8px), 360px);
   min-height: 28px;
   padding: 0 8px;
   border-radius: var(--dsw-radius-sm);
@@ -688,9 +697,42 @@
 }
 
 .composer-dock-inner {
+  position: relative;
   width: 100%;
   max-width: 952px;
   margin: 0 auto;
+}
+
+.to-bottom {
+  position: absolute;
+  right: 16px;
+  bottom: calc(100% + 16px);
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 100px;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-primary);
+  box-shadow: var(--dsw-elevation-prominent), 0 0 0 0.5px var(--dsw-alias-border-l3);
+  animation: to-bottom-in 160ms ease-out;
+}
+
+.to-bottom:active {
+  background: var(--dsw-alias-button-floating-hover);
+}
+
+@keyframes to-bottom-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* Error */
@@ -814,44 +856,24 @@
   }
 
   .tabs {
-    gap: 20px;
+    gap: 32px;
   }
 
   .hero {
     min-height: calc(100vh - var(--app-nav-height, 64px) - 32px);
-    padding: 0 14px;
-  }
-
-  .hero-headline {
-    column-gap: 8px;
-    font-size: 24px;
-    line-height: 30px;
-  }
-
-  .hero-fish {
-    width: 34px;
-    height: 25px;
-  }
-
-  .hero-badge {
-    font-size: 12px;
-    line-height: 18px;
-  }
-
-  .hero-body {
-    gap: 12px;
+    padding: 0 16px;
   }
 
   .chat-column {
-    padding: 10px 14px;
+    padding: 16px 32px;
   }
 
   .trajectory {
-    padding: 10px 14px;
+    padding: 16px 32px;
   }
 
   .composer-dock {
-    padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
+    padding: 6px 16px calc(6px + env(safe-area-inset-bottom));
   }
 }
 
@@ -895,6 +917,11 @@
   color: var(--dsw-alias-label-tertiary);
   font-size: 14px;
   line-height: 24px;
+  transition: color 100ms ease;
+}
+
+.turn-process:active {
+  color: var(--dsw-alias-label-secondary);
 }
 
 .turn-label {
@@ -907,6 +934,11 @@
 .turn-chevron {
   flex: none;
   margin-left: 4px;
+  transition: transform 100ms ease;
+}
+
+.turn-process-open .turn-chevron {
+  transform: rotate(180deg);
 }
 
 /* Turn navigator — ui-chat/TurnNavigator.module.css (wide frames only) */
@@ -957,4 +989,9 @@
   color: var(--dsw-alias-label-secondary);
   font-size: 13px;
   line-height: 20px;
+}
+
+.composer-anchor {
+  display: block;
+  width: 100%;
 }

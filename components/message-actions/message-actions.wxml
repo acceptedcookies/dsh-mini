@@ -1,11 +1,18 @@
-<view class="actions">
+<view class="actions" data-clock="{{clock}}">
+  <text wx:if="{{clock === 'start' && clockText}}" class="time time-start">{{clockText}}</text>
   <view class="action" bindtap="copy">
-    <dsh-icon name="copy-outline" theme="{{theme}}" size="{{14}}" />
+    <dsh-icon name="{{copied ? 'check-outline' : 'copy-outline'}}" tone="tertiary" theme="{{theme}}" size="{{clock === 'end' ? 17 : 15}}" />
   </view>
-  <view class="action" bindtap="retry">
-    <dsh-icon name="refresh-outline" theme="{{theme}}" size="{{14}}" />
+  <block wx:if="{{feedback}}">
+    <view class="action {{rating === 'positive' ? 'action-active' : ''}}" bindtap="like">
+      <dsh-icon name="{{rating === 'positive' ? 'like-fill' : 'like-outline'}}" tone="tertiary" theme="{{theme}}" size="{{clock === 'end' ? 17 : 15}}" />
+    </view>
+    <view class="action {{rating === 'negative' ? 'action-active' : ''}}" bindtap="dislike">
+      <dsh-icon name="{{rating === 'negative' ? 'dislike-fill' : 'dislike-outline'}}" tone="tertiary" theme="{{theme}}" size="{{clock === 'end' ? 17 : 15}}" />
+    </view>
+  </block>
+  <view wx:if="{{branch}}" class="action" bindtap="branch">
+    <dsh-icon name="branch-outline" tone="tertiary" theme="{{theme}}" size="{{clock === 'end' ? 17 : 15}}" />
   </view>
-  <view class="action" bindtap="branch">
-    <dsh-icon name="branch-outline" theme="{{theme}}" size="{{14}}" />
-  </view>
+  <text wx:if="{{clock === 'end' && clockText}}" class="time time-end">{{clockText}}</text>
 </view>

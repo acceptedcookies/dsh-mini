@@ -6,6 +6,7 @@ Component({
     items: { type: Array, value: [] },
     title: { type: String, value: '' },
     surfaceStyle: { type: String, value: '' },
+    origin: { type: String, value: 'top' },
     theme: { type: String, value: 'light' },
   },
 

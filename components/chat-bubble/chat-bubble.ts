@@ -2,11 +2,45 @@ Component({
   properties: {
     item: { type: Object, value: {} },
     theme: { type: String, value: 'light' },
+    ratings: { type: Object, value: {} },
   },
-  methods: {
-    onRetry() {
-      this.triggerEvent('retry')
+
+  data: {
+    rating: '',
+    diffLines: [] as Array<{ text: string; kind: string }>,
+  },
+
+  observers: {
+    'item, ratings'(item: { id?: string }, ratings: Record<string, string>) {
+      const id = typeof item?.id === 'string' ? item.id : ''
+      const rating = id.length > 0 ? ratings[id] ?? '' : ''
+      if (rating !== this.data.rating) this.setData({ rating })
     },
+    item(item: { kind?: string; text?: string }) {
+      if (item?.kind !== 'diff') return
+      const diffLines = (item.text ?? '').split('\n').map((line) => ({
+        text: line.length > 0 && (line.startsWith('+') || line.startsWith('-')) ? line.slice(1) : line,
+        kind: line.startsWith('+') ? 'add' : line.startsWith('-') ? 'del' : line.startsWith('@@') ? 'hunk' : 'context',
+      }))
+      this.setData({ diffLines })
+    },
+  },
+
+  methods: {
+    onPreview(event: WechatMiniprogram.TouchEvent) {
+      const url = String(event.currentTarget.dataset.url ?? '')
+      if (url.length === 0) return
+      const item = this.properties.item as { images?: Array<{ url: string }> }
+      wx.previewImage({ current: url, urls: (item.images ?? []).map((image) => image.url) })
+    },
+
+    onFeedback(event: WechatMiniprogram.CustomEvent<{ rating: string }>) {
+      this.triggerEvent('feedback', {
+        messageId: (this.properties.item as { id?: string }).id ?? '',
+        rating: event.detail.rating,
+      })
+    },
+
     onBranch() {
       this.triggerEvent('branch')
     },

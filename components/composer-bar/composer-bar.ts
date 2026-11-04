@@ -10,7 +10,6 @@ Component({
     theme: { type: String, value: 'light' },
     permissionLabel: { type: String, value: '工作区内修改' },
     planMode: { type: Boolean, value: false },
-    goalLabel: { type: String, value: '' },
   },
   methods: {
     onInput(event: WechatMiniprogram.Input) {
@@ -37,6 +36,27 @@ Component({
     },
     onRemoveImage(event: WechatMiniprogram.TouchEvent) {
       this.triggerEvent('removeimage', { index: Number(event.currentTarget.dataset.index) })
+    },
+
+    measure(callback: (rect: WechatMiniprogram.BoundingClientRectCallbackResult | null) => void) {
+      this.measureSelector('.composer-card', callback)
+    },
+
+    measureModel(callback: (rect: WechatMiniprogram.BoundingClientRectCallbackResult | null) => void) {
+      this.measureSelector('.composer-model', callback)
+    },
+
+    measurePermission(callback: (rect: WechatMiniprogram.BoundingClientRectCallbackResult | null) => void) {
+      this.measureSelector('.composer-chip-permission', callback)
+    },
+
+    measureSelector(selector: string, callback: (rect: WechatMiniprogram.BoundingClientRectCallbackResult | null) => void) {
+      this.createSelectorQuery()
+        .select(selector)
+        .boundingClientRect((rect) => {
+          callback(rect === null ? null : rect as WechatMiniprogram.BoundingClientRectCallbackResult)
+        })
+        .exec()
     },
   },
 })

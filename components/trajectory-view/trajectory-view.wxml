@@ -14,7 +14,7 @@
           <view class="traj-fold {{callsCollapsed ? 'traj-fold-plus' : 'traj-fold-minus'}}"></view>
           <text>调用</text>
         </view>
-        <view class="traj-action" bindtap="noop">
+        <view class="traj-action traj-action-disabled">
           <view class="traj-fold traj-fold-plus"></view>
           <text>子调用</text>
         </view>

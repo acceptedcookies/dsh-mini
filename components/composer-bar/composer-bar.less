@@ -20,7 +20,7 @@
 .composer-attachments {
   display: flex;
   gap: 8px;
-  padding: 2px 12px 0 14px;
+  padding: 10px 12px 0;
   overflow-x: auto;
 }
 
@@ -52,7 +52,7 @@
   width: 100%;
   min-height: 36px;
   max-height: 240px;
-  padding: 4px 12px 0 14px;
+  padding: 4px 8px 0 14px;
   color: var(--dsw-alias-label-primary);
   font-size: 14px;
   line-height: 24px;
@@ -107,9 +107,9 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  max-width: 130px;
+  max-width: 220px;
   height: 28px;
-  padding: 0 8px;
+  padding: 0 4px 0 8px;
   border-radius: var(--dsw-radius-sm);
   color: var(--dsw-alias-label-secondary);
   font-size: 13px;
@@ -130,13 +130,9 @@
 }
 
 .composer-chip-plan {
+  padding: 0 8px;
   color: var(--dsw-alias-state-business-primary);
   background: var(--dsw-alias-state-business-tertiary);
-}
-
-.composer-chip-goal {
-  color: var(--dsw-alias-label-secondary);
-  background: var(--dsw-alias-button-ghost-active-fill);
 }
 
 .composer-trailing {
@@ -151,7 +147,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  max-width: 360px;
+  max-width: 220px;
   height: 28px;
   padding: 0 4px 0 8px;
   border-radius: var(--dsw-radius-sm);
@@ -225,6 +221,10 @@
 }
 
 @media (max-width: 480px) {
+  .composer-chip-permission .composer-chip-label {
+    display: none;
+  }
+
   .composer-tools {
     overflow: hidden;
     gap: 8px;
@@ -233,10 +233,6 @@
   .composer-chip {
     flex: none;
     max-width: 132px;
-  }
-
-  .composer-chip-goal {
-    display: none;
   }
 
   .composer-model {

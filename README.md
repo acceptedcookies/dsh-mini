@@ -28,12 +28,13 @@ DeepSeek Harness（dsh）的原生微信小程序客户端。
 | `ui-conversation/EmptyHero` | 鱼形 logo + `探索未至之境` + `预览版` 徽标 + 工作区 chip |
 | `ui-conversation/InputBar` | `components/composer-bar`：输入卡、附件、权限 chip、模型、发送/停止 |
 | `ui-chat/MessageItem`、`UserMessageBubble` | `components/chat-bubble`：右对齐浅蓝用户气泡、全宽 assistant markdown |
-| `ui-chat/ToolCallTree`、`DisclosureRow` | `components/tool-card`：24px 工具行与展开详情 |
+| `ui-chat/ToolCallTree`、`ui-tool/GenericToolCard`、`DisclosureRow` | `components/tool-card`：24px 工具行（变体图标、标题、摘要点）、输入/输出展开卡；工具结果合并回调用行 |
 | `ui-chat/ReasoningRow`、`TurnProcessNodeView`、`TurnNavigator` | `components/reasoning-row`、轮次标题、宽屏轮次刻度 |
 | `ui-trajectory/TrajectoryView`、`TrajectoryToolbar`、`TrajectoryTimeline`、`TrajectoryTable` | `components/trajectory-view`：时长/轮次/调用折叠、搜索、三泳道时间线、请求账本与明细面板 |
 | `ui-commands`、`ui-input-trigger/MenuView` | `components/command-menu`：`/` 与 composer `+` 打开的指令菜单（添加/指令分区、别名、过滤） |
 | `ui-permission-presets/PermissionSelect` | composer 权限 chip + `dsh-menu` 两行选项（仅可查看/工作区内修改/完全权限/自动审查） |
-| `ui-chat/MessageIconActions` | `components/message-actions`：复制/重试/分支 |
+| `ui-chat/MessageIconActions`、`ui-message-feedback` | `components/message-actions`：日期时钟、复制（勾选反馈）、赞/踩、分支；`components/feedback-dialog`：分类 chip、详情输入与提交 |
+| `ui-goal/GoalBar` | `components/goal-bar`：composer 上方的目标条（目标标签、截断目标、内联编辑、清除） |
 | `ui-approval/ApprovalPanel` | `components/approval-sheet` |
 | `ui-user-questions/QuestionComposer` | `components/question-sheet` |
 | `ui-settings-general/SettingsRoot` | `pages/settings`：800px 面板、188px 导航、移动端横向导航 |
@@ -58,7 +59,7 @@ DeepSeek Harness（dsh）的原生微信小程序客户端。
 app.json / app.ts / app.less     小程序入口与全局设计令牌
 pages/workspace                   dsh 工作区（侧栏、会话、输入框、审批）
 pages/settings                    dsh 设置面板 + nano-agent 账户连接
-components/                       composer-bar、command-menu、trajectory-view、chat-bubble、tool-card、reasoning-row、message-actions、right-panel、dsh-icon、dsh-menu、dsh-dialog、dsh-toast、dsh-switch
+components/                       composer-bar、command-menu、trajectory-view、chat-bubble、tool-card、reasoning-row、message-actions、feedback-dialog、goal-bar、right-panel、dsh-icon、dsh-menu、dsh-dialog、dsh-toast、dsh-switch
 services/                         nano-agent HTTP/WS 运行时、本地兜底运行时、会话 store、markdown、主题、存储
 types/                            ChatItem / Session / Approval / Question 数据模型
 assets/                           鱼形 logo、running whale、dsh 图标
@@ -70,6 +71,7 @@ typings/                          IAppOption
 - 界面 port 已完成：工作区 shell、侧栏、空态 hero、composer、消息、工具行、推理行、轮次标题/导航、消息操作、审批/提问、设置九个分节、右侧六类面板、浅色/深色主题、PC/平板/手机断点。
 - 轨迹视图：`时长`/`轮次`/`调用` 折叠、轨迹搜索、三泳道时间线、请求账本、明细面板（概述/参数/结果/思考/计时）。
 - 指令与动效：`/` 指令菜单、权限选择弹窗、目标/计划/反馈/压缩/模型/导出动作；菜单、对话框、Toast、明细面板与消息均有进入/退出动效。
+- 消息与 composer 细节：日期时钟、复制成功勾选、赞/踩与反馈分类弹窗（落本地，含评分持久化）、目标条内联编辑、工具输入/输出展开卡、运行中工具行、离开尾部时的回到底部按钮。
 - 真实运行时已接入：nano-agent 登录、会话列表/创建/启动/输入/取消、历史分页、WebSocket 流式事件、工具调用/结果、确认请求、断线重连与 seq ack。
 - 本地运行时保留为未登录时的离线兜底。
 - 右侧面板：文件树接 `/workspace/files`，计划接 `/todos`；终端、浏览器、后台任务、Agent Team 按 nano-agent 当前公开能力显示真实空态。

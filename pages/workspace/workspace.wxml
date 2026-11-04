@@ -14,7 +14,7 @@
       </view>
 
       <view class="new-session" bindtap="newSession">
-        <dsh-icon name="new-chat-outline" theme="{{theme}}" size="{{16}}" />
+        <dsh-icon name="new-chat-outline" theme="{{theme}}" size="{{18}}" />
         <text class="new-session-label">新会话</text>
       </view>
     </view>
@@ -124,12 +124,14 @@
 
     <scroll-view
       wx:else
+      id="chat-scroll"
       class="viewport"
       scroll-y
       enhanced
       show-scrollbar="{{false}}"
       scroll-into-view="{{scrollTarget}}"
       scroll-with-animation
+      bindscroll="onChatScroll"
     >
       <view wx:if="{{!state.current && !showHero}}" class="hero">
         <text class="view-loading">正在打开会话…</text>
@@ -147,7 +149,7 @@
 
           <view class="hero-body">
             <view id="workspace-menu-button" class="workspace-chip" bindtap="openWorkspaceMenu">
-              <dsh-icon name="folder-open-outline" theme="{{theme}}" size="{{14}}" />
+              <dsh-icon name="folder-open-outline" theme="{{theme}}" size="{{16}}" />
               <text class="workspace-chip-label">{{workspaceName}}</text>
               <dsh-icon name="chevron-down-outline" theme="{{theme}}" size="{{12}}" />
             </view>
@@ -166,7 +168,17 @@
               bind:submit="onQuestionSubmit"
               bind:close="onQuestionClose"
             />
+            <view class="composer-stack">
+            <goal-bar
+              wx:if="{{goal}}"
+              goal="{{goal}}"
+              theme="{{theme}}"
+              bind:edit="onGoalEdit"
+              bind:clear="onGoalClear"
+            />
+            <view id="composer-anchor" class="composer-anchor">
             <composer-bar
+              id="composer"
               hero="{{true}}"
               theme="{{theme}}"
               value="{{input}}"
@@ -177,7 +189,6 @@
               images="{{pendingImages}}"
               permission-label="{{permissionLabel}}"
               plan-mode="{{planMode}}"
-              goal-label="{{goalLabel}}"
               bind:input="onComposerInput"
               bind:send="send"
               bind:stop="stop"
@@ -186,6 +197,8 @@
               bind:model="openModelPicker"
               bind:removeimage="removeImage"
             />
+            </view>
+            </view>
           </view>
         </view>
       </view>
@@ -197,12 +210,25 @@
             wx:key="id"
             id="msg-{{item.id}}"
             class="message-wrap"
+            hidden="{{!item.turnLabel && item.processHidden}}"
           >
-            <view wx:if="{{item.turnLabel}}" class="turn-process">
+            <view
+              wx:if="{{item.turnLabel}}"
+              class="turn-process {{item.turnCollapsible && !collapsedTurns[item.turn] ? 'turn-process-open' : ''}}"
+              data-turn="{{item.turnCollapsible ? item.turn : 0}}"
+              bindtap="toggleTurn"
+            >
               <text class="turn-label">{{item.turnLabel}}</text>
-              <dsh-icon class="turn-chevron" name="chevron-down-outline" theme="{{theme}}" size="{{12}}" />
+              <dsh-icon wx:if="{{item.turnCollapsible}}" class="turn-chevron" name="chevron-down-outline" tone="tertiary" theme="{{theme}}" size="{{14}}" />
             </view>
-            <chat-bubble item="{{item}}" theme="{{theme}}" bind:retry="retryMessage" bind:branch="branchMessage" />
+            <chat-bubble
+              wx:if="{{!item.processHidden}}"
+              item="{{item}}"
+              theme="{{theme}}"
+              ratings="{{feedbackRatings}}"
+              bind:feedback="onMessageFeedback"
+              bind:branch="branchMessage"
+            />
           </view>
 
           <view wx:if="{{state.current && (state.current.status === 'running' || state.streaming)}}" id="stream-anchor" class="running-row">
@@ -250,7 +276,17 @@
           bind:submit="onQuestionSubmit"
           bind:close="onQuestionClose"
         />
+        <view class="composer-stack">
+        <goal-bar
+          wx:if="{{goal}}"
+          goal="{{goal}}"
+          theme="{{theme}}"
+          bind:edit="onGoalEdit"
+          bind:clear="onGoalClear"
+        />
+        <view id="composer-anchor" class="composer-anchor">
         <composer-bar
+          id="composer"
           hero="{{false}}"
           theme="{{theme}}"
           value="{{input}}"
@@ -261,7 +297,6 @@
           images="{{pendingImages}}"
           permission-label="{{permissionLabel}}"
           plan-mode="{{planMode}}"
-          goal-label="{{goalLabel}}"
           bind:input="onComposerInput"
           bind:send="send"
           bind:stop="stop"
@@ -270,6 +305,11 @@
           bind:model="openModelPicker"
           bind:removeimage="removeImage"
         />
+        </view>
+        </view>
+        <view wx:if="{{!showHero && view === 'chat' && !atTail}}" class="to-bottom" bindtap="scrollToBottom">
+          <dsh-icon name="chevron-down-outline" tone="primary" theme="{{theme}}" size="{{16}}" />
+        </view>
       </view>
     </view>
   </main>
@@ -316,9 +356,18 @@
     items="{{menuItems}}"
     title="{{menuTitle}}"
     surface-style="{{menuStyle}}"
+    origin="{{menuContext === 'permission' ? 'bottom' : 'top'}}"
     theme="{{theme}}"
     bind:close="closeMenu"
     bind:select="onMenuSelect"
+  />
+  <feedback-dialog
+    visible="{{feedbackVisible}}"
+    theme="{{theme}}"
+    rating="{{feedbackRating}}"
+    target="{{feedbackTarget}}"
+    bind:cancel="closeFeedback"
+    bind:submit="onFeedbackSubmit"
   />
   <dsh-dialog
     visible="{{dialogVisible}}"

@@ -23,3 +23,26 @@ export function formatClock(timestamp: number): string {
   const minute = `${date.getMinutes()}`.padStart(2, '0')
   return `${hour}:${minute}`
 }
+
+/**
+ * Date-aware message clock: `HH:mm` today, `M月D日 HH:mm` earlier this year,
+ * `YYYY年M月D日 HH:mm` across years.
+ */
+export function formatMessageClock(timestamp: number, now = Date.now()): string {
+  const date = new Date(timestamp)
+  const current = new Date(now)
+  const clock = formatClock(timestamp)
+  if (
+    date.getFullYear() === current.getFullYear()
+    && date.getMonth() === current.getMonth()
+    && date.getDate() === current.getDate()
+  ) {
+    return clock
+  }
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  if (date.getFullYear() === current.getFullYear()) {
+    return `${month}月${day}日 ${clock}`
+  }
+  return `${date.getFullYear()}年${month}月${day}日 ${clock}`
+}

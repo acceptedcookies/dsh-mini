@@ -1,17 +1,37 @@
-<view class="tool-card" bindtap="toggle">
-  <view class="tool-head">
-    <view class="status status-{{item.status}}"></view>
-    <dsh-icon class="tool-icon" name="{{iconName}}" theme="{{theme}}" size="{{14}}" />
-    <text class="tool-name">{{item.tool}}</text>
-    <text class="tool-title">{{item.title || item.summary}}</text>
-    <view class="tool-chevron">
+<view class="tool-card">
+  <view class="tool-head {{view.running ? 'tool-head-running' : ''}}" bindtap="toggle">
+    <view class="tool-leading">
       <dsh-icon
-        name="{{expanded ? 'chevron-up-outline' : 'chevron-down-outline'}}"
+        tone="tertiary"
+        wx:if="{{expanded && view.expandable}}"
+        name="chevron-up-outline"
         theme="{{theme}}"
-        size="{{12}}"
+        size="{{14}}"
       />
+      <dsh-icon wx:else tone="tertiary" name="{{view.icon}}" theme="{{theme}}" size="{{14}}" />
+    </view>
+    <text class="tool-title">{{view.title}}</text>
+    <block wx:if="{{view.summary}}">
+      <view class="tool-sep"></view>
+      <text
+        class="tool-summary {{view.failed ? 'tool-summary-error' : view.stopped ? 'tool-summary-stopped' : ''}}"
+      >{{view.summary}}</text>
+    </block>
+  </view>
+
+  <view wx:if="{{expanded && view.expandable}}" class="tool-body">
+    <view wx:if="{{view.input}}" class="tool-io-section">
+      <text class="tool-io-label">输入</text>
+      <scroll-view scroll-y class="tool-io-scroll">
+        <text class="tool-io-text mono">{{view.input}}</text>
+      </scroll-view>
+    </view>
+    <view wx:if="{{view.input && view.output}}" class="tool-io-divider"></view>
+    <view wx:if="{{view.output}}" class="tool-io-section">
+      <text class="tool-io-label">输出</text>
+      <scroll-view scroll-y class="tool-io-scroll">
+        <text class="tool-io-text mono {{view.failed ? 'tool-io-text-error' : ''}}">{{view.output}}</text>
+      </scroll-view>
     </view>
   </view>
-  <view wx:if="{{expanded && item.detail}}" class="tool-detail mono">{{item.detail}}</view>
-  <view wx:if="{{expanded && item.callId}}" class="tool-meta">call {{item.callId}}</view>
 </view>

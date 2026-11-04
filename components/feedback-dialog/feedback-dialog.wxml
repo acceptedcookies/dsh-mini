@@ -1,0 +1,38 @@
+<view wx:if="{{render}}" class="feedback-layer theme-{{theme}} {{closing ? 'feedback-closing' : ''}}" catchtouchmove="noop">
+  <view class="feedback-mask" bindtap="cancel"></view>
+  <view class="feedback-card" catchtap="noop">
+    <view class="feedback-header">
+      <text class="feedback-title">提交反馈</text>
+      <view class="feedback-close" bindtap="cancel">
+        <dsh-icon name="close-outline" theme="{{theme}}" size="{{14}}" />
+      </view>
+    </view>
+
+    <view class="feedback-categories">
+      <view
+        wx:for="{{categories}}"
+        wx:key="id"
+        class="feedback-chip {{category === item.id ? 'feedback-chip-active' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="selectCategory"
+      >{{item.label}}</view>
+    </view>
+
+    <textarea
+      class="feedback-detail"
+      value="{{draft}}"
+      placeholder="填写详情以帮助我们改进体验，提交内容会包括当前对话的日志"
+      placeholder-class="feedback-placeholder"
+      auto-height
+      maxlength="-1"
+      cursor-spacing="24"
+      show-confirm-bar="{{false}}"
+      bindinput="onInput"
+    />
+
+    <view
+      class="feedback-submit {{submitting ? 'feedback-submit-disabled' : ''}}"
+      bindtap="submit"
+    >{{submitting ? '提交中…' : '提交'}}</view>
+  </view>
+</view>

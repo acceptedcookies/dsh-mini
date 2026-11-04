@@ -1,39 +1,68 @@
-<view wx:if="{{visible && request.id}}" class="question-card">
+<view wx:if="{{visible && request.id && current}}" class="question-card">
   <view class="question-head">
-    <view>
-      <view class="question-eyebrow">Agent 提问</view>
-      <view class="question-title">需要你的选择</view>
-    </view>
+    <text class="question-title">{{current.text}}</text>
     <view class="question-close" bindtap="close">
       <dsh-icon name="close-outline" theme="{{theme}}" size="{{14}}" />
     </view>
   </view>
 
   <scroll-view class="question-body" scroll-y enhanced show-scrollbar="{{false}}">
-    <view wx:for="{{view}}" wx:key="id" wx:for-item="q" class="question">
-      <view class="question-text">{{q.text}}</view>
-      <view
-        wx:for="{{q.options}}"
-        wx:key="id"
-        wx:for-item="o"
-        class="option {{o.selected ? 'option-selected' : ''}}"
-        data-qid="{{q.id}}"
-        data-oid="{{o.id}}"
-        bindtap="onOptionTap"
-      >
-        <view class="option-mark">
-          <dsh-icon wx:if="{{o.selected}}" name="check-outline" tone="accent" theme="{{theme}}" size="{{10}}" />
-        </view>
-        <view class="option-body">
-          <view class="option-label">{{o.label}}</view>
-          <view wx:if="{{o.detail}}" class="option-detail">{{o.detail}}</view>
-        </view>
+    <view
+      wx:for="{{current.options}}"
+      wx:key="id"
+      wx:for-index="optionIndex"
+      class="option {{item.selected ? 'option-selected' : ''}}"
+      data-oid="{{item.id}}"
+      bindtap="onOptionTap"
+    >
+      <view wx:if="{{current.multiple}}" class="option-box {{item.selected ? 'option-box-checked' : ''}}">
+        <dsh-icon wx:if="{{item.selected}}" name="check-outline" tone="accent" theme="{{theme}}" size="{{12}}" />
       </view>
+      <text wx:else class="option-number">{{optionIndex + 1}}</text>
+      <view class="option-copy">
+        <view class="option-line">
+          <text class="option-label">{{item.label}}</text>
+          <text wx:if="{{item.recommended}}" class="option-badge">推荐</text>
+        </view>
+        <text wx:if="{{item.detail}}" class="option-detail">{{item.detail}}</text>
+      </view>
+    </view>
+
+    <view class="custom {{current.custom ? 'custom-active' : ''}}">
+      <view wx:if="{{current.multiple}}" class="option-box {{current.custom ? 'option-box-checked' : ''}}">
+        <dsh-icon wx:if="{{current.custom}}" name="check-outline" tone="accent" theme="{{theme}}" size="{{12}}" />
+      </view>
+      <view wx:else class="option-number">
+        <dsh-icon name="edit-outline" theme="{{theme}}" size="{{12}}" />
+      </view>
+      <textarea
+        class="custom-input"
+        value="{{current.custom}}"
+        placeholder="输入你的答案"
+        placeholder-class="custom-placeholder"
+        auto-height
+        maxlength="-1"
+        cursor-spacing="24"
+        show-confirm-bar="{{false}}"
+        bindinput="onCustom"
+      />
     </view>
   </scroll-view>
 
-  <view class="question-actions">
-    <view class="question-action question-later" bindtap="close">稍后</view>
-    <view class="question-action question-submit" bindtap="submit">提交</view>
+  <view class="question-footer">
+    <view wx:if="{{view.length > 1}}" class="question-pager">
+      <view class="pager-button {{index === 0 ? 'pager-button-disabled' : ''}}" bindtap="previous">
+        <dsh-icon name="chevron-left-outline" tone="tertiary" theme="{{theme}}" size="{{14}}" />
+      </view>
+      <text class="pager-progress">{{progress}}</text>
+      <view class="pager-button {{index === view.length - 1 ? 'pager-button-disabled' : ''}}" bindtap="next">
+        <dsh-icon name="chevron-right-outline" tone="tertiary" theme="{{theme}}" size="{{14}}" />
+      </view>
+    </view>
+    <text class="question-error">{{error}}</text>
+    <view class="question-actions">
+      <view class="question-action question-skip" bindtap="skip">跳过</view>
+      <view class="question-action question-primary {{primaryDisabled ? 'question-primary-disabled' : ''}}" bindtap="continueFlow">{{primaryLabel}}</view>
+    </view>
   </view>
 </view>

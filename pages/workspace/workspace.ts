@@ -8,6 +8,7 @@ import { storage } from '../../services/storage'
 import { DEFAULT_PERMISSION, PERMISSIONS, permissionOf, type PermissionOption } from '../../services/permissions'
 import { firstCommand } from '../../services/commands'
 import { formatRelative } from '../../utils/time'
+import { toolView, type ToolView } from '../../utils/tool-view'
 import { getWindowMetrics, isWideLayout, type WindowMetrics } from '../../utils/window'
 import type {
   ApprovalOutcome,
@@ -24,7 +25,15 @@ interface SessionRow extends SessionSummary {
   timeLabel: string
 }
 
-type DisplayItem = ChatItem & { turnLabel?: string }
+/* Tool rows carry their dsh presentation projection (utils/tool-view). */
+type DisplayItem = ChatItem & {
+  turn?: number
+  turnLabel?: string
+  turnCollapsible?: boolean
+  process?: boolean
+  processHidden?: boolean
+  toolView?: ToolView
+}
 
 interface TurnMark {
   turn: number
@@ -126,9 +135,13 @@ Page({
     rows: [] as SessionRow[],
     query: '',
     version: APP_VERSION,
+    buildMark: 'fold-4',
     runtimeLabel: sessionStore.runtimeLabel(),
     showHero: true,
     view: 'chat' as 'chat' | 'trajectory',
+    collapsedTurns: {} as Record<number, boolean>,
+    atTail: true,
+    chatViewportHeight: 0,
     displayItems: [] as DisplayItem[],
     turnMarks: [] as TurnMark[],
     rightOpen: false,
@@ -178,9 +191,12 @@ Page({
     permissionLabel: DEFAULT_PERMISSION.label,
     planMode: false,
     goal: '',
-    goalLabel: '',
     dialogPlaceholder: '输入会话标题',
     riskAck: false,
+    feedbackRatings: {} as Record<string, string>,
+    feedbackVisible: false,
+    feedbackRating: 'positive',
+    feedbackTarget: '',
   },
 
   onLoad() {
@@ -204,7 +220,7 @@ Page({
       permissionLabel: permission.label,
       planMode,
       goal,
-      goalLabel: goalLabelOf(goal),
+      feedbackRatings: storage.getFeedbackRatings(),
     })
 
     void sessionStore.init()
@@ -229,9 +245,46 @@ Page({
         ...placeholderData(wide, this.data.planMode),
         isWide: wide,
         sidebarOpen: wide ? false : this.data.sidebarOpen,
+      }, () => {
+        this.measureChatViewport()
+        if (this.data.modelPickerVisible) this.placeModelPicker()
+        if (this.data.commandMenuVisible) this.showCommandMenu()
+        if (this.data.menuVisible && this.data.menuContext === 'permission') this.placePermissionMenu()
       })
     }
     wx.onWindowResize(resizeHandler)
+  },
+
+  onReady() {
+    this.measureChatViewport()
+  },
+
+  measureChatViewport() {
+    this.createSelectorQuery()
+      .select('#chat-scroll')
+      .boundingClientRect((rect) => {
+        if (rect !== null) this.setData({ chatViewportHeight: (rect as WechatMiniprogram.BoundingClientRectCallbackResult).height })
+      })
+      .exec()
+  },
+
+  onChatScroll(event: WechatMiniprogram.ScrollViewScroll) {
+    const viewport = this.data.chatViewportHeight
+    if (viewport <= 0) return
+    const distance = event.detail.scrollHeight - (event.detail.scrollTop + viewport)
+    const atTail = distance <= 48
+    if (atTail !== this.data.atTail) this.setData({ atTail })
+  },
+
+  scrollToBottom() {
+    const state = this.data.state
+    const items = this.data.displayItems
+    const last = items[items.length - 1]
+    const busy = state.current?.status === 'running' || state.streaming !== undefined
+    const target = busy ? 'stream-anchor' : last === undefined ? '' : `msg-${last.id}`
+    this.setData({ atTail: true, scrollTarget: '' }, () => {
+      this.setData({ scrollTarget: target })
+    })
   },
 
   onShow() {
@@ -262,7 +315,6 @@ Page({
         permission: permission.id,
         permissionLabel: permission.label,
         goal,
-        goalLabel: goalLabelOf(goal),
         planMode: storage.getPlanMode() === true,
         ...placeholderData(this.data.isWide, storage.getPlanMode() === true),
       })
@@ -287,14 +339,19 @@ Page({
     const summary = state.sessions.find((session) => session.id === currentId)
     const rows = filterRows(state.sessions, this.data.query)
     const items = state.current?.items ?? []
-    const last = items[items.length - 1]
     const busy = state.current?.status === 'running' || state.streaming !== undefined
-    const scrollTarget = busy
-      ? 'stream-anchor'
-      : last === undefined
-        ? ''
-        : `msg-${last.id}`
-    const turns = buildTurns(items)
+    const sessionChanged = currentId !== this.data.currentId
+    const collapsedTurns = sessionChanged ? {} : this.data.collapsedTurns
+    const atTail = sessionChanged ? true : this.data.atTail
+    const turns = buildTurns(items, busy, collapsedTurns)
+    const last = turns.items[turns.items.length - 1]
+    const scrollTarget = !atTail
+      ? this.data.scrollTarget
+      : busy
+        ? 'stream-anchor'
+        : last === undefined
+          ? ''
+          : `msg-${last.id}`
     const running = state.current?.status === 'running' || state.streaming !== undefined
     const runStartedAt = running
       ? this.data.runStartedAt === 0 ? Date.now() : this.data.runStartedAt
@@ -308,6 +365,8 @@ Page({
       runtimeLabel: sessionStore.runtimeLabel(),
       title: summary?.title ?? '新会话',
       rows,
+      collapsedTurns,
+      atTail,
       scrollTarget,
       approval: state.approvals[0] ?? null,
       question: state.questions[0] ?? null,
@@ -368,19 +427,39 @@ Page({
         return
       }
     }
+    this.setData({ atTail: true })
     const accepted = await sessionStore.prompt(text, images)
     if (accepted) this.setData({ input: '', pendingImages: [], sidebarOpen: false, commandMenuVisible: false })
   },
 
-  showCommandMenu() {
+  measureComposer(callback: (rect: WechatMiniprogram.BoundingClientRectCallbackResult | null) => void) {
+    const composer = this.selectComponent('#composer') as { measure?: (cb: typeof callback) => void } | null
+    if (composer?.measure !== undefined) {
+      composer.measure(callback)
+      return
+    }
+    this.createSelectorQuery()
+      .select('#composer-anchor')
+      .boundingClientRect((rect) => {
+        callback(rect === null ? null : rect as WechatMiniprogram.BoundingClientRectCallbackResult)
+      })
+      .exec()
+  },
+
+  showCommandMenu(hideKeyboard = false) {
+    if (hideKeyboard) wx.hideKeyboard()
+    const place = () => this.placeCommandMenu()
+    if (hideKeyboard) setTimeout(place, 60)
+    else place()
+  },
+
+  placeCommandMenu() {
     const metrics = getWindowMetrics()
     const width = Math.min(560, metrics.width - 16)
-    this.createSelectorQuery()
-      .select('.composer-card')
-      .boundingClientRect((rect) => {
-        const anchor = rect as WechatMiniprogram.BoundingClientRectCallbackResult | null
+    this.measureComposer((rect) => {
+        const anchor = rect
         const cardWidth = Math.min(width, anchor?.width ?? width)
-        const left = Math.max(8, Math.min(metrics.width - cardWidth - 8, (anchor?.left ?? 8) + ((anchor?.width ?? cardWidth) - cardWidth) / 2))
+        const left = Math.max(8, Math.min(metrics.width - cardWidth - 8, anchor?.left ?? 8))
         const cardTop = anchor?.top ?? metrics.height - 96
         const bottom = Math.max(8, metrics.height - cardTop + 4)
         const maxHeight = Math.max(120, Math.min(400, cardTop - metrics.statusBarHeight - metrics.navBarContentHeight - 92))
@@ -389,12 +468,18 @@ Page({
           commandMenuMaxHeight: maxHeight,
           commandMenuStyle: `left: ${left}px; bottom: ${bottom}px; width: ${cardWidth}px; max-height: ${maxHeight + 8}px;`,
         })
-      })
-      .exec()
+    })
   },
 
   closeCommandMenu() {
     this.setData({ commandMenuVisible: false })
+  },
+
+  toggleTurn(event: WechatMiniprogram.TouchEvent) {
+    const turn = Number(event.currentTarget.dataset.turn)
+    if (!Number.isFinite(turn) || turn <= 0) return
+    const collapsedTurns = { ...this.data.collapsedTurns, [turn]: this.data.collapsedTurns[turn] !== true }
+    this.setData({ collapsedTurns })
   },
 
   openCommandMenu() {
@@ -408,7 +493,7 @@ Page({
       commandStart: -1,
       commandEnd: -1,
     })
-    this.showCommandMenu()
+    this.showCommandMenu(true)
   },
 
   onCommandSelect(event: WechatMiniprogram.CustomEvent<{ id: string }>) {
@@ -516,8 +601,20 @@ Page({
   saveGoal(value: string) {
     const goal = value.trim()
     storage.setGoal(goal)
-    this.setData({ goal, goalLabel: goalLabelOf(goal) })
+    this.setData({ goal })
     this.showToast(goal.length === 0 ? '目标已清除' : '目标已保存', 'success')
+  },
+
+  onGoalEdit(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
+    const goal = event.detail.value.trim()
+    if (goal.length === 0) return
+    storage.setGoal(goal)
+    this.setData({ goal })
+  },
+
+  onGoalClear() {
+    storage.setGoal('')
+    this.setData({ goal: '' })
   },
 
   saveFeedback(value: string) {
@@ -562,6 +659,20 @@ Page({
   },
 
   openPermissionMenu() {
+    wx.hideKeyboard()
+    setTimeout(() => this.placePermissionMenu(), 60)
+  },
+
+  measurePermissionTrigger(callback: (rect: WechatMiniprogram.BoundingClientRectCallbackResult | null) => void) {
+    const composer = this.selectComponent('#composer') as { measurePermission?: (cb: typeof callback) => void } | null
+    if (composer?.measurePermission !== undefined) {
+      composer.measurePermission(callback)
+      return
+    }
+    callback(null)
+  },
+
+  placePermissionMenu() {
     const items = PERMISSIONS.map((permission) => ({
       id: permission.id,
       label: permission.label,
@@ -569,15 +680,17 @@ Page({
       badge: permission.badge,
       checked: permission.id === this.data.permission,
     }))
-    this.createSelectorQuery()
-      .select('.composer-chip')
-      .boundingClientRect((rect) => {
+    this.measurePermissionTrigger((trigger) => {
+      this.measureComposer((anchor) => {
         const metrics = getWindowMetrics()
         const width = 244
-        const anchor = rect as WechatMiniprogram.BoundingClientRectCallbackResult | null
-        const left = Math.max(8, Math.min(metrics.width - width - 8, (anchor?.left ?? 12)))
+        const left = Math.max(8, Math.min(
+          metrics.width - width - 8,
+          trigger === null ? (anchor?.left ?? 12) + 8 : trigger.left,
+        ))
         const height = 8 + 20 + items.length * 48 + 4
-        const top = Math.max(metrics.statusBarHeight + metrics.navBarContentHeight + 8, (anchor?.top ?? metrics.height - 96) - height - 6)
+        const triggerTop = trigger === null ? anchor?.top ?? metrics.height - 96 : trigger.top
+        const top = Math.max(metrics.statusBarHeight + metrics.navBarContentHeight + 8, triggerTop - height - 6)
         this.setData({
           menuVisible: true,
           menuItems: items,
@@ -587,7 +700,7 @@ Page({
           menuTargetId: this.data.permission,
         })
       })
-      .exec()
+    })
   },
 
   stop() {
@@ -698,22 +811,40 @@ Page({
   },
 
   openModelPicker() {
+    wx.hideKeyboard()
+    setTimeout(() => this.placeModelPicker(), 60)
+  },
+
+  measureModelTrigger(callback: (rect: WechatMiniprogram.BoundingClientRectCallbackResult | null) => void) {
+    const composer = this.selectComponent('#composer') as { measureModel?: (cb: typeof callback) => void } | null
+    if (composer?.measureModel !== undefined) {
+      composer.measureModel(callback)
+      return
+    }
+    callback(null)
+  },
+
+  placeModelPicker() {
     const metrics = getWindowMetrics()
     const width = 260
-    const height = 4 + 20 + this.data.models.length * 46 + 4
-    this.createSelectorQuery()
-      .select('.composer-card')
-      .boundingClientRect((rect) => {
-        const anchor = rect as WechatMiniprogram.BoundingClientRectCallbackResult | null
-        const left = Math.max(8, Math.min(metrics.width - width - 8, (anchor?.right ?? metrics.width - 12) - width))
-        const anchorTop = (anchor?.top ?? metrics.height - 96) - 8
-        const top = Math.max(metrics.statusBarHeight + metrics.navBarContentHeight + 8, anchorTop - height)
+    const height = 8 + 27 + this.data.models.length * 44
+    this.measureModelTrigger((trigger) => {
+      this.measureComposer((anchor) => {
+        // 菜单右缘对齐模型触发键，底边距触发键顶部 8px；测量失败时回退到 composer 几何。
+        const right = trigger === null
+          ? anchor === null ? metrics.width - 12 : anchor.right - 54
+          : trigger.right
+        const left = Math.max(8, Math.min(metrics.width - width - 8, right - width))
+        const buttonTop = trigger === null
+          ? anchor === null ? metrics.height - 96 : anchor.bottom - 42
+          : trigger.top
+        const top = Math.max(metrics.statusBarHeight + metrics.navBarContentHeight + 8, buttonTop - 8 - height)
         this.setData({
           modelPickerVisible: true,
           modelPickerStyle: `left: ${left}px; top: ${top}px; width: ${width}px;`,
         })
       })
-      .exec()
+    })
   },
 
   closeModelPicker() {
@@ -856,6 +987,38 @@ Page({
     this.setData({ dialogVisible: false })
   },
 
+  onMessageFeedback(event: WechatMiniprogram.CustomEvent<{ messageId: string; rating: string }>) {
+    const messageId = event.detail.messageId
+    if (messageId.length === 0) return
+    const current = this.data.feedbackRatings[messageId] ?? ''
+    if (current === event.detail.rating) {
+      storage.setFeedbackRating(messageId, '')
+      this.setData({ [`feedbackRatings.${messageId}`]: '' })
+      return
+    }
+    this.setData({
+      feedbackVisible: true,
+      feedbackRating: event.detail.rating,
+      feedbackTarget: messageId,
+    })
+  },
+
+  closeFeedback() {
+    this.setData({ feedbackVisible: false })
+  },
+
+  onFeedbackSubmit(event: WechatMiniprogram.CustomEvent<{ rating: string; category: string; text: string }>) {
+    const { rating, category, text } = event.detail
+    const messageId = this.data.feedbackTarget
+    storage.addFeedback(text, { rating, category, messageId })
+    if (messageId.length > 0) {
+      storage.setFeedbackRating(messageId, rating)
+      this.setData({ [`feedbackRatings.${messageId}`]: rating })
+    }
+    this.setData({ feedbackVisible: false })
+    this.showToast('感谢你的反馈', 'success')
+  },
+
   onRiskAck(event: WechatMiniprogram.CustomEvent<{ checked: boolean }>) {
     this.setData({ riskAck: event.detail.checked })
   },
@@ -902,13 +1065,6 @@ Page({
     this.setData({ toastVisible: false })
   },
 
-  async retryMessage() {
-    const items = this.data.state.current?.items ?? []
-    const lastUser = [...items].reverse().find((item) => item.kind === 'user_message')
-    if (lastUser?.kind !== 'user_message') return
-    await sessionStore.prompt(lastUser.text)
-  },
-
   branchMessage() {
     this.showToast('分支需要 dsh Host 的 session/fork', 'info')
   },
@@ -945,15 +1101,9 @@ function formatRunDuration(milliseconds: number): string {
   const hours = Math.floor(total / 3600)
   const minutes = Math.floor(total / 60) % 60
   const seconds = total % 60
-  if (hours > 0) return `${hours} 小时 ${minutes} 分 ${seconds} 秒`
-  if (total >= 60) return `${minutes} 分 ${seconds} 秒`
-  return `${seconds} 秒`
-}
-
-function goalLabelOf(goal: string): string {
-  if (goal.length === 0) return ''
-  const compact = goal.replace(/\s+/g, ' ')
-  return `目标 · ${compact.length > 10 ? `${compact.slice(0, 10)}…` : compact}`
+  if (hours > 0) return `${hours}小时${minutes}分${seconds}秒`
+  if (total >= 60) return `${minutes}分${seconds}秒`
+  return `${seconds}秒`
 }
 
 function filterRows(sessions: SessionSummary[], query: string): SessionRow[] {
@@ -967,15 +1117,52 @@ function filterRows(sessions: SessionSummary[], query: string): SessionRow[] {
     .map((session) => ({ ...session, timeLabel: formatRelative(session.updatedAt) }))
 }
 
-function buildTurns(items: ChatItem[]): { items: DisplayItem[]; marks: TurnMark[] } {
+interface TurnMeta {
+  headerIndex: number
+  start: number
+  end: number
+  hasContent: boolean
+  failed: boolean
+}
+
+function buildTurns(
+  items: ChatItem[],
+  live: boolean,
+  collapsedTurns: Record<number, boolean>,
+): { items: DisplayItem[]; marks: TurnMark[] } {
   const display: DisplayItem[] = []
   const marks: TurnMark[] = []
+  const metas: TurnMeta[] = []
+  const toolRows = new Map<string, number[]>()
   let turn = 0
   let awaitingHeader = false
+
+  const push = (entry: DisplayItem): void => {
+    const meta = metas[metas.length - 1]
+    if (meta !== undefined && entry.ts !== undefined && entry.ts > meta.end) meta.end = entry.ts
+    const process = entry.kind === 'tool_call' || entry.kind === 'tool_result'
+    if (meta !== undefined && process) meta.hasContent = true
+    if (meta !== undefined && entry.kind === 'notice' && entry.level === 'error') meta.failed = true
+    entry = { ...entry, turn, process }
+    if (awaitingHeader) {
+      awaitingHeader = false
+      if (meta !== undefined) meta.headerIndex = display.length
+      display.push(entry)
+      if (entry.kind === 'assistant_message' && marks.length > 0) {
+        const mark = marks[marks.length - 1]
+        if (mark !== undefined) mark.label = entry.text.slice(0, 48)
+      }
+      return
+    }
+    display.push(entry)
+  }
+
   for (const item of items) {
     if (item.kind === 'user_message') {
       turn += 1
       awaitingHeader = true
+      toolRows.clear()
+      metas.push({ headerIndex: -1, start: item.ts ?? 0, end: item.ts ?? 0, hasContent: false, failed: false })
       marks.push({
         turn,
         target: `msg-${item.id}`,
@@ -985,17 +1172,60 @@ function buildTurns(items: ChatItem[]): { items: DisplayItem[]; marks: TurnMark[
       display.push(item)
       continue
     }
-    if (awaitingHeader) {
-      awaitingHeader = false
-      display.push({ ...item, turnLabel: `已完成 · 第 ${turn} 轮` })
-      if (item.kind === 'assistant_message' && marks.length > 0) {
-        const mark = marks[marks.length - 1]
-        if (mark !== undefined) mark.label = item.text.slice(0, 48)
-      }
+    if (item.kind === 'tool_call') {
+      const pending = toolRows.get(item.tool) ?? []
+      pending.push(display.length)
+      toolRows.set(item.tool, pending)
+      push({ ...item, toolView: toolView(item) })
       continue
     }
-    display.push(item)
+    if (item.kind === 'tool_result') {
+      const pending = toolRows.get(item.tool)
+      const index = pending?.shift()
+      if (pending !== undefined && pending.length === 0) toolRows.delete(item.tool)
+      if (index !== undefined) {
+        const call = display[index]
+        if (call !== undefined && call.kind === 'tool_call') {
+          const merged: DisplayItem = {
+            ...call,
+            status: item.status,
+            detail: item.detail ?? call.detail,
+            ts: call.ts ?? item.ts,
+          }
+          display[index] = { ...merged, process: call.process, turn: call.turn, toolView: toolView(merged) }
+          const meta = metas[metas.length - 1]
+          if (meta !== undefined && item.ts !== undefined && item.ts > meta.end) meta.end = item.ts
+          continue
+        }
+      }
+    }
+    push(item.kind === 'tool_result' ? { ...item, toolView: toolView(item) } : item)
   }
+  metas.forEach((meta, index) => {
+    if (meta.headerIndex < 0) return
+    if (live && index === metas.length - 1) return
+    const entry = display[meta.headerIndex]
+    if (entry === undefined) return
+    const label = meta.failed
+      ? '处理失败'
+      : meta.start > 0 && meta.end >= meta.start
+        ? `已完成，用时 ${formatRunDuration(Math.max(1000, meta.end - meta.start))}`
+        : '已完成'
+    const collapsed = collapsedTurns[index + 1] === true && meta.hasContent && !meta.failed
+    display[meta.headerIndex] = {
+      ...entry,
+      turn: index + 1,
+      turnLabel: label,
+      turnCollapsible: meta.hasContent && !meta.failed,
+      processHidden: collapsed && entry.process === true,
+    }
+    if (collapsed) {
+      for (let row = meta.headerIndex; row < display.length; row += 1) {
+        const candidate = display[row]
+        if (candidate?.process === true) display[row] = { ...candidate, processHidden: true }
+      }
+    }
+  })
   const last = marks[marks.length - 1]
   if (last !== undefined) last.active = true
   return { items: display, marks }

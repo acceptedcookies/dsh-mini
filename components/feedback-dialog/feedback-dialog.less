@@ -1,0 +1,194 @@
+:host {
+  display: block;
+}
+
+.feedback-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: calc(var(--app-nav-height, 0px) + 16px) 24px calc(16px + env(safe-area-inset-bottom));
+}
+
+.feedback-mask {
+  position: absolute;
+  inset: 0;
+  background: var(--dsw-alias-bg-mask-1);
+  animation: feedback-mask-in 160ms ease-out;
+}
+
+.feedback-closing .feedback-mask {
+  animation: feedback-mask-out 150ms ease-in forwards;
+}
+
+.feedback-card {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: min(488px, 100%);
+  max-height: 100%;
+  padding-bottom: 24px;
+  overflow-y: auto;
+  border-radius: var(--dsw-radius-panel);
+  background: var(--dsw-alias-bg-layer-2);
+  box-shadow: var(--dsw-elevation-prominent);
+  animation: feedback-card-in 180ms cubic-bezier(0.2, 0.9, 0.25, 1);
+}
+
+.feedback-closing .feedback-card {
+  animation: feedback-card-out 150ms ease-in forwards;
+}
+
+@keyframes feedback-mask-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes feedback-mask-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes feedback-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes feedback-card-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+
+.feedback-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 22px 14px 12px 24px;
+}
+
+.feedback-title {
+  color: var(--dsw-alias-label-primary);
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+}
+
+.feedback-close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--dsw-radius-sm);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.feedback-close:active {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.feedback-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 24px;
+}
+
+.feedback-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: var(--dsw-radius-sm);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 18px;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.feedback-chip:active {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.feedback-chip-active {
+  border-color: var(--dsw-alias-button-primary-fill);
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+}
+
+.feedback-detail {
+  display: block;
+  width: auto;
+  min-height: 116px;
+  max-height: 280px;
+  box-sizing: border-box;
+  margin: 18px 24px 0;
+  padding: 12px 14px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: var(--dsw-radius-lg);
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 22px;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.feedback-placeholder {
+  color: var(--dsw-alias-label-caption);
+}
+
+.feedback-detail:focus {
+  border-color: var(--dsw-alias-border-l3);
+  box-shadow: 0 0 0 1px var(--dsw-alias-state-business-primary);
+}
+
+.feedback-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  margin: 24px 24px 0;
+  border-radius: var(--dsw-radius-lg);
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 500;
+  transition: opacity 120ms ease;
+}
+
+.feedback-submit:active {
+  opacity: 0.86;
+}
+
+.feedback-submit-disabled {
+  opacity: 0.4;
+}

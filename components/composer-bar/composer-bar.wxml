@@ -25,26 +25,23 @@
   <view class="composer-row">
     <view class="composer-tools">
       <view class="composer-add" bindtap="onAttach">
-        <dsh-icon name="plus-outline" theme="{{theme}}" size="{{18}}" />
+        <dsh-icon name="plus-outline" theme="{{theme}}" size="{{14}}" />
       </view>
-      <view class="composer-chip" bindtap="onPermission">
+      <view class="composer-chip composer-chip-permission" bindtap="onPermission">
         <dsh-icon name="shield-outline" theme="{{theme}}" size="{{14}}" />
         <text class="composer-chip-label">{{permissionLabel}}</text>
+        <dsh-icon name="chevron-down-outline" tone="caption" theme="{{theme}}" size="{{16}}" />
       </view>
       <view wx:if="{{planMode}}" class="composer-chip composer-chip-plan">
         <dsh-icon name="plan-outline" theme="{{theme}}" size="{{14}}" />
         <text class="composer-chip-label">计划</text>
-      </view>
-      <view wx:if="{{goalLabel}}" class="composer-chip composer-chip-goal">
-        <dsh-icon name="checklist-outline" theme="{{theme}}" size="{{14}}" />
-        <text class="composer-chip-label">{{goalLabel}}</text>
       </view>
     </view>
     <view class="composer-trailing">
       <view class="composer-model" bindtap="onModel">
         <view class="composer-model-icon"><dsh-icon name="layers-outline" theme="{{theme}}" size="{{14}}" /></view>
         <text class="composer-model-label">{{modelLabel}}</text>
-        <dsh-icon name="chevron-down-outline" theme="{{theme}}" size="{{12}}" />
+        <dsh-icon name="chevron-down-outline" tone="tertiary" theme="{{theme}}" size="{{12}}" />
       </view>
       <view wx:if="{{running}}" class="composer-send composer-stop" bindtap="onStop">
         <dsh-icon name="stop-fill" tone="inverse" theme="{{theme}}" size="{{14}}" />

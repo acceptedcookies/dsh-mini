@@ -1,8 +1,18 @@
 <view class="row row-{{item.kind}}">
   <block wx:if="{{item.kind === 'user_message'}}">
-    <view class="user-stack">
-      <view class="bubble user-bubble">
-        <text class="user-text">{{item.text}}</text>
+    <view class="user-row">
+      <view class="user-stack">
+        <view wx:if="{{item.files && item.files.length}}" class="files">
+          <view wx:for="{{item.files}}" wx:key="id" class="file-card">
+            <view class="file-icon">
+              <dsh-icon name="paperclip-outline" theme="{{theme}}" size="{{14}}" />
+            </view>
+            <view class="file-copy">
+              <text class="file-name">{{item.name}}</text>
+              <text class="file-meta">{{item.path}}</text>
+            </view>
+          </view>
+        </view>
         <view wx:if="{{item.images && item.images.length}}" class="images">
           <image
             wx:for="{{item.images}}"
@@ -10,9 +20,15 @@
             class="image"
             src="{{item.url}}"
             mode="aspectFill"
+            data-url="{{item.url}}"
+            bindtap="onPreview"
           />
         </view>
+        <view wx:if="{{item.text}}" class="bubble user-bubble">
+          <text class="user-text">{{item.text}}</text>
+        </view>
       </view>
+      <message-actions text="{{item.text}}" time="{{item.ts || 0}}" clock="start" theme="{{theme}}" />
     </view>
   </block>
 
@@ -20,13 +36,23 @@
     <view class="assistant">
       <reasoning-row wx:if="{{item.thinking}}" text="{{item.thinking}}" theme="{{theme}}" />
       <markdown-view text="{{item.text}}" html="{{item.html}}" theme="{{theme}}" />
-      <message-actions text="{{item.text}}" theme="{{theme}}" bind:retry="onRetry" bind:branch="onBranch" />
+      <message-actions
+        text="{{item.text}}"
+        time="{{item.ts || 0}}"
+        clock="end"
+        rating="{{rating}}"
+        branch="{{true}}"
+        feedback="{{true}}"
+        theme="{{theme}}"
+        bind:feedback="onFeedback"
+        bind:branch="onBranch"
+      />
     </view>
   </block>
 
   <block wx:elif="{{item.kind === 'tool_call' || item.kind === 'tool_result'}}">
     <view class="full">
-      <tool-card item="{{item}}" theme="{{theme}}" />
+      <tool-card view="{{item.toolView}}" theme="{{theme}}" />
     </view>
   </block>
 
@@ -36,7 +62,20 @@
         <text class="diff-path">{{item.path}}</text>
         <text class="diff-summary">{{item.summary}}</text>
       </view>
-      <text class="diff-text mono">{{item.text}}</text>
+      <view class="diff-body">
+        <text
+          wx:for="{{diffLines}}"
+          wx:key="index"
+          class="diff-line diff-line-{{item.kind}} mono"
+        >{{item.kind === 'add' ? '+ ' : item.kind === 'del' ? '- ' : '  '}}{{item.text}}</text>
+      </view>
+    </view>
+  </block>
+
+  <block wx:elif="{{item.level === 'error' || item.level === 'warn'}}">
+    <view class="turn-notice">
+      <view class="turn-notice-dot turn-notice-dot-{{item.level}}"></view>
+      <text class="turn-notice-line"><text class="turn-notice-title turn-notice-title-{{item.level}}">{{item.level === 'error' ? '本轮运行失败' : '提示'}} </text><text class="turn-notice-message">{{item.text}}</text></text>
     </view>
   </block>
 

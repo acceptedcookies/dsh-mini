@@ -1,12 +1,11 @@
 <view wx:if="{{visible && request.id}}" class="approval-card">
   <view class="approval-strip">
-    <dsh-icon name="warning-triangle-outline" tone="warn" theme="{{theme}}" size="{{14}}" />
-    <text>需要你的批准</text>
+    <view class="approval-dot"></view>
+    <text>等待审批</text>
   </view>
   <view class="approval-body">
-    <view class="approval-headline">Agent 请求执行敏感操作</view>
-    <view class="approval-command">{{request.toolName}}<text wx:if="{{request.callId}}"> · {{request.callId}}</text></view>
-    <view wx:if="{{request.reason}}" class="approval-reason">{{request.reason}}</view>
+    <view class="approval-headline">{{request.reason || ('工具 ' + request.toolName + ' 请求越权执行')}}</view>
+    <view wx:if="{{request.callId}}" class="approval-command">{{request.callId}}</view>
     <view class="approval-actions">
       <view class="approval-action approval-reject" bindtap="reject">拒绝</view>
       <view class="approval-action approval-allow" bindtap="allow">

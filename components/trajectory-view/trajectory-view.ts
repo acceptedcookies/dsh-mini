@@ -332,10 +332,6 @@ Component({
       }, () => this.refresh())
     },
 
-    noop() {
-      // No nested sub-calls in the mini-program projection yet.
-    },
-
     toggleAllCalls() {
       this.setData({
         callsCollapsed: !this.data.callsCollapsed,

@@ -1,6 +1,7 @@
 const ACCENT = new Set([
   'check-outline',
   'check-circle-fill',
+  'check-circle-outline',
   'plan-outline',
   'loading-outline',
   'sparkle',
