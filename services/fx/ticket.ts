@@ -46,6 +46,15 @@ function postJSON(url: string, body: Record<string, unknown>): Promise<Record<st
 
 const REFRESH_SKEW_MS = 60_000
 
+/** 票据缓存为模块级共享：provider 每请求新建（io.llm/io.fx），实例缓存 = 每请求都重走 bio。
+ *  票据 TTL 由 unlock 签发（当前 30min），窗口内复用、过期重验；并发 ensure 去重单飞。 */
+let sharedTicket: { token: string; expMs: number } | undefined
+let inflight: Promise<string> | undefined
+
+function cachedTicket(): string | undefined {
+  return sharedTicket !== undefined && sharedTicket.expMs - REFRESH_SKEW_MS > Date.now() ? sharedTicket.token : undefined
+}
+
 interface WxCloud {
   init(opts: { env?: string }): void
   callFunction(o: { name: string; data: Record<string, unknown> }): Promise<{ result: unknown }>
@@ -65,8 +74,6 @@ function callCloud<T>(envId: string | undefined, name: string, data: Record<stri
 
 /** cloud-sim：HTTP 控制面（challenge → /sim/bio → /sim/unlock）。 */
 class SimTicketProvider implements TicketProvider {
-  private ticket: { token: string; expMs: number } | undefined
-
   constructor(
     private readonly simBase: string,
     private readonly proxyBase: string,
@@ -82,16 +89,22 @@ class SimTicketProvider implements TicketProvider {
   }
 
   private async ensure(): Promise<string> {
-    if (this.ticket !== undefined && this.ticket.expMs - REFRESH_SKEW_MS > Date.now()) return this.ticket.token
-    const challenge = await issueChallenge(this.route, this.cfg)
-    const proof = await collectBioProof(this.route, challenge)
-    const u = (await postJSON(`${this.simBase}/sim/unlock`, {
-      challenge,
-      result_json: proof.result_json,
-      result_signature: proof.result_signature,
-    })) as { ticket: string; exp: number }
-    this.ticket = { token: u.ticket, expMs: u.exp * 1000 }
-    return u.ticket
+    const hit = cachedTicket()
+    if (hit !== undefined) return hit
+    inflight ??= (async () => {
+      const challenge = await issueChallenge(this.route, this.cfg)
+      const proof = await collectBioProof(this.route, challenge)
+      const u = (await postJSON(`${this.simBase}/sim/unlock`, {
+        challenge,
+        result_json: proof.result_json,
+        result_signature: proof.result_signature,
+      })) as { ticket: string; exp: number }
+      sharedTicket = { token: u.ticket, expMs: u.exp * 1000 }
+      return u.ticket
+    })().finally(() => {
+      inflight = undefined
+    })
+    return inflight
   }
 
   async authHeaders(url: string): Promise<Record<string, string>> {
@@ -102,8 +115,6 @@ class SimTicketProvider implements TicketProvider {
 
 /** 真云：wx.cloud.callFunction + SOTER（真机 R 车道面）。与 sim 同构，仅传输与证明实现不同。 */
 class CloudTicketProvider implements TicketProvider {
-  private ticket: { token: string; expMs: number } | undefined
-
   constructor(
     private readonly proxyBase: string,
     private readonly envId: string | undefined,
@@ -118,18 +129,24 @@ class CloudTicketProvider implements TicketProvider {
   }
 
   private async ensure(): Promise<string> {
-    if (this.ticket !== undefined && this.ticket.expMs - REFRESH_SKEW_MS > Date.now()) return this.ticket.token
-    const challenge = await issueChallenge(this.route, this.cfg)
-    const proof = await collectBioProof(this.route, challenge)
-    const u = await callCloud<{ ticket: string; exp: number; error?: string }>(this.envId, 'unlock', {
-      action: 'unlock',
-      challenge,
-      result_json: proof.result_json,
-      result_signature: proof.result_signature,
+    const hit = cachedTicket()
+    if (hit !== undefined) return hit
+    inflight ??= (async () => {
+      const challenge = await issueChallenge(this.route, this.cfg)
+      const proof = await collectBioProof(this.route, challenge)
+      const u = await callCloud<{ ticket: string; exp: number; error?: string }>(this.envId, 'unlock', {
+        action: 'unlock',
+        challenge,
+        result_json: proof.result_json,
+        result_signature: proof.result_signature,
+      })
+      if (typeof u.ticket !== 'string') throw new Error(u.error ?? 'unlock 失败')
+      sharedTicket = { token: u.ticket, expMs: u.exp * 1000 }
+      return u.ticket
+    })().finally(() => {
+      inflight = undefined
     })
-    if (typeof u.ticket !== 'string') throw new Error(u.error ?? 'unlock 失败')
-    this.ticket = { token: u.ticket, expMs: u.exp * 1000 }
-    return u.ticket
+    return inflight
   }
 
   async authHeaders(url: string): Promise<Record<string, string>> {
