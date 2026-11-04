@@ -222,7 +222,13 @@ Page({
       enrolledAt: rec !== undefined ? new Date(rec.enrolledAt).toLocaleString() : '',
       enrollModel: rec?.model ?? activeModel,
       injectModelLabel: MODELS.find((m) => m.id === activeModel)?.label ?? activeModel,
-      baseUrl: this.data.baseUrl !== '' ? this.data.baseUrl : cfg?.upstreamBaseUrl ?? '',
+      // 云端车道不预填 loopback 上游（真机上 127.0.0.1 无意义）——留空强制手填真实供应商地址
+      baseUrl:
+        this.data.baseUrl !== ''
+          ? this.data.baseUrl
+          : route.mode !== 'local' && (cfg?.upstreamBaseUrl ?? '').includes('127.0.0.1')
+            ? ''
+            : (cfg?.upstreamBaseUrl ?? ''),
     })
   },
 

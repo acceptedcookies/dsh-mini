@@ -12,10 +12,12 @@ export interface ModelOption {
   description: string
 }
 
-/** 支持规模按业主裁决收敛为两款 DeepSeek（magpie 路由 id，直接作为 FX_MODEL/注入模型）。 */
+/** 支持规模按业主裁决收敛为两款 DeepSeek（magpie 路由 id，直接作为 FX_MODEL/注入模型）。
+ *  `deepseek-flash` 为真云 BYOK 车道 id——须与云端 ALLOWED_MODELS 白名单同值。 */
 export const MODELS: ModelOption[] = [
   { id: 'workbuddy/deepseek-v4.1-flash', label: 'DeepSeek V4.1 Flash', description: '默认 · 快速响应' },
   { id: 'workbuddy/deepseek-v4-pro', label: 'DeepSeek V4.1 Pro', description: '更强推理 · 复杂任务' },
+  { id: 'deepseek-flash', label: 'DeepSeek Flash', description: '云端 BYOK · deepseek.com 直连' },
 ]
 
 export const DEFAULT_MODEL = MODELS[0]?.id ?? 'workbuddy/deepseek-v4.1-flash'
