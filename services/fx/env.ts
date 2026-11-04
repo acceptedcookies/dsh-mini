@@ -3,6 +3,7 @@
 import { TextDecoderImpl, TextEncoderImpl } from './utf8'
 import { callContainer, isContainerUrl, parseContainerUrl } from './container'
 import { loadDevConfig } from './dev'
+import { ensureSubpackageForPath } from '../subpackage'
 
 export interface FetchLikeResult {
   status: number
@@ -204,6 +205,8 @@ export function createWxEnv(): FxEnv {
     instantiate: async (path, imports) => {
       const w = wxAny.WXWebAssembly
       if (w === undefined) throw new Error('WXWebAssembly unavailable')
+      // 纯资源分包真机不自动下载——先 loadSubpackage 再 instantiate（DevTools/已下载为直返）
+      await ensureSubpackageForPath(path)
       // 实测 resolve {module, instance}（typings 声明为 Instance，以实测为准）
       const result = (await w.instantiate(path, imports)) as { instance: { exports: Record<string, any> } }
       return result

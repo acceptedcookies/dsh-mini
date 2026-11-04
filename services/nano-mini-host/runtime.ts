@@ -18,7 +18,8 @@ import { markdownToHtml, plainText } from '../markdown'
 import { storage } from '../storage'
 import { randomId } from '../../utils/uuid'
 import { localCas } from '../state/local-cas'
-import { kernelUsable, loadKernel } from './kernel-loader'
+import { kernelUsable, kernelLoaderReset, loadKernel } from './kernel-loader'
+import { ensureSubpackage } from '../subpackage'
 import { runPump } from './pump'
 import { createIoTool } from './io/tool'
 import { createIoLlm } from './io/llm'
@@ -131,6 +132,9 @@ export class KernelMiniRuntime {
   private async drive(sessionId: string, input: unknown): Promise<void> {
     const s = this.require(sessionId)
     this.running.add(sessionId)
+    // 真机：kernel 是纯资源分包，先下载再 require；探测缓存可能已被早期失败毒化，复位重读
+    await ensureSubpackage('kernel').catch(() => {})
+    kernelLoaderReset()
     const bundle = loadKernel()
     if (bundle === undefined) {
       this.running.delete(sessionId)
