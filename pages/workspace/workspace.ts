@@ -33,6 +33,8 @@ type DisplayItem = ChatItem & {
   turnCollapsed?: boolean
   process?: boolean
   processHidden?: boolean
+  messageActions?: boolean
+  running?: boolean
   toolView?: ToolView
 }
 
@@ -53,7 +55,7 @@ interface MenuItem {
 }
 
 type MenuContext = 'session' | 'workspace' | 'header-session' | 'permission'
-type DialogAction = 'rename' | 'delete' | 'goal' | 'feedback' | 'permission-auto'
+type DialogAction = 'rename' | 'delete' | 'goal' | 'permission-auto'
 
 
 const WORKSPACE_NAME = 'dsh-mini'
@@ -339,7 +341,24 @@ Page({
     const currentId = state.current?.sessionId ?? ''
     const summary = state.sessions.find((session) => session.id === currentId)
     const rows = filterRows(state.sessions, this.data.query)
-    const items = state.current?.items ?? []
+    const items: DisplayItem[] = [...(state.current?.items ?? [])]
+    const stream = state.streaming
+    if (stream !== undefined && stream.sessionId === currentId && stream.text.length > 0) {
+      // The settled message lands just before `assistant.settle`; until then the
+      // delta buffer is the only copy of the streaming reply.
+      const lastItem = items[items.length - 1]
+      const settled = lastItem?.kind === 'assistant_message' && lastItem.text === stream.text
+      if (!settled) {
+        items.push({
+          id: `stream-${stream.attemptId}`,
+          seq: Number.MAX_SAFE_INTEGER,
+          kind: 'assistant_message',
+          text: stream.text,
+          html: '',
+          running: true,
+        })
+      }
+    }
     const busy = state.current?.status === 'running' || state.streaming !== undefined
     const sessionChanged = currentId !== this.data.currentId
     const folded = foldedTurns.get(currentId) ?? new Set<number>()
@@ -394,6 +413,8 @@ Page({
         commandMenuQuery: query,
         commandStart: start,
         commandEnd: cursor,
+        modelPickerVisible: false,
+        menuVisible: false,
       })
       this.showCommandMenu()
       return
@@ -498,6 +519,8 @@ Page({
       commandMenuQuery: '',
       commandStart: -1,
       commandEnd: -1,
+      modelPickerVisible: false,
+      menuVisible: false,
     })
     this.showCommandMenu(true)
   },
@@ -589,18 +612,11 @@ Page({
   },
 
   openFeedbackDialog() {
+    // dsh 的同一个表单服务会话反馈与消息赞踩；会话反馈不带评分。
     this.setData({
-      dialogVisible: true,
-      dialogAction: 'feedback',
-      dialogTargetId: '',
-      dialogTitle: '发送反馈',
-      dialogDescription: '反馈会记录在当前会话。',
-      dialogValue: '',
-      dialogEditable: true,
-      dialogTone: 'default',
-      dialogDanger: false,
-      dialogConfirmText: '发送',
-      dialogPlaceholder: '描述你的反馈',
+      feedbackVisible: true,
+      feedbackRating: '',
+      feedbackTarget: 'session',
     })
   },
 
@@ -666,6 +682,7 @@ Page({
 
   openPermissionMenu() {
     wx.hideKeyboard()
+    this.setData({ commandMenuVisible: false, modelPickerVisible: false })
     setTimeout(() => this.placePermissionMenu(), 60)
   },
 
@@ -744,6 +761,16 @@ Page({
     this.setData({ view })
   },
 
+  inspectToolCall(event: WechatMiniprogram.CustomEvent<{ seq: number }>) {
+    const seq = Number(event.detail.seq)
+    this.setData({ view: 'trajectory' }, () => {
+      setTimeout(() => {
+        const trajectory = this.selectComponent('#trajectory') as { focusSeq?: (seq: number) => void } | null
+        if (trajectory?.focusSeq !== undefined) trajectory.focusSeq(seq)
+      }, 0)
+    })
+  },
+
   jumpToTurn(event: WechatMiniprogram.TouchEvent) {
     const target = String(event.currentTarget.dataset.target ?? '')
     if (target.length === 0) return
@@ -818,6 +845,7 @@ Page({
 
   openModelPicker() {
     wx.hideKeyboard()
+    this.setData({ commandMenuVisible: false, menuVisible: false })
     setTimeout(() => this.placeModelPicker(), 60)
   },
 
@@ -1015,11 +1043,16 @@ Page({
 
   onFeedbackSubmit(event: WechatMiniprogram.CustomEvent<{ rating: string; category: string; text: string }>) {
     const { rating, category, text } = event.detail
-    const messageId = this.data.feedbackTarget
-    storage.addFeedback(text, { rating, category, messageId })
-    if (messageId.length > 0) {
-      storage.setFeedbackRating(messageId, rating)
-      this.setData({ [`feedbackRatings.${messageId}`]: rating })
+    const target = this.data.feedbackTarget
+    const sessionTarget = target === 'session'
+    storage.addFeedback(text.trim(), {
+      ...(sessionTarget || rating.length === 0 ? {} : { rating }),
+      ...(category.length === 0 ? {} : { category }),
+      ...(sessionTarget ? {} : { messageId: target }),
+    })
+    if (!sessionTarget && target.length > 0 && rating.length > 0) {
+      storage.setFeedbackRating(target, rating)
+      this.setData({ [`feedbackRatings.${target}`]: rating })
     }
     this.setData({ feedbackVisible: false })
     this.showToast('感谢你的反馈', 'success')
@@ -1034,11 +1067,6 @@ Page({
     const action = this.data.dialogAction
     if (action === 'goal') {
       this.saveGoal(String(event.detail.value ?? ''))
-      this.closeDialog()
-      return
-    }
-    if (action === 'feedback') {
-      this.saveFeedback(String(event.detail.value ?? ''))
       this.closeDialog()
       return
     }
@@ -1125,6 +1153,7 @@ function filterRows(sessions: SessionSummary[], query: string): SessionRow[] {
 
 interface TurnMeta {
   headerIndex: number
+  startIndex: number
   start: number
   end: number
   hasContent: boolean
@@ -1168,7 +1197,14 @@ function buildTurns(
       turn += 1
       awaitingHeader = true
       toolRows.clear()
-      metas.push({ headerIndex: -1, start: item.ts ?? 0, end: item.ts ?? 0, hasContent: false, failed: false })
+      metas.push({
+        headerIndex: -1,
+        startIndex: display.length,
+        start: item.ts ?? 0,
+        end: item.ts ?? 0,
+        hasContent: false,
+        failed: false,
+      })
       marks.push({
         turn,
         target: `msg-${item.id}`,
@@ -1226,13 +1262,30 @@ function buildTurns(
       turnCollapsed: folded,
       processHidden: folded && entry.process === true,
     }
+    const end = metas[index + 1]?.startIndex ?? display.length
     if (folded) {
-      for (let row = meta.headerIndex; row < display.length; row += 1) {
+      for (let row = meta.headerIndex; row < end; row += 1) {
         const candidate = display[row]
         if (candidate?.process === true) display[row] = { ...candidate, processHidden: true }
       }
     }
+    // Actions belong to the settled turn tail: the last assistant text of the
+    // turn carries them, and a running turn shows none until its closing frame.
+    let actionsIndex = -1
+    for (let row = meta.headerIndex; row < end; row += 1) {
+      if (display[row]?.kind === 'assistant_message') actionsIndex = row
+    }
+    const actionEntry = display[actionsIndex]
+    if (actionsIndex >= 0 && actionEntry !== undefined) {
+      display[actionsIndex] = { ...actionEntry, messageActions: true }
+    }
   })
+  // A reply still arriving is the live step: its reasoning row shimmers until
+  // the next tool row or the settled turn takes over.
+  const tail = display[display.length - 1]
+  if (live && tail?.kind === 'assistant_message') {
+    display[display.length - 1] = { ...tail, running: true }
+  }
   const last = marks[marks.length - 1]
   if (last !== undefined) last.active = true
   return { items: display, marks }

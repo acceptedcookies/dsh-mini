@@ -1,17 +1,14 @@
 <view wx:if="{{visible && request.id}}" class="approval-card">
   <view class="approval-strip">
-    <view class="approval-dot"></view>
+    <view class="approval-dot {{answered ? 'approval-dot-ongoing' : ''}}"></view>
     <text>等待审批</text>
   </view>
   <view class="approval-body">
     <view class="approval-headline">{{request.reason || ('工具 ' + request.toolName + ' 请求越权执行')}}</view>
     <view wx:if="{{request.callId}}" class="approval-command">{{request.callId}}</view>
-    <view class="approval-actions">
-      <view class="approval-action approval-reject" bindtap="reject">拒绝</view>
-      <view class="approval-action approval-allow" bindtap="allow">
-        <dsh-icon name="check-outline" tone="inverse" theme="{{theme}}" size="{{14}}" />
-        <text>允许一次</text>
-      </view>
-    </view>
+  </view>
+  <view class="approval-actions">
+    <view class="approval-action approval-reject {{answered ? 'approval-action-disabled' : ''}}" bindtap="reject">拒绝</view>
+    <view class="approval-action approval-allow {{answered ? 'approval-action-disabled' : ''}}" bindtap="allow">允许一次</view>
   </view>
 </view>

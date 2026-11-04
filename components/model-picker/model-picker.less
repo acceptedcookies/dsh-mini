@@ -20,33 +20,28 @@
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   box-shadow: var(--dsw-elevation-prominent), 0 0 0 0.5px var(--dsw-alias-border-l1);
-  transform-origin: bottom right;
-  animation: picker-in 150ms ease-out;
+  animation: picker-in 40ms ease-out;
 }
 
 .picker-menu.picker-closing {
-  animation: picker-out 120ms ease-in forwards;
+  animation: picker-out 80ms ease-in forwards;
 }
 
 @keyframes picker-out {
   from {
     opacity: 1;
-    transform: translateY(0) scale(1);
   }
   to {
     opacity: 0;
-    transform: translateY(3px) scale(0.98);
   }
 }
 
 @keyframes picker-in {
   from {
     opacity: 0;
-    transform: translateY(3px) scale(0.97);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
   }
 }
 

@@ -4,7 +4,7 @@ Component({
     message: { type: String, value: '' },
     tone: { type: String, value: 'info' },
     theme: { type: String, value: 'light' },
-    duration: { type: Number, value: 2600 },
+    duration: { type: Number, value: 3000 },
   },
 
   data: {
@@ -35,7 +35,7 @@ Component({
       this.setData({ closing: true })
       const next = setTimeout(() => {
         this.setData({ render: false, closing: false, exitTimer: 0 })
-      }, 150)
+      }, 1000)
       this.setData({ exitTimer: next })
     },
   },

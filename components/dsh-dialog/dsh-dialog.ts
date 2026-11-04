@@ -1,4 +1,4 @@
-const EXIT_MS = 150
+const EXIT_MS = 200
 
 Component({
   properties: {

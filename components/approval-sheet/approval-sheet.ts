@@ -4,6 +4,20 @@ Component({
     request: { type: Object, value: {} },
     theme: { type: String, value: 'light' },
   },
+
+  data: {
+    answered: false,
+    answeredId: '',
+  },
+
+  observers: {
+    request(value: { id?: string } | null) {
+      const id = typeof value?.id === 'string' ? value.id : ''
+      if (id === this.data.answeredId) return
+      this.setData({ answered: false, answeredId: id })
+    },
+  },
+
   methods: {
     allow() {
       this.respond('allowed-once')
@@ -16,7 +30,8 @@ Component({
     },
     respond(outcome: string) {
       const request = this.properties.request as { id?: string } | null
-      if (request?.id === undefined) return
+      if (request?.id === undefined || this.data.answered) return
+      this.setData({ answered: true })
       this.triggerEvent('respond', { approvalId: request.id, outcome })
     },
     noop() {

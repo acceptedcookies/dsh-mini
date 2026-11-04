@@ -116,6 +116,7 @@
 
     <trajectory-view
       wx:if="{{!showHero && view === 'trajectory'}}"
+      id="trajectory"
       class="trajectory-host"
       items="{{state.current.items}}"
       wide="{{windowWidth >= 900}}"
@@ -228,6 +229,7 @@
               ratings="{{feedbackRatings}}"
               bind:feedback="onMessageFeedback"
               bind:branch="branchMessage"
+              bind:inspect="inspectToolCall"
             />
           </view>
 
@@ -248,7 +250,7 @@
       <view
         wx:for="{{turnMarks}}"
         wx:key="turn"
-        class="turn-mark {{item.active ? 'turn-mark-active' : ''}}"
+        class="turn-mark {{item.active ? 'turn-mark-active' : ''}} {{item.active && state.current && state.current.status === 'running' ? 'turn-mark-busy' : ''}}"
         data-target="{{item.target}}"
         bindtap="jumpToTurn"
       ></view>
@@ -356,7 +358,6 @@
     items="{{menuItems}}"
     title="{{menuTitle}}"
     surface-style="{{menuStyle}}"
-    origin="{{menuContext === 'permission' ? 'bottom' : 'top'}}"
     theme="{{theme}}"
     bind:close="closeMenu"
     bind:select="onMenuSelect"

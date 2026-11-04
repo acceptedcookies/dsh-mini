@@ -34,14 +34,16 @@
 
   <block wx:elif="{{item.kind === 'assistant_message'}}">
     <view class="assistant">
-      <reasoning-row wx:if="{{item.thinking}}" text="{{item.thinking}}" theme="{{theme}}" />
+      <reasoning-row wx:if="{{item.thinking}}" text="{{item.thinking}}" running="{{item.running}}" theme="{{theme}}" />
       <markdown-view text="{{item.text}}" html="{{item.html}}" theme="{{theme}}" />
       <message-actions
+        wx:if="{{item.messageActions}}"
         text="{{item.text}}"
         time="{{item.ts || 0}}"
         clock="end"
         rating="{{rating}}"
         branch="{{true}}"
+        branch-unavailable="{{true}}"
         feedback="{{true}}"
         theme="{{theme}}"
         bind:feedback="onFeedback"
@@ -52,7 +54,7 @@
 
   <block wx:elif="{{item.kind === 'tool_call' || item.kind === 'tool_result'}}">
     <view class="full">
-      <tool-card view="{{item.toolView}}" theme="{{theme}}" />
+      <tool-card view="{{item.toolView}}" theme="{{theme}}" bind:inspect="onInspect" />
     </view>
   </block>
 

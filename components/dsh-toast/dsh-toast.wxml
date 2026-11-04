@@ -2,7 +2,7 @@
   <dsh-icon
     wx:if="{{tone === 'success' || tone === 'warning' || tone === 'error'}}"
     name="{{tone === 'success' ? 'check-circle-outline' : (tone === 'error' ? 'close-circle-fill' : 'warning-triangle-outline')}}"
-    tone="{{tone === 'success' ? 'accent' : (tone === 'error' ? 'danger' : 'warn')}}"
+    tone="{{tone === 'success' ? 'success' : (tone === 'error' ? 'danger' : 'warn')}}"
     theme="{{theme}}"
     size="{{16}}"
   />

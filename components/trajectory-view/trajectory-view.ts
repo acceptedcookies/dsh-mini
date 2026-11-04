@@ -13,7 +13,7 @@ import {
   type TrajectoryTurn,
 } from '../../utils/trajectory'
 
-type RowType = 'cell' | 'collapsed-turn' | 'collapsed-call'
+type RowType = 'cell' | 'collapsed-turn' | 'collapsed-call' | 'turn-header'
 
 interface TrajectoryRow {
   key: string
@@ -47,7 +47,7 @@ interface TimelineSpanView {
 }
 
 interface DetailTab {
-  id: 'overview' | 'input' | 'output' | 'thinking' | 'timing'
+  id: 'overview' | 'preview' | 'raw' | 'input' | 'output' | 'thinking' | 'timing'
   label: string
 }
 
@@ -67,6 +67,8 @@ interface TrajectoryDetail {
   timeLabel: string
   tabs: DetailTab[]
   overview: DetailRow[]
+  raw: string
+  previewText: string
   input: string
   output: string
   thinking: string
@@ -111,6 +113,28 @@ function rowFromCell(
     selected: options.selected,
     turnActive: options.turnActive,
     timeLabel: formatElapsedSeconds(cell.timeSeconds),
+  }
+}
+
+function turnHeaderRow(turn: number): TrajectoryRow {
+  return {
+    key: `turn-header-${turn}`,
+    type: 'turn-header',
+    index: -1,
+    kind: 'summary',
+    kindLabel: '',
+    turn,
+    turnLabel: `第 ${turn} 轮`,
+    turnStart: false,
+    showRequest: false,
+    requestLabel: '',
+    text: '',
+    resultText: '',
+    isError: false,
+    running: false,
+    selected: false,
+    turnActive: false,
+    timeLabel: '',
   }
 }
 
@@ -166,7 +190,6 @@ Component({
     detail: null as TrajectoryDetail | null,
     detailTab: 'overview' as DetailTab['id'],
     detailOpen: false,
-    detailClosing: false,
     closeTimer: 0 as ReturnType<typeof setTimeout> | 0,
     empty: true,
     noResults: false,
@@ -226,6 +249,7 @@ Component({
           const content = turn.cells.filter((cell) => cell.kind !== 'system')
           const first = content[0]
           if (first !== undefined) {
+            rows.push(turnHeaderRow(turn.turn))
             rows.push(rowFromCell(first, {
               turnStart: true,
               showRequest: requestNumbers.has(first.groupKey),
@@ -246,6 +270,7 @@ Component({
         }
 
         let turnStart = !searchActive || searchFiltersTurnIn(turn, search)
+        const turnRowStart = rows.length
         for (const group of turn.groups) {
           const toolCells: TrajectoryCell[] = []
           let groupStart = true
@@ -277,6 +302,7 @@ Component({
             turnStart = false
           }
         }
+        if (rows.length > turnRowStart) rows.splice(turnRowStart, 0, turnHeaderRow(turn.turn))
       }
 
       const model = buildTrajectoryTimeline(turns, this.data.duration ? 'duration' : 'sequence')
@@ -345,6 +371,7 @@ Component({
 
     onRowTap(event: WechatMiniprogram.TouchEvent) {
       const type = String(event.currentTarget.dataset.type ?? 'cell') as RowType
+      if (type === 'turn-header') return
       if (type === 'collapsed-turn') {
         const turn = Number(event.currentTarget.dataset.turn ?? 0)
         const collapsed = (this.data.collapsedTurns as number[]).filter((value) => value !== turn)
@@ -366,6 +393,14 @@ Component({
       this.openCell(index)
     },
 
+    focusSeq(seq: number) {
+      if (!Number.isFinite(seq) || seq <= 0) return
+      const turns = buildTrajectoryTurns(this.data.items as ChatItem[])
+      const cell = flattenCells(turns).find((candidate) => candidate.sourceSeq === seq)
+      if (cell === undefined) return
+      this.openCell(cell.index)
+    },
+
     openCell(index: number) {
       const turns = buildTrajectoryTurns(this.data.items as ChatItem[])
       const cell = flattenCells(turns).find((candidate) => candidate.index === index)
@@ -378,25 +413,19 @@ Component({
         detail,
         detailTab: 'overview',
         detailOpen: true,
-        detailClosing: false,
         scrollTarget: `traj-row-cell-${index}`,
         closeTimer: 0,
       }, () => this.refresh())
     },
 
     closeDetail() {
-      if (!this.data.detailOpen || this.data.detailClosing) return
-      this.setData({ detailClosing: true })
-      const timer = setTimeout(() => {
-        this.setData({
-          detail: null,
-          detailOpen: false,
-          detailClosing: false,
-          selectedIndex: -1,
-          closeTimer: 0,
-        }, () => this.refresh())
-      }, 160)
-      this.setData({ closeTimer: timer })
+      if (!this.data.detailOpen) return
+      this.setData({
+        detail: null,
+        detailOpen: false,
+        selectedIndex: -1,
+        closeTimer: 0,
+      }, () => this.refresh())
     },
 
     onDetailTab(event: WechatMiniprogram.TouchEvent) {
@@ -421,9 +450,17 @@ function searchFiltersTurnIn(turn: TrajectoryTurn, query: string): boolean {
 
 function buildDetail(cell: TrajectoryCell): TrajectoryDetail {
   const tabs: DetailTab[] = [{ id: 'overview', label: '概述' }]
-  if ((cell.inputText ?? '').length > 0) tabs.push({ id: 'input', label: cell.kind === 'tool' ? '参数' : '输入' })
-  if ((cell.outputText ?? '').length > 0) tabs.push({ id: 'output', label: cell.kind === 'tool' ? '结果' : '输出' })
-  if ((cell.thinkingText ?? '').length > 0) tabs.push({ id: 'thinking', label: '思考' })
+  const markdown = cell.kind === 'user' || cell.kind === 'message' || cell.kind === 'compacted'
+  const raw = cell.kind === 'user'
+    ? cell.inputText ?? cell.text
+    : [cell.thinkingText, cell.outputText].filter((part): part is string => part !== undefined && part.length > 0).join('\n\n')
+  if (markdown) {
+    tabs.push({ id: 'preview', label: '预览' }, { id: 'raw', label: '原始内容' })
+  } else {
+    if ((cell.inputText ?? '').length > 0) tabs.push({ id: 'input', label: cell.kind === 'tool' ? '参数' : '输入' })
+    if ((cell.outputText ?? '').length > 0) tabs.push({ id: 'output', label: cell.kind === 'tool' ? '结果' : '输出' })
+    if ((cell.thinkingText ?? '').length > 0) tabs.push({ id: 'thinking', label: '思考' })
+  }
   tabs.push({ id: 'timing', label: '计时' })
 
   const location = cell.step > 0
@@ -453,6 +490,8 @@ function buildDetail(cell: TrajectoryCell): TrajectoryDetail {
     timeLabel: formatElapsedSeconds(cell.timeSeconds),
     tabs,
     overview,
+    raw,
+    previewText: markdown ? (cell.kind === 'user' ? cell.inputText ?? '' : cell.outputText ?? '') : '',
     input: cell.inputText ?? '',
     output: cell.outputText ?? cell.resultText ?? '',
     thinking: cell.thinkingText ?? '',

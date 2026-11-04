@@ -1,5 +1,5 @@
 <view class="tool-card">
-  <view class="tool-head {{view.running ? 'tool-head-running' : ''}}" bindtap="toggle">
+  <view class="tool-head" bindtap="toggle">
     <view class="tool-leading">
       <dsh-icon
         tone="tertiary"
@@ -10,13 +10,22 @@
       />
       <dsh-icon wx:else tone="tertiary" name="{{view.icon || 'sparkle'}}" theme="{{theme}}" size="{{14}}" />
     </view>
-    <text class="tool-title">{{view.title}}</text>
-    <block wx:if="{{view.summary}}">
-      <view class="tool-sep"></view>
-      <text
-        class="tool-summary {{view.failed ? 'tool-summary-error' : view.stopped ? 'tool-summary-stopped' : ''}}"
-      >{{view.summary}}</text>
-    </block>
+    <view class="tool-copy">
+      <text class="tool-title">{{view.title}}</text>
+      <block wx:if="{{view.summary}}">
+        <view class="tool-sep"></view>
+        <text
+          class="tool-summary {{view.failed ? 'tool-summary-error' : view.stopped ? 'tool-summary-stopped' : ''}}"
+        >{{view.summary}}</text>
+      </block>
+    </view>
+    <view wx:if="{{view.running}}" class="tool-copy tool-shimmer">
+      <text class="tool-title">{{view.title}}</text>
+      <block wx:if="{{view.summary}}">
+        <view class="tool-sep"></view>
+        <text class="tool-summary">{{view.summary}}</text>
+      </block>
+    </view>
   </view>
 
   <view wx:if="{{expanded && view.expandable}}" class="tool-body">
@@ -32,6 +41,10 @@
       <scroll-view scroll-y class="tool-io-scroll">
         <text class="tool-io-text mono {{view.failed ? 'tool-io-text-error' : ''}}">{{view.output}}</text>
       </scroll-view>
+    </view>
+    <view wx:if="{{view.sourceSeq}}" class="tool-inspect" catchtap="inspect">
+      <dsh-icon name="inspect-outline" tone="tertiary" theme="{{theme}}" size="{{12}}" />
+      <text>查看</text>
     </view>
   </view>
 </view>

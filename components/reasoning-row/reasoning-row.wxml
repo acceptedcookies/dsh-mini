@@ -13,7 +13,10 @@
     <text class="reasoning-title">思考</text>
     <block wx:if="{{!expanded && summary}}">
       <view class="reasoning-sep"></view>
-      <text class="reasoning-summary {{running ? 'reasoning-summary-running' : ''}}">{{summary}}</text>
+      <view class="reasoning-summary-wrap {{running ? 'reasoning-summary-live' : ''}}">
+        <text class="reasoning-summary">{{summary}}</text>
+        <text wx:if="{{running}}" class="reasoning-summary reasoning-shimmer">{{summary}}</text>
+      </view>
     </block>
   </view>
   <view wx:if="{{expanded}}" class="reasoning-body">

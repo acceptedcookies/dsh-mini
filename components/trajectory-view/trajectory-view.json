@@ -2,6 +2,8 @@
   "component": true,
   "styleIsolation": "apply-shared",
   "usingComponents": {
-    "dsh-icon": "/components/dsh-icon/dsh-icon"
+    "dsh-icon": "/components/dsh-icon/dsh-icon",
+    "markdown-view": "/components/markdown-view/markdown-view",
+    "reasoning-row": "/components/reasoning-row/reasoning-row"
   }
 }

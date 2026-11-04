@@ -46,9 +46,20 @@
   color: transparent;
 }
 
-.reasoning-summary {
+.reasoning-summary-wrap {
+  position: relative;
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+}
+
+.reasoning-summary-live {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent);
+}
+
+.reasoning-summary {
+  display: block;
   overflow: hidden;
   color: inherit;
   font-size: 13px;
@@ -57,37 +68,35 @@
   text-overflow: ellipsis;
 }
 
-.reasoning-summary-running {
-  animation: reasoning-pulse 1.4s ease-in-out infinite;
-  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent);
-  mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent);
+.reasoning-shimmer {
+  position: absolute;
+  inset: 0;
+  color: var(--dsw-alias-label-shimmer);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--dsw-alias-label-shimmer) 40%,
+    transparent 80%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: reasoning-shimmer 1.5s linear infinite;
 }
 
-@keyframes reasoning-pulse {
-  0%,
-  100% {
-    opacity: 0.55;
+@keyframes reasoning-shimmer {
+  from {
+    background-position: 120% 0;
   }
-  50% {
-    opacity: 1;
+  to {
+    background-position: -100% 0;
   }
 }
 
 .reasoning-body {
-  animation: disclosure-in 160ms ease-out;
   padding: 4px 0 4px 22px;
   color: var(--dsw-alias-label-secondary);
   font-size: 13px;
   line-height: 22px;
-}
-
-@keyframes disclosure-in {
-  from {
-    opacity: 0;
-    transform: translateY(-2px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }

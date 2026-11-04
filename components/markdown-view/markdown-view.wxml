@@ -1,1 +1,29 @@
-<rich-text class="md" nodes="{{rendered}}"></rich-text>
+<block wx:for="{{segments}}" wx:key="index">
+  <rich-text wx:if="{{item.kind === 'html'}}" class="md" nodes="{{item.html}}"></rich-text>
+  <view wx:else class="code-card theme-{{theme}}">
+    <view class="code-head">
+      <text class="code-lang">{{item.lang || '代码'}}</text>
+      <view class="code-actions">
+        <view class="code-copy" data-index="{{index}}" catchtap="toggleWrap">
+          <dsh-icon
+            name="{{item.wrap === false ? 'wrap-fill' : 'nowrap-fill'}}"
+            tone="tertiary"
+            theme="{{theme}}"
+            size="{{14}}"
+          />
+        </view>
+        <view class="code-copy" data-index="{{index}}" catchtap="copyCode">
+          <dsh-icon
+            name="{{copiedIndex === index ? 'check-outline' : 'copy-outline'}}"
+            tone="tertiary"
+            theme="{{theme}}"
+            size="{{14}}"
+          />
+        </view>
+      </view>
+    </view>
+    <scroll-view scroll-x class="code-scroll" enhanced show-scrollbar="{{false}}">
+      <text class="code-text {{item.wrap === false ? 'code-text-nowrap' : ''}}" user-select>{{item.code}}</text>
+    </scroll-view>
+  </view>
+</block>

@@ -11,7 +11,7 @@
       <dsh-icon name="{{rating === 'negative' ? 'dislike-fill' : 'dislike-outline'}}" tone="tertiary" theme="{{theme}}" size="{{clock === 'end' ? 17 : 15}}" />
     </view>
   </block>
-  <view wx:if="{{branch}}" class="action" bindtap="branch">
+  <view wx:if="{{branch}}" class="action {{branchUnavailable ? 'action-unavailable' : ''}}" bindtap="branch">
     <dsh-icon name="branch-outline" tone="tertiary" theme="{{theme}}" size="{{clock === 'end' ? 17 : 15}}" />
   </view>
   <text wx:if="{{clock === 'end' && clockText}}" class="time time-end">{{clockText}}</text>

@@ -27,8 +27,9 @@ DeepSeek Harness（dsh）的原生微信小程序客户端。
 | `ui-conversation/ConversationHeader` | 面包屑标题、`对话 / 轨迹` 视图标签 |
 | `ui-conversation/EmptyHero` | 鱼形 logo + `探索未至之境` + `预览版` 徽标 + 工作区 chip |
 | `ui-conversation/InputBar` | `components/composer-bar`：输入卡、附件、权限 chip、模型、发送/停止 |
-| `ui-chat/MessageItem`、`UserMessageBubble` | `components/chat-bubble`：右对齐浅蓝用户气泡、全宽 assistant markdown |
-| `ui-chat/ToolCallTree`、`ui-tool/GenericToolCard`、`DisclosureRow` | `components/tool-card`：24px 工具行（变体图标、标题、摘要点）、输入/输出展开卡；工具结果合并回调用行 |
+| `ui-chat/MessageItem`、`UserMessageBubble` | `components/chat-bubble`：右对齐浅蓝用户气泡、全宽 assistant markdown、流式增量渲染 |
+| `ui-primitives/markdown/CodeBlock`、`CodeToolbar` | `components/markdown-view`：markdown 分段渲染，代码块独立卡片带语言标签、换行切换与复制（含勾选反馈） |
+| `ui-chat/ToolCallTree`、`ui-tool/GenericToolCard`、`DisclosureRow` | `components/tool-card`：24px 工具行（变体图标、标题、摘要点）、输入/输出展开卡、`查看` 跳到轨迹对应调用；工具结果合并回调用行 |
 | `ui-chat/ReasoningRow`、`TurnProcessNodeView`、`TurnNavigator` | `components/reasoning-row`、轮次标题、宽屏轮次刻度 |
 | `ui-trajectory/TrajectoryView`、`TrajectoryToolbar`、`TrajectoryTimeline`、`TrajectoryTable` | `components/trajectory-view`：时长/轮次/调用折叠、搜索、三泳道时间线、请求账本与明细面板 |
 | `ui-commands`、`ui-input-trigger/MenuView` | `components/command-menu`：`/` 与 composer `+` 打开的指令菜单（添加/指令分区、别名、过滤） |
@@ -69,9 +70,10 @@ typings/                          IAppOption
 ## 当前范围
 
 - 界面 port 范围：工作区 shell、侧栏、空态 hero、composer、消息、工具行、推理行、轮次标题/导航、消息操作、审批/提问、设置九个分节、右侧六类面板、浅色/深色主题、PC/平板/手机断点。
-- 继续 1:1 对齐中的面：轮次过程折叠、提问卡逐题流程、差异块增删着色、工具子调用折叠、审批「始终允许」、各弹窗与动效的逐项对照。
-- 轨迹视图：`时长`/`轮次`/`调用` 折叠、轨迹搜索、三泳道时间线、请求账本、明细面板（概述/参数/结果/思考/计时）；当前投影没有工具父子关系，`子调用` 按钮置为不可用。
-- 指令与动效：`/` 指令菜单、权限选择弹窗、目标/计划/反馈/压缩/模型/导出动作；菜单、对话框、Toast、明细面板与消息均有进入/退出动效。
+- 对话流：流式回复按增量渲染为 assistant markdown；消息操作只在轮次收尾的 assistant 回复上出现；轮次标题折叠只作用于本轮的 process 行；推理行运行中按 dsh 的段落预览与高光扫动显示。
+- 继续 1:1 对齐中的面：工具子调用折叠（等待工具事件携带父子关系）、审批「始终允许」（需业主登记合同变更）、轨迹每轮的输入/输出/思考 token 指标（运行时未提供 token 用量）与设置分节的剩余逐项几何对照。
+- 轨迹视图：`时长`/`轮次`/`调用` 折叠、轨迹搜索、三泳道时间线、sticky 轮次栏、请求账本；消息记录明细按 dsh 提供 概述/预览/原始内容/计时，工具记录提供 概述/参数/结果/思考/计时；当前投影没有工具父子关系，`子调用` 按钮置为不可用。
+- 指令与动效：`/` 指令菜单、权限选择弹窗、目标/计划/反馈/压缩/模型/导出动作；菜单 40/80ms 淡入淡出、对话框与反馈卡 200ms 淡入淡出、Toast 3s 停留 + 1s 淡出、推理/工具运行高光扫动，均按 dsh 参考系；明细面板不添加 dsh 没有的进入动画。
 - 消息与 composer 细节：日期时钟、复制成功勾选、赞/踩与反馈分类弹窗（落本地，含评分持久化）、目标条内联编辑、工具输入/输出展开卡、运行中工具行、离开尾部时的回到底部按钮。
 - 真实运行时已接入：nano-agent 登录、会话列表/创建/启动/输入/取消、历史分页、WebSocket 流式事件、工具调用/结果、确认请求、断线重连与 seq ack。
 - 本地运行时保留为未登录时的离线兜底。

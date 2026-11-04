@@ -30,11 +30,17 @@ const WARN = new Set([
   'warning-triangle-outline',
 ])
 
+const SUCCESS = new Set([
+  'check-circle-outline',
+  'check-outline',
+])
+
 function resolveTone(name: string, tone: string): string {
   if (tone === 'accent' && !ACCENT.has(name)) return 'secondary'
   if (tone === 'inverse' && !INVERSE.has(name)) return 'primary'
   if (tone === 'danger' && !DANGER.has(name)) return 'secondary'
   if (tone === 'warn' && !WARN.has(name)) return 'danger'
+  if (tone === 'success' && !SUCCESS.has(name)) return 'secondary'
   return tone
 }
 

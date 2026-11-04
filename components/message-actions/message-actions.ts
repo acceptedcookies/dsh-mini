@@ -10,6 +10,7 @@ Component({
     clock: { type: String, value: 'none' },
     rating: { type: String, value: '' },
     branch: { type: Boolean, value: false },
+    branchUnavailable: { type: Boolean, value: false },
     feedback: { type: Boolean, value: false },
   },
 

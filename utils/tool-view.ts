@@ -9,12 +9,14 @@ export interface ToolView {
   input: string
   output: string
   expandable: boolean
+  sourceSeq?: number
 }
 
 type ToolVariant = 'search' | 'read' | 'bash' | 'write' | 'edit' | 'code' | 'others'
 
 interface ToolItem {
   kind: string
+  seq?: number
   tool?: string
   status?: string
   title?: string
@@ -171,5 +173,6 @@ export function toolView(item: ToolItem): ToolView {
     input,
     output: settled ? output : '',
     expandable: input.length > 0 || output.length > 0,
+    ...(typeof item.seq === 'number' ? { sourceSeq: item.seq } : {}),
   }
 }

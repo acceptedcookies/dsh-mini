@@ -145,6 +145,39 @@ function renderBlocks(lines: string[], p: Palette): string {
   return out.join('')
 }
 
+/**
+ * One renderable slice of an assistant message: sanitized `rich-text` HTML, or
+ * a fenced code block that the client draws with its own copy header.
+ */
+export interface MarkdownSegment {
+  kind: 'html' | 'code'
+  html?: string
+  lang?: string
+  code?: string
+  wrap?: boolean
+}
+
+/** Split markdown at fenced code blocks so code can carry dsh's toolbar. */
+export function markdownSegments(markdown: string, theme: MarkdownTheme = 'light'): MarkdownSegment[] {
+  const segments: MarkdownSegment[] = []
+  const fence = /```([A-Za-z0-9_+-]*)\n([\s\S]*?)```/g
+  let cursor = 0
+  let match: RegExpExecArray | null
+  while ((match = fence.exec(markdown)) !== null) {
+    const before = markdown.slice(cursor, match.index)
+    if (before.trim().length > 0) segments.push({ kind: 'html', html: markdownToHtml(before, theme) })
+    segments.push({
+      kind: 'code',
+      lang: (match[1] ?? '').trim(),
+      code: (match[2] ?? '').replace(/\n$/, ''),
+    })
+    cursor = match.index + match[0].length
+  }
+  const rest = markdown.slice(cursor)
+  if (rest.trim().length > 0) segments.push({ kind: 'html', html: markdownToHtml(rest, theme) })
+  return segments
+}
+
 /** Convert a complete assistant message to sanitized HTML for `rich-text`. */
 export function markdownToHtml(markdown: string, theme: MarkdownTheme = 'light'): string {
   if (markdown.trim().length === 0) return ''

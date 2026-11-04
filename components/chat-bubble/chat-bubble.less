@@ -6,18 +6,6 @@
   display: flex;
   width: 100%;
   margin: 4px 0;
-  animation: bubble-in 180ms ease-out;
-}
-
-@keyframes bubble-in {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 .row-user_message {
@@ -45,6 +33,7 @@
   flex-direction: column;
   align-items: flex-end;
   gap: 6px;
+  width: 100%;
   min-width: 0;
 }
 
@@ -58,7 +47,6 @@
 }
 
 .bubble {
-  max-width: 100%;
   padding: 10px 16px;
   border-radius: var(--dsw-radius-xl);
   background: var(--dsw-specific-bubble);

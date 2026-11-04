@@ -19,67 +19,28 @@
   -webkit-backdrop-filter: blur(20px);
   box-shadow: var(--dsw-elevation-prominent);
   overflow: hidden;
-  transform-origin: top right;
-  animation: menu-in 140ms ease-out;
-}
-
-.menu-origin-bottom {
-  transform-origin: bottom left;
-}
-
-.menu-origin-bottom:not(.menu-closing) {
-  animation-name: menu-in-bottom;
-}
-
-.menu-origin-bottom.menu-closing {
-  animation-name: menu-out-bottom;
-}
-
-@keyframes menu-in-bottom {
-  from {
-    opacity: 0;
-    transform: scale(0.97) translateY(3px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-@keyframes menu-out-bottom {
-  from {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-  to {
-    opacity: 0;
-    transform: scale(0.98) translateY(2px);
-  }
+  animation: menu-in 40ms ease-out;
 }
 
 .menu-closing {
-  animation: menu-out 120ms ease-in forwards;
+  animation: menu-out 80ms ease-in forwards;
 }
 
 @keyframes menu-in {
   from {
     opacity: 0;
-    transform: scale(0.97) translateY(-3px);
   }
   to {
     opacity: 1;
-    transform: scale(1) translateY(0);
   }
 }
 
 @keyframes menu-out {
   from {
     opacity: 1;
-    transform: scale(1) translateY(0);
   }
   to {
     opacity: 0;
-    transform: scale(0.98) translateY(-2px);
   }
 }
 

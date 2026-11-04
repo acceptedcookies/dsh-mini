@@ -10,3 +10,76 @@
   font-size: 14px;
   line-height: 24px;
 }
+
+.code-card {
+  margin: 0 0 16px;
+  overflow: hidden;
+  border: 0.5px solid var(--dsw-alias-border-l1);
+  border-radius: 8px;
+  background: var(--dsw-alias-markdown-code-block);
+}
+
+.code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 6px 6px 12px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l1);
+  background: var(--dsw-alias-markdown-code-block-banner);
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.code-lang {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--ds-font-family-code);
+}
+
+.code-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.code-copy {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--dsw-radius-sm);
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.code-copy:active {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.code-scroll {
+  width: 100%;
+  white-space: normal;
+}
+
+.code-text {
+  display: block;
+  padding: 12px;
+  color: var(--dsw-alias-markdown-code-text, var(--dsw-alias-label-primary));
+  font-family: var(--ds-font-family-code);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.code-text-nowrap {
+  display: inline-block;
+  white-space: pre;
+  word-break: normal;
+}

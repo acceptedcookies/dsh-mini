@@ -3,15 +3,24 @@ function firstLine(text: string): string {
   return newline === -1 ? text : text.slice(0, newline)
 }
 
-/** First line of the last paragraph that already has a line break (dsh preview). */
-function latestCompletedParagraph(text: string): string {
-  const paragraphs = text.split(/\r?\n(?:[\t ]*\r?\n)+/)
+/** dsh's streaming preview: the first line of the last paragraph that has one. */
+function latestCompletedParagraphFirstLine(text: string): string {
   let summary = ''
-  for (let index = 0; index < paragraphs.length - 1; index += 1) {
-    const candidate = firstLine(paragraphs[index] ?? '').trim()
-    if (candidate.length > 0) summary = candidate
+  let paragraphStart = 0
+  const separator = /\r?\n(?:[\t ]*\r?\n)+/g
+  while (true) {
+    const nextParagraph = separator.exec(text)
+    const paragraphEnd = nextParagraph === null
+      ? text.length
+      : nextParagraph.index + nextParagraph[0].indexOf('\n')
+    const newline = text.indexOf('\n', paragraphStart)
+    if (newline !== -1 && newline <= paragraphEnd) {
+      const candidate = text.slice(paragraphStart, newline).trim()
+      if (candidate !== '') summary = candidate
+    }
+    if (nextParagraph === null) return summary
+    paragraphStart = nextParagraph.index + nextParagraph[0].length
   }
-  return summary
 }
 
 Component({
@@ -26,7 +35,7 @@ Component({
   },
   observers: {
     'text, running'(value: string, running: boolean) {
-      const summary = running ? latestCompletedParagraph(value) : firstLine(value)
+      const summary = running ? latestCompletedParagraphFirstLine(value) : firstLine(value)
       this.setData({ summary: summary.split('**').join('').slice(0, 120) })
     },
   },

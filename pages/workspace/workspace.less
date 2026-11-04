@@ -246,7 +246,6 @@
 
 .row-state-running {
   background: var(--dsw-alias-state-business-primary);
-  animation: dsh-pulse 1.2s ease-in-out infinite;
 }
 
 .row-state-error {
@@ -895,16 +894,6 @@
   }
 }
 
-@keyframes dsh-pulse {
-  0%,
-  100% {
-    opacity: 0.35;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
 
 /* Turn process header — ui-chat/TurnProcessNodeView.module.css */
 .turn-process {
@@ -976,6 +965,20 @@
 .turn-mark-active::before {
   background: var(--dsw-alias-label-primary);
   transform: translateY(-50%) scaleX(1);
+}
+
+.turn-mark-busy::before {
+  animation: turn-mark-busy 1s ease-in-out infinite;
+}
+
+@keyframes turn-mark-busy {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
 }
 
 .dialog-risk {

@@ -60,7 +60,7 @@ Component({
       this.setData({ closing: true })
       const next = setTimeout(() => {
         this.setData({ render: false, closing: false, exitTimer: 0 })
-      }, 120)
+      }, 80)
       this.setData({ exitTimer: next })
     },
     query(query: string) {

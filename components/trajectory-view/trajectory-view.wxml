@@ -77,45 +77,48 @@
       </view>
 
       <view wx:else class="traj-table">
-        <view
-          wx:for="{{rows}}"
-          wx:key="key"
-          id="traj-row-{{item.key}}"
-          class="traj-row {{item.turnStart ? 'traj-turn-start' : ''}} {{item.selected ? 'traj-row-selected' : ''}} {{item.isError ? 'traj-row-error' : ''}} {{item.type !== 'cell' ? 'traj-row-summary' : ''}} {{item.turnActive ? 'traj-row-turn-active' : ''}}"
-          data-key="{{item.key}}"
-          data-index="{{item.index}}"
-          data-type="{{item.type}}"
-          data-turn="{{item.turn}}"
-          bindtap="onRowTap"
-        >
-          <view class="traj-event">
-            <view wx:if="{{item.showRequest}}" class="traj-request-dot"></view>
-            <view wx:if="{{item.turnStart}}" class="traj-turn-label">{{item.turnLabel}}</view>
-            <view class="traj-kind-slot">
-              <view wx:if="{{item.type === 'cell'}}" class="traj-kind-tag traj-kind-{{item.kind}}">{{item.kindLabel}}</view>
-            </view>
+        <block wx:for="{{rows}}" wx:key="key">
+          <view wx:if="{{item.type === 'turn-header'}}" class="traj-turn-header">
+            <text class="traj-turn-header-title">{{item.turnLabel}}</text>
           </view>
-          <view class="traj-content">
-            <view wx:if="{{item.type !== 'cell'}}" class="traj-collapsed">
-              <text class="traj-collapsed-ellipsis">…</text>
-              <text class="traj-collapsed-text">{{item.text}}</text>
+          <view
+            wx:else
+            id="traj-row-{{item.key}}"
+            class="traj-row {{item.turnStart ? 'traj-turn-start' : ''}} {{item.selected ? 'traj-row-selected' : ''}} {{item.isError ? 'traj-row-error' : ''}} {{item.type !== 'cell' ? 'traj-row-summary' : ''}} {{item.turnActive ? 'traj-row-turn-active' : ''}}"
+            data-key="{{item.key}}"
+            data-index="{{item.index}}"
+            data-type="{{item.type}}"
+            data-turn="{{item.turn}}"
+            bindtap="onRowTap"
+          >
+            <view class="traj-event">
+              <view wx:if="{{item.showRequest}}" class="traj-request-dot"></view>
+              <view class="traj-kind-slot">
+                <view wx:if="{{item.type === 'cell'}}" class="traj-kind-tag traj-kind-{{item.kind}}">{{item.kindLabel}}</view>
+              </view>
             </view>
-            <view wx:else class="traj-content-line {{item.resultText ? 'traj-result-preview' : ''}}">
-              <text class="traj-content-text {{item.kind === 'tool' || item.kind === 'subtool' ? 'traj-mono' : ''}}">{{item.text}}</text>
-              <view wx:if="{{item.resultText}}" class="traj-inline-result {{item.isError ? 'traj-error' : ''}}">
-                <text class="traj-arrow">→</text>
-                <text class="traj-result-text">{{item.resultText}}</text>
+            <view class="traj-content">
+              <view wx:if="{{item.type !== 'cell'}}" class="traj-collapsed">
+                <text class="traj-collapsed-ellipsis">…</text>
+                <text class="traj-collapsed-text">{{item.text}}</text>
+              </view>
+              <view wx:else class="traj-content-line {{item.resultText ? 'traj-result-preview' : ''}}">
+                <text class="traj-content-text {{item.kind === 'tool' || item.kind === 'subtool' ? 'traj-mono' : ''}}">{{item.text}}</text>
+                <view wx:if="{{item.resultText}}" class="traj-inline-result {{item.isError ? 'traj-error' : ''}}">
+                  <text class="traj-arrow">→</text>
+                  <text class="traj-result-text">{{item.resultText}}</text>
+                </view>
               </view>
             </view>
           </view>
-        </view>
+        </block>
       </view>
       <view class="traj-bottom-anchor"></view>
     </scroll-view>
 
     <view
       wx:if="{{wide && detail}}"
-      class="traj-details {{detailClosing ? 'traj-details-closing' : ''}}"
+      class="traj-details"
     >
       <view class="traj-details-header">
         <view class="traj-details-title">
@@ -142,6 +145,15 @@
             <text class="traj-overview-value {{item.error ? 'traj-error' : ''}}">{{item.value}}</text>
           </view>
         </block>
+        <block wx:elif="{{detailTab === 'preview'}}">
+          <view class="traj-preview">
+            <reasoning-row wx:if="{{detail.thinking}}" text="{{detail.thinking}}" theme="{{theme}}" />
+            <markdown-view text="{{detail.previewText}}" theme="{{theme}}" />
+          </view>
+        </block>
+        <block wx:elif="{{detailTab === 'raw'}}">
+          <text class="traj-pre" user-select>{{detail.raw || '无内容'}}</text>
+        </block>
         <block wx:elif="{{detailTab === 'timing'}}">
           <view wx:for="{{detail.timing}}" wx:key="label" class="traj-overview-row">
             <text class="traj-overview-label">{{item.label}}</text>
@@ -163,10 +175,10 @@
 
   <view
     wx:if="{{!wide && detail}}"
-    class="traj-sheet-mask {{detailClosing ? 'traj-sheet-closing' : ''}}"
+    class="traj-sheet-mask"
     bindtap="onDetailMask"
   ></view>
-  <view wx:if="{{!wide && detail}}" class="traj-sheet {{detailClosing ? 'traj-sheet-closing' : ''}}">
+  <view wx:if="{{!wide && detail}}" class="traj-sheet">
     <view class="traj-sheet-grab"></view>
     <view class="traj-details-header">
       <view class="traj-details-title">
@@ -192,6 +204,15 @@
           <text class="traj-overview-label">{{item.label}}</text>
           <text class="traj-overview-value {{item.error ? 'traj-error' : ''}}">{{item.value}}</text>
         </view>
+      </block>
+      <block wx:elif="{{detailTab === 'preview'}}">
+        <view class="traj-preview">
+          <reasoning-row wx:if="{{detail.thinking}}" text="{{detail.thinking}}" theme="{{theme}}" />
+          <markdown-view text="{{detail.previewText}}" theme="{{theme}}" />
+        </view>
+      </block>
+      <block wx:elif="{{detailTab === 'raw'}}">
+        <text class="traj-pre" user-select>{{detail.raw || '无内容'}}</text>
       </block>
       <block wx:elif="{{detailTab === 'timing'}}">
         <view wx:for="{{detail.timing}}" wx:key="label" class="traj-overview-row">

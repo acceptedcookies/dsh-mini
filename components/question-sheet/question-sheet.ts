@@ -66,17 +66,25 @@ Component({
         this.present(0)
         return
       }
-      const view = questions.map((question) => ({
-        id: question.id,
-        text: question.text,
-        multiple: question.multiple === true,
-        custom: '',
-        skipped: false,
-        options: question.options.map((option) => {
+      const view = questions.map((question) => {
+        const multiple = question.multiple === true
+        const options = question.options.map((option) => {
           const parsed = splitLabel(option.label)
           return { ...option, label: parsed.label, recommended: parsed.recommended, selected: false }
-        }),
-      }))
+        })
+        // dsh seeds the draft with the recommendation: every marked choice of a
+        // multi-select question, or the first marked choice of a single-select one.
+        const recommended = options.filter((option) => option.recommended)
+        const seeded = new Set((multiple ? recommended : recommended.slice(0, 1)).map((option) => option.id))
+        return {
+          id: question.id,
+          text: question.text,
+          multiple,
+          custom: '',
+          skipped: false,
+          options: options.map((option) => ({ ...option, selected: seeded.has(option.id) })),
+        }
+      })
       this.setData({ view, index: 0, error: '' })
       this.present(0)
     },
@@ -105,7 +113,8 @@ Component({
       const optionId = String(event.currentTarget.dataset.oid)
       const options = current.options.map((option) => {
         if (option.id !== optionId) return current.multiple ? option : { ...option, selected: false }
-        return { ...option, selected: !option.selected }
+        // A radio group replaces the selection; only checkboxes toggle off.
+        return { ...option, selected: current.multiple ? !option.selected : true }
       })
       const chosen = current.multiple || this.data.index === this.data.view.length - 1
         ? this.data.index

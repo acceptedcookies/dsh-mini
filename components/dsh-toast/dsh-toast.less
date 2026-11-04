@@ -19,13 +19,13 @@
   color: var(--dsw-alias-toast-label);
   font-size: 14px;
   line-height: 22px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.24);
+  box-shadow: var(--dsw-shadow-lv3);
   transform: translateX(-50%);
-  animation: toast-in 180ms cubic-bezier(0.2, 0.9, 0.25, 1);
+  animation: toast-in 160ms ease-out;
 }
 
 .toast-closing {
-  animation: toast-out 150ms ease-in forwards;
+  animation: toast-out 1000ms ease forwards;
 }
 
 @keyframes toast-in {
@@ -42,11 +42,9 @@
 @keyframes toast-out {
   from {
     opacity: 1;
-    transform: translate(-50%, 0);
   }
   to {
     opacity: 0;
-    transform: translate(-50%, -4px);
   }
 }
 

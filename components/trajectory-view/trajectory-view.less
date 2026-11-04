@@ -13,16 +13,6 @@
   color: var(--dsw-alias-label-primary);
   font-size: 12px;
   line-height: 18px;
-  animation: traj-view-in 180ms ease-out;
-}
-
-@keyframes traj-view-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
 }
 
 /* Toolbar — TrajectoryToolbar.module.css */
@@ -270,6 +260,28 @@
   background: var(--dsw-alias-bg-layer-1);
 }
 
+/* Sticky per-turn bar — TrajectoryTurnHeader.module.css. Metrics columns are
+   omitted on narrow frames; the title band and sticky behavior remain. */
+.traj-turn-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 44px;
+  padding: 0 16px;
+  background: var(--dsw-alias-button-ghost-active-fill);
+}
+
+.traj-turn-header-title {
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+}
+
 .traj-row {
   position: relative;
   display: flex;
@@ -332,21 +344,6 @@
   justify-content: flex-end;
   width: 84px;
   padding: 0 4px 0 36px;
-}
-
-.traj-turn-label {
-  position: absolute;
-  z-index: 3;
-  top: 0;
-  left: 0;
-  padding: 1px 5px;
-  border-radius: 0 0 2px;
-  color: var(--dsw-alias-label-tertiary);
-  background: var(--dsw-alias-button-ghost-active-fill);
-  font-family: var(--ds-font-family-code);
-  font-size: 8px;
-  line-height: 10px;
-  white-space: nowrap;
 }
 
 .traj-request-dot {
@@ -550,35 +547,9 @@
   width: clamp(320px, 38%, 440px);
   max-width: calc(100% - 280px);
   min-width: 0;
+  min-height: 0;
   border-left: 0.5px solid var(--dsw-alias-border-l2);
   background: var(--dsw-alias-bg-layer-1);
-  animation: traj-detail-in 180ms ease-out;
-}
-
-.traj-details-closing {
-  animation: traj-detail-out 160ms ease-in forwards;
-}
-
-@keyframes traj-detail-in {
-  from {
-    opacity: 0;
-    transform: translateX(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes traj-detail-out {
-  from {
-    opacity: 1;
-    transform: translateX(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateX(12px);
-  }
 }
 
 .traj-details-header {
@@ -697,6 +668,17 @@
   white-space: nowrap;
 }
 
+.traj-preview {
+  padding: 12px 14px 16px;
+  font-size: 13px;
+  line-height: 21px;
+}
+
+.traj-preview reasoning-row {
+  display: block;
+  margin-bottom: 16px;
+}
+
 .traj-pre {
   display: block;
   padding: 10px 14px 16px;
@@ -722,7 +704,6 @@
   inset: 0;
   z-index: 1200;
   background: var(--dsw-alias-bg-mask-1);
-  animation: traj-mask-in 160ms ease-out;
 }
 
 .traj-sheet {
@@ -738,7 +719,6 @@
   border-radius: var(--dsw-radius-xl) var(--dsw-radius-xl) 0 0;
   background: var(--dsw-alias-bg-layer-1);
   box-shadow: var(--dsw-elevation-prominent);
-  animation: traj-sheet-in 200ms cubic-bezier(0.2, 0.9, 0.25, 1);
 }
 
 .traj-sheet-grab {
@@ -760,29 +740,6 @@
   max-height: calc(72vh - 90px);
 }
 
-.traj-sheet-closing {
-  animation: traj-sheet-out 160ms ease-in forwards;
-}
-
-@keyframes traj-mask-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes traj-sheet-in {
-  from {
-    transform: translateY(24px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
 
 @keyframes traj-sheet-out {
   from {

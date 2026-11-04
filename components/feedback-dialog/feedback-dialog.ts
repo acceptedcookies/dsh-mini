@@ -1,4 +1,4 @@
-const EXIT_MS = 150
+const EXIT_MS = 200
 
 const CATEGORIES = [
   { id: 'task-result', label: '任务结果' },
@@ -23,25 +23,21 @@ Component({
     categories: CATEGORIES,
     category: '',
     draft: '',
-    lastTarget: '',
     render: false,
     closing: false,
     exitTimer: 0 as ReturnType<typeof setTimeout> | 0,
   },
 
   observers: {
-    'visible, target'(visible: boolean, target: string) {
+    'visible, target'(visible: boolean) {
       const timer = this.data.exitTimer as ReturnType<typeof setTimeout> | 0
       if (timer !== 0) {
         clearTimeout(timer)
         this.setData({ exitTimer: 0 })
       }
       if (visible) {
-        if (target !== this.data.lastTarget) {
-          this.setData({ render: true, closing: false, category: '', draft: '', lastTarget: target })
-          return
-        }
-        this.setData({ render: true, closing: false })
+        // dsh opens every feedback target with an empty draft.
+        this.setData({ render: true, closing: false, category: '', draft: '' })
         return
       }
       if (!this.data.render) return

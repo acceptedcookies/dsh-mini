@@ -53,5 +53,9 @@ Component({
     onBranch() {
       this.triggerEvent('branch')
     },
+
+    onInspect(event: WechatMiniprogram.CustomEvent<{ seq: number }>) {
+      this.triggerEvent('inspect', event.detail)
+    },
   },
 })
