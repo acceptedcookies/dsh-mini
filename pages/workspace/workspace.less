@@ -415,55 +415,6 @@
   margin-left: var(--dsw-space-4);
 }
 
-.header-actions .icon-btn {
-  width: 28px;
-  height: 28px;
-}
-
-.tabs {
-  display: flex;
-  gap: var(--dsw-space-32);
-  height: 32px;
-  padding-left: var(--dsw-space-8);
-}
-
-.tab {
-  position: relative;
-  display: flex;
-  align-items: center;
-  height: 32px;
-  padding: 0;
-  color: var(--dsw-alias-label-tertiary);
-  font-size: var(--dsw-text-label);
-  line-height: var(--dsw-lh-16);
-  font-weight: var(--dsw-weight-medium);
-  white-space: nowrap;
-  transition: color 140ms ease;
-}
-
-.tab::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  bottom: -1px;
-  left: 0;
-  height: 2px;
-  border-radius: var(--dsw-radius-hairline);
-  background: var(--dsw-alias-state-business-primary);
-  opacity: 0;
-  transform: scaleX(0.5);
-  transition: opacity 160ms ease, transform 160ms ease;
-}
-
-.tab-active {
-  color: var(--dsw-alias-state-business-primary);
-}
-
-.tab-active::after {
-  opacity: 1;
-  transform: scaleX(1);
-}
-
 .viewport {
   flex: 1;
   min-height: 0;
@@ -893,7 +844,6 @@
     padding: var(--dsw-space-8) var(--dsw-page-x) calc(var(--dsw-space-8) + env(safe-area-inset-bottom));
   }
 }
-
 
 /* Turn process header — ui-chat/TurnProcessNodeView.module.css */
 .turn-process {

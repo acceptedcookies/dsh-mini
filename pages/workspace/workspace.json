@@ -15,8 +15,10 @@
     "right-panel": "/components/right-panel/right-panel",
     "dsh-icon": "/components/dsh-icon/dsh-icon",
     "dsh-menu": "/components/dsh-menu/dsh-menu",
+    "dsh-button": "/components/dsh-button/dsh-button",
     "dsh-dialog": "/components/dsh-dialog/dsh-dialog",
     "dsh-switch": "/components/dsh-switch/dsh-switch",
+    "dsh-tabs": "/components/dsh-tabs/dsh-tabs",
     "dsh-toast": "/components/dsh-toast/dsh-toast"
   }
 }

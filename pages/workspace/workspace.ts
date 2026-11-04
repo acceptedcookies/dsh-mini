@@ -143,6 +143,10 @@ Page({
     runtimeLabel: sessionStore.runtimeLabel(),
     showHero: true,
     view: 'chat' as 'chat' | 'trajectory',
+    viewTabs: [
+      { id: 'chat', label: '对话' },
+      { id: 'trajectory', label: '轨迹' },
+    ],
     atTail: true,
     chatViewportHeight: 0,
     displayItems: [] as DisplayItem[],
@@ -756,8 +760,8 @@ Page({
     if (this.data.rightOpen) void this.refreshRightPanel()
   },
 
-  switchView(event: WechatMiniprogram.TouchEvent) {
-    const view = String(event.currentTarget.dataset.view ?? 'chat') as 'chat' | 'trajectory'
+  onViewChange(event: WechatMiniprogram.CustomEvent<{ id?: string }>) {
+    const view = String(event.detail?.id ?? 'chat') as 'chat' | 'trajectory'
     this.setData({ view })
   },
 

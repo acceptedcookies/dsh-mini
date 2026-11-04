@@ -1,0 +1,79 @@
+/* dsh-button — app.less .btn*/.icon-btn 全局类的组件化收编
+   variant: default(描边抬升) | primary(主色填充) | ghost(透明) | danger(危险字色) | icon(纯图标)
+   size: md(36px) | sm(28px)，icon 变体固定 28×28 */
+
+:host {
+  display: inline-block;
+}
+
+.dbtn {
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  gap: var(--dsw-space-4);
+  transition: background-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease;
+}
+
+.dbtn-md {
+  height: 36px;
+  padding: 0 var(--dsw-space-14);
+  border-radius: var(--dsw-radius-md);
+  font-size: var(--dsw-text-body);
+  line-height: var(--dsw-lh-22);
+  font-weight: var(--dsw-weight-medium);
+}
+
+.dbtn-sm {
+  height: 28px;
+  padding: 0 var(--dsw-space-10);
+  border-radius: var(--dsw-radius-sm);
+  font-size: var(--dsw-text-caption);
+  line-height: var(--dsw-lh-18);
+  font-weight: var(--dsw-weight-medium);
+}
+
+.dbtn-default {
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-button-elevated-fill);
+  color: var(--dsw-alias-label-primary);
+}
+
+.dbtn-primary {
+  border: 0.5px solid var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-label-primary);
+  color: var(--dsw-alias-bg-base);
+}
+
+.dbtn-ghost {
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+}
+
+.dbtn-danger {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.dbtn-icon {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  flex: none;
+  border-radius: var(--dsw-radius-sm);
+  color: var(--dsw-alias-label-secondary);
+  background: transparent;
+}
+
+.dbtn-icon:active {
+  background: var(--dsw-alias-interactive-bg-hover);
+  transform: scale(0.94);
+}
+
+.dbtn:not(.dbtn-icon):not(.dbtn-dis):active {
+  transform: scale(0.97);
+}
+
+.dbtn-dis {
+  opacity: 0.4;
+}

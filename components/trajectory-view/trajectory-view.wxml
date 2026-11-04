@@ -129,15 +129,7 @@
           <dsh-icon name="close-outline" theme="{{theme}}" size="{{14}}" />
         </view>
       </view>
-      <scroll-view class="traj-details-tabs" scroll-x enhanced show-scrollbar="{{false}}">
-        <view
-          wx:for="{{detail.tabs}}"
-          wx:key="id"
-          class="traj-details-tab {{detailTab === item.id ? 'traj-details-tab-active' : ''}}"
-          data-id="{{item.id}}"
-          bindtap="onDetailTab"
-        >{{item.label}}</view>
-      </scroll-view>
+      <dsh-tabs variant="underline" density="compact" tabs="{{detail.tabs}}" active="{{detailTab}}" bind:change="onDetailTab" />
       <scroll-view class="traj-details-body" scroll-y enhanced show-scrollbar="{{false}}">
         <block wx:if="{{detailTab === 'overview'}}">
           <view wx:for="{{detail.overview}}" wx:key="label" class="traj-overview-row">
@@ -189,15 +181,7 @@
         <dsh-icon name="close-outline" theme="{{theme}}" size="{{14}}" />
       </view>
     </view>
-    <scroll-view class="traj-details-tabs" scroll-x enhanced show-scrollbar="{{false}}">
-      <view
-        wx:for="{{detail.tabs}}"
-        wx:key="id"
-        class="traj-details-tab {{detailTab === item.id ? 'traj-details-tab-active' : ''}}"
-        data-id="{{item.id}}"
-        bindtap="onDetailTab"
-      >{{item.label}}</view>
-    </scroll-view>
+    <dsh-tabs variant="underline" density="compact" tabs="{{detail.tabs}}" active="{{detailTab}}" bind:change="onDetailTab" />
     <scroll-view class="traj-details-body traj-sheet-body" scroll-y enhanced show-scrollbar="{{false}}">
       <block wx:if="{{detailTab === 'overview'}}">
         <view wx:for="{{detail.overview}}" wx:key="label" class="traj-overview-row">

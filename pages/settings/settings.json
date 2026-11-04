@@ -5,6 +5,7 @@
   "usingComponents": {
     "dsh-icon": "/components/dsh-icon/dsh-icon",
     "dsh-dialog": "/components/dsh-dialog/dsh-dialog",
+    "dsh-button": "/components/dsh-button/dsh-button",
     "dsh-toast": "/components/dsh-toast/dsh-toast",
     "dsh-switch": "/components/dsh-switch/dsh-switch"
   }

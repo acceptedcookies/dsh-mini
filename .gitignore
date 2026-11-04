@@ -35,3 +35,4 @@ cloud/**/node_modules
 
 # proxy 部署包（scripts/build-proxy-bundle.mjs 再生成）
 cloud/deploy/
+.token-audit.baseline.json

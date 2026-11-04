@@ -1,17 +1,6 @@
 <view wx:if="{{visible}}" class="right-panel theme-{{theme}}" catchtap="noop">
   <view class="rp-strip">
-    <scroll-view class="rp-tabs" scroll-x enhanced show-scrollbar="{{false}}">
-      <view
-        wx:for="{{tabs}}"
-        wx:key="id"
-        class="rp-tab {{active === item.id ? 'rp-tab-active' : ''}}"
-        data-id="{{item.id}}"
-        bindtap="select"
-      >
-        <dsh-icon name="{{item.icon}}" theme="{{theme}}" size="{{14}}" />
-        <text class="rp-tab-label">{{item.label}}</text>
-      </view>
-    </scroll-view>
+    <dsh-tabs class="rp-tabs" variant="pill" tabs="{{tabs}}" active="{{active}}" theme="{{theme}}" bind:change="select" />
     <view class="rp-close" bindtap="close">
       <dsh-icon name="close-outline" theme="{{theme}}" size="{{14}}" />
     </view>

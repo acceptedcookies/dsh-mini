@@ -274,72 +274,9 @@ button::after {
   font-family: var(--ds-font-family-code);
 }
 
-.btn {
-  transition: background-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--dsw-space-4);
-  padding: 0 var(--dsw-space-14);
-  height: 36px;
-  border-radius: var(--dsw-radius-md);
-  border: 0.5px solid var(--dsw-alias-border-l2);
-  background: var(--dsw-alias-button-elevated-fill);
-  color: var(--dsw-alias-label-primary);
-  font-size: var(--dsw-text-body);
-  line-height: var(--dsw-lh-22);
-  font-weight: var(--dsw-weight-medium);
-}
-
-.btn-sm {
-  height: 28px;
-  padding: 0 var(--dsw-space-10);
-  border-radius: var(--dsw-radius-sm);
-  font-size: var(--dsw-text-caption);
-  line-height: var(--dsw-lh-18);
-}
-
-.btn-primary {
-  background: var(--dsw-alias-label-primary);
-  border-color: var(--dsw-alias-label-primary);
-  color: var(--dsw-alias-bg-base);
-}
-
-.btn-ghost {
-  background: transparent;
-}
-
-.btn-danger {
-  color: var(--dsw-alias-state-error-primary);
-}
-
-.btn[disabled] {
-  opacity: 0.4;
-}
-
-.btn:not([disabled]):active {
-  transform: scale(0.97);
-}
-
 .card {
   background: var(--dsw-alias-bg-layer-1);
   border: 0.5px solid var(--dsw-alias-border-l2);
   border-radius: var(--dsw-radius-lg);
 }
 
-.icon-btn {
-  transition: background-color 120ms ease, color 120ms ease, transform 120ms ease;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--dsw-radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--dsw-alias-label-secondary);
-  background: transparent;
-}
-
-.icon-btn:active {
-  background: var(--dsw-alias-interactive-bg-hover);
-  transform: scale(0.94);
-}

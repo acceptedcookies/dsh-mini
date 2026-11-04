@@ -17,8 +17,8 @@ Component({
     connected: { type: Boolean, value: false },
   },
   methods: {
-    select(event: WechatMiniprogram.TouchEvent) {
-      const id = String(event.currentTarget.dataset.id ?? '')
+    select(event: WechatMiniprogram.CustomEvent<{ id?: string }>) {
+      const id = String(event.detail?.id ?? '')
       if (id.length > 0) this.triggerEvent('select', { id })
     },
     close() {

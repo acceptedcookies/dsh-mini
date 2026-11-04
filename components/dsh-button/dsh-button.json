@@ -1,0 +1,6 @@
+{
+  "component": true,
+  "usingComponents": {
+    "dsh-icon": "../dsh-icon/dsh-icon"
+  }
+}

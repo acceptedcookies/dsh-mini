@@ -152,15 +152,13 @@
                 bindinput="onDisplayNameInput"
               />
               <view class="auth-actions">
-                <view class="btn btn-primary auth-submit {{authBusy ? 'auth-busy' : ''}}" bindtap="submitEmailAuth">
-                  {{authBusy ? '连接中…' : (authMode === 'login' ? '登录' : '注册并登录')}}
-                </view>
+                <dsh-button class="auth-submit {{authBusy ? 'auth-busy' : ''}}" variant="primary" label="{{authBusy ? '连接中…' : (authMode === 'login' ? '登录' : '注册并登录')}}" bind:tap="submitEmailAuth" />
                 <view class="auth-toggle" bindtap="toggleAuthMode">
                   {{authMode === 'login' ? '没有账户？注册' : '已有账户？登录'}}
                 </view>
               </view>
               <view class="auth-divider"><text>或</text></view>
-              <view class="btn auth-wechat {{authBusy ? 'auth-busy' : ''}}" bindtap="wechatLogin">微信登录</view>
+              <dsh-button class="auth-wechat {{authBusy ? 'auth-busy' : ''}}" variant="default" label="微信登录" bind:tap="wechatLogin" />
               <view wx:if="{{authError}}" class="auth-error">{{authError}}</view>
             </view>
           </block>
@@ -260,9 +258,7 @@
                   bindinput="onApiKeyInput"
                 />
                 <view class="auth-actions">
-                  <view class="btn btn-primary auth-submit {{(!bioOk || enrollBusy) ? 'auth-busy' : ''}}" bindtap="submitEnroll">
-                    {{enrollBusy ? '注入中…' : (bioOk ? '生物验证并注入' : '生物识别不可用')}}
-                  </view>
+                  <dsh-button class="auth-submit {{(!bioOk || enrollBusy) ? 'auth-busy' : ''}}" variant="primary" label="{{enrollBusy ? '注入中…' : (bioOk ? '生物验证并注入' : '生物识别不可用')}}" bind:tap="submitEnroll" />
                 </view>
                 <view wx:if="{{enrollError}}" class="auth-error">{{enrollError}}</view>
               </view>
@@ -315,7 +311,7 @@
               bindinput="onS3RegionInput"
             />
             <view class="auth-actions">
-              <view class="btn btn-primary auth-submit" bindtap="saveS3Config">登记配置</view>
+              <dsh-button class="auth-submit" variant="primary" label="登记配置" bind:tap="saveS3Config" />
             </view>
             <view wx:if="{{s3Error}}" class="auth-error">{{s3Error}}</view>
             <view wx:if="{{s3Configured}}" class="field-hint">已登记 · {{s3ConfiguredAt}} · 后端仍未启用（s3-pinned 写入将返回 backend-unavailable）</view>

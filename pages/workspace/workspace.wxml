@@ -8,9 +8,7 @@
           <image class="brand-fish" src="{{theme === 'dark' ? '/assets/fish-white.png' : '/assets/fish.png'}}" mode="aspectFit" />
           <text class="brand-name">DeepSeek Harness</text>
         </view>
-        <view class="icon-btn sidebar-toggle" bindtap="toggleSidebar">
-          <dsh-icon name="panel-left-outline" theme="{{theme}}" size="{{16}}" />
-        </view>
+        <dsh-button class="sidebar-toggle" variant="icon" icon="panel-left-outline" iconSize="{{16}}" theme="{{theme}}" bind:tap="toggleSidebar" />
       </view>
 
       <view class="new-session" bindtap="newSession">
@@ -81,9 +79,7 @@
     <header class="header {{showHero ? 'header-blank' : ''}}" style="padding-top: {{statusBarHeight}}px; padding-right: {{capsuleInsetRight}}px;">
       <view class="header-row" style="height: {{navBarContentHeight}}px;">
         <view class="header-leading">
-          <view wx:if="{{!isWide}}" class="icon-btn header-menu" bindtap="toggleSidebar">
-            <dsh-icon name="panel-left-outline" theme="{{theme}}" size="{{16}}" />
-          </view>
+          <dsh-button wx:if="{{!isWide}}" class="header-menu" variant="icon" icon="panel-left-outline" iconSize="{{16}}" theme="{{theme}}" bind:tap="toggleSidebar" />
           <view wx:if="{{!showHero}}" class="crumbs">
             <text wx:if="{{isWide}}" class="crumb">{{workspaceName}}</text>
             <text wx:if="{{isWide}}" class="crumb-sep">/</text>
@@ -92,26 +88,24 @@
         </view>
 
         <view class="header-actions">
-          <view class="icon-btn" bindtap="toggleRightPanel">
+          <dsh-button variant="icon" bind:tap="toggleRightPanel">
             <view class="flip-horizontal">
               <dsh-icon name="panel-left-outline" theme="{{theme}}" size="{{16}}" />
             </view>
-          </view>
-          <view
+          </dsh-button>
+          <dsh-button
             wx:if="{{!showHero}}"
             id="header-session-menu"
-            class="icon-btn"
-            bindtap="openHeaderSessionMenu"
-          >
-            <dsh-icon name="ellipsis-outline" theme="{{theme}}" size="{{16}}" />
-          </view>
+            variant="icon"
+            icon="ellipsis-outline"
+            iconSize="{{16}}"
+            theme="{{theme}}"
+            bind:tap="openHeaderSessionMenu"
+          />
         </view>
       </view>
 
-      <view wx:if="{{!showHero}}" class="tabs">
-        <view class="tab {{view === 'chat' ? 'tab-active' : ''}}" data-view="chat" bindtap="switchView">对话</view>
-        <view class="tab {{view === 'trajectory' ? 'tab-active' : ''}}" data-view="trajectory" bindtap="switchView">轨迹</view>
-      </view>
+      <dsh-tabs wx:if="{{!showHero}}" variant="underline" tabs="{{viewTabs}}" active="{{view}}" bind:change="onViewChange" />
     </header>
 
     <trajectory-view

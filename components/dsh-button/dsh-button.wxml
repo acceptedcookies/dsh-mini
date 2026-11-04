@@ -1,0 +1,8 @@
+<view
+  class="dbtn dbtn-{{variant}} {{variant !== 'icon' ? 'dbtn-' + size : ''}} {{disabled ? 'dbtn-dis' : ''}}"
+  bindtap="onTap"
+>
+  <dsh-icon wx:if="{{icon}}" name="{{icon}}" theme="{{theme}}" size="{{iconSize}}" />
+  <text wx:if="{{label}}" class="dbtn-label">{{label}}</text>
+  <slot />
+</view>

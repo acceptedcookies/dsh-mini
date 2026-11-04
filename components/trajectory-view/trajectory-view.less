@@ -596,50 +596,6 @@
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
-.traj-details-tabs {
-  display: flex;
-  flex: none;
-  height: 34px;
-  padding: 0 var(--dsw-space-8);
-  gap: 1px;
-  white-space: nowrap;
-  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
-  box-sizing: border-box;
-}
-
-.traj-details-tab {
-  position: relative;
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  height: 34px;
-  padding: 0 9px;
-  color: var(--dsw-alias-label-tertiary);
-  font-size: var(--dsw-text-label);
-  line-height: var(--dsw-lh-18);
-  box-sizing: border-box;
-}
-
-.traj-details-tab:active {
-  color: var(--dsw-alias-label-primary);
-  background: var(--dsw-alias-interactive-bg-hover);
-}
-
-.traj-details-tab-active {
-  color: var(--dsw-alias-state-business-primary);
-}
-
-.traj-details-tab-active::after {
-  content: '';
-  position: absolute;
-  right: 9px;
-  bottom: 0;
-  left: 9px;
-  height: 2px;
-  border-radius: var(--dsw-radius-micro) var(--dsw-radius-micro) 0 0;
-  background: var(--dsw-alias-state-business-primary);
-}
-
 .traj-details-body {
   flex: 1;
   min-height: 0;
@@ -739,7 +695,6 @@
 .traj-sheet-body {
   max-height: calc(72vh - 90px);
 }
-
 
 @keyframes traj-sheet-out {
   from {

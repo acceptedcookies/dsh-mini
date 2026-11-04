@@ -428,8 +428,8 @@ Component({
       }, () => this.refresh())
     },
 
-    onDetailTab(event: WechatMiniprogram.TouchEvent) {
-      const id = String(event.currentTarget.dataset.id ?? 'overview') as DetailTab['id']
+    onDetailTab(event: WechatMiniprogram.CustomEvent<{ id?: string }>) {
+      const id = String(event.detail?.id ?? 'overview') as DetailTab['id']
       this.setData({ detailTab: id })
     },
 

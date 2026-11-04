@@ -1,0 +1,127 @@
+/* dsh-tabs — 三处 tab 实现的统一组件
+   variant=underline·density=normal  ← pages/workspace/.tabs（页级：32px 间距+动画下划线）
+   variant=underline·density=compact ← trajectory-view/.traj-details-tabs（面板级：紧凑+内收下划线+底边框）
+   variant=pill                      ← right-panel/.rp-tab（胶囊底+图标） */
+
+.dtabs {
+  display: block;
+  white-space: nowrap;
+}
+
+.dtab {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+/* ── underline · normal ── */
+.dtabs-underline-normal {
+  display: flex;
+  gap: var(--dsw-space-32);
+  height: 32px;
+  padding-left: var(--dsw-space-8);
+}
+
+.dtabs-underline-normal .dtab {
+  position: relative;
+  height: 32px;
+  padding: 0;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--dsw-text-label);
+  line-height: var(--dsw-lh-16);
+  font-weight: var(--dsw-weight-medium);
+  transition: color 140ms ease;
+}
+
+.dtabs-underline-normal .dtab::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  border-radius: var(--dsw-radius-hairline);
+  background: var(--dsw-alias-state-business-primary);
+  opacity: 0;
+  transform: scaleX(0.5);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.dtabs-underline-normal .dtab-on {
+  color: var(--dsw-alias-state-business-primary);
+}
+
+.dtabs-underline-normal .dtab-on::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+/* ── underline · compact ── */
+.dtabs-underline-compact {
+  display: flex;
+  height: 34px;
+  padding: 0 var(--dsw-space-8);
+  gap: 1px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+  box-sizing: border-box;
+}
+
+.dtabs-underline-compact .dtab {
+  position: relative;
+  height: 34px;
+  padding: 0 9px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--dsw-text-label);
+  line-height: var(--dsw-lh-18);
+  box-sizing: border-box;
+}
+
+.dtabs-underline-compact .dtab:active {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.dtabs-underline-compact .dtab-on {
+  color: var(--dsw-alias-state-business-primary);
+}
+
+.dtabs-underline-compact .dtab-on::after {
+  content: '';
+  position: absolute;
+  right: 9px;
+  bottom: 0;
+  left: 9px;
+  height: 2px;
+  border-radius: var(--dsw-radius-micro) var(--dsw-radius-micro) 0 0;
+  background: var(--dsw-alias-state-business-primary);
+}
+
+/* ── pill ── */
+.dtabs-pill .dtab {
+  gap: var(--dsw-space-4);
+  height: 28px;
+  min-width: 64px;
+  max-width: 140px;
+  justify-content: center;
+  padding: 0 var(--dsw-space-8);
+  margin-right: var(--dsw-space-2);
+  border-radius: var(--dsw-radius-sm);
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--dsw-text-caption);
+  line-height: 1;
+  vertical-align: top;
+}
+
+.dtabs-pill .dtab:active {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.dtabs-pill .dtab-on {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-markdown-tag);
+}
+
+.dtabs-pill .dtab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
