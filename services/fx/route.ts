@@ -9,18 +9,21 @@ export type RouteMode = 'local' | 'cloud' | 'cloud-sim'
 
 export interface RouteConfig {
   mode: RouteMode
-  /** 数据面代理 base（cloud/sim 模式下 fx provider 的 base_url 被改写为它）。 */
+  /** 数据面代理 base（cloud/sim 模式下 fx provider 的 base_url 被改写为它）。
+   *  cloud 容器车道时为 `container://{service}` 伪协议标记（io.llm 识别走 callContainer）。 */
   proxyBaseUrl?: string
   /** sim 控制面 base（challenge/enroll/unlock/revoke）。 */
   simBaseUrl?: string
-  /** 真云 env_id（wx.cloud.init）。 */
+  /** 真云 env_id（wx.cloud.init——callFunction 与 callContainer 同 env，单 DB 拓扑）。 */
   cloudEnvId?: string
+  /** callContainer 车道：服务名（X-WX-SERVICE）。 */
+  cloudService?: string
 }
 
 interface RouteSource {
   route?: RouteMode
   sim?: { baseUrl?: string }
-  cloud?: { envId?: string; proxyUrl?: string }
+  cloud?: { envId?: string; proxyUrl?: string; service?: string }
 }
 
 const MODES: readonly RouteMode[] = ['local', 'cloud', 'cloud-sim']
@@ -38,9 +41,14 @@ function knobFromAppJson(): RouteMode | undefined {
 export function resolveRoute(devConfig: RouteSource): RouteConfig {
   const mode = knobFromAppJson() ?? devConfig.route ?? 'local'
   if (mode === 'cloud') {
+    const service = devConfig.cloud?.service
+    if (service !== undefined && service.length > 0) {
+      // 容器车道（首选）：wx.cloud.callContainer 内网直连，免公网域名/合法域名
+      return { mode, proxyBaseUrl: `container://${service}`, cloudEnvId: devConfig.cloud?.envId, cloudService: service }
+    }
     const proxyUrl = devConfig.cloud?.proxyUrl
     if (proxyUrl === undefined || proxyUrl.length === 0) {
-      throw new Error('cloud 路由需要 .local.development.json cloud.proxy_url（云托管地址），见 cloud/README.md')
+      throw new Error('cloud 路由需要 cloud.service（callContainer）或 cloud.proxy_url（公网 https），见 cloud/README.md')
     }
     return { mode, proxyBaseUrl: proxyUrl, cloudEnvId: devConfig.cloud?.envId }
   }

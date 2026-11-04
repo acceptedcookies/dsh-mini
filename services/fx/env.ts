@@ -1,5 +1,8 @@
-/** WX 宿主能力适配：WXWebAssembly.instantiate + wx.request 分块 fetch + 随机数兜底。 */
+/** WX 宿主能力适配：WXWebAssembly.instantiate + wx.request 分块 fetch + 随机数兜底。
+ *  数据面 URL 以 `container://` 开头时改走 wx.cloud.callContainer（云托管内网车道）。 */
 import { TextDecoderImpl, TextEncoderImpl } from './utf8'
+import { callContainer, isContainerUrl } from './container'
+import { loadDevConfig } from './dev'
 
 export interface FetchLikeResult {
   status: number
@@ -45,6 +48,11 @@ function getRandomValues(arr: Uint8Array): Uint8Array {
 }
 
 export function wxFetch(url: string, init: { method?: string; headers?: Record<string, string>; body?: Uint8Array }): Promise<FetchLikeResult> {
+  // 容器车道：container://{service} → callContainer（内网；callContainer 缓冲返回，
+  // 无分块语义——一次性 body 投递即 ended，与 wxFetch 消费方兼容）
+  if (isContainerUrl(url)) {
+    return containerFetch(url, init)
+  }
   return new Promise((resolve, reject) => {
     const queue: Uint8Array[] = []
     let ended = false
@@ -140,6 +148,41 @@ export function wxFetch(url: string, init: { method?: string; headers?: Record<s
         wake()
       }
     })
+  })
+}
+
+/** container:// URL → callContainer。请求 body bytes 尝试 JSON 反序列化（proxy 收 JSON）。 */
+function containerFetch(url: string, init: { method?: string; headers?: Record<string, string>; body?: Uint8Array }): Promise<FetchLikeResult> {
+  const envId = loadDevConfig()?.cloud?.envId ?? ''
+  let data: unknown
+  if (init.body !== undefined && init.body.byteLength > 0) {
+    try {
+      data = JSON.parse(new TextDecoderImpl().decode(init.body))
+    } catch {
+      data = init.body
+    }
+  }
+  return callContainer(envId, url, { method: init.method ?? 'GET', headers: init.headers ?? {}, body: data }).then((r) => {
+    const bytes =
+      r.body instanceof ArrayBuffer
+        ? new Uint8Array(r.body)
+        : new TextEncoderImpl().encode(typeof r.body === 'string' ? r.body : JSON.stringify(r.body))
+    let sent = false
+    return {
+      status: r.status,
+      body: {
+        read(): Promise<{ done: boolean; value?: Uint8Array }> {
+          if (sent) return Promise.resolve({ done: true })
+          sent = true
+          return Promise.resolve({ done: false, value: bytes })
+        },
+      },
+      arrayBuffer(): Promise<ArrayBuffer> {
+        const copy = new Uint8Array(bytes.byteLength)
+        copy.set(bytes)
+        return Promise.resolve(copy.buffer)
+      },
+    }
   })
 }
 

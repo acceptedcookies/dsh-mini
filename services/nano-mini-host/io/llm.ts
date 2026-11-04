@@ -8,6 +8,7 @@
 import { createTicketProvider } from '../../fx/ticket'
 import { loadDevConfig, currentRoute } from '../../fx/dev'
 import { readEnrollment } from '../../fx/enrollment'
+import { isContainerUrl, callContainer } from '../../fx/container'
 import { storage } from '../../storage'
 import type { LlmOutput, LlmToolCall } from '../types'
 
@@ -69,6 +70,11 @@ function normalizeUsage(u: unknown): LlmOutput['usage'] {
 }
 
 function wxRequestJson(url: string, headers: Record<string, string>, data: unknown): Promise<{ status: number; body: unknown }> {
+  // 容器车道：container://{service} → callContainer 内网直连（route.ts 判定）
+  if (isContainerUrl(url)) {
+    const envId = loadDevConfig()?.cloud?.envId ?? ''
+    return callContainer(envId, url, { method: 'POST', headers, body: data })
+  }
   return new Promise((resolve, reject) => {
     wx.request({
       url,
