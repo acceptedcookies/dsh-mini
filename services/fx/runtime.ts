@@ -1,0 +1,599 @@
+/**
+ * FxLocalRuntime —— 免登录内置 agent-runtime（fx-core.wasm 分包 + Asyncify 驱动）。
+ * 实现 session-store 的 AgentRuntime 接口：把 ACP session/update 投影为 LocalEvent。
+ * provider 经 dev-config（由 .local.development.json 生成，见 scripts/fx-dev-config.mjs）。
+ */
+import type { AcpClient, AcpPromptBlock, AcpUpdate } from './acp'
+import { createAcpClient } from './acp'
+import { vfs, guessMime, VfsError } from '../vfs/api'
+import type { FxRuntime as WasmRuntime, HostToolResult } from './fx-host'
+import { createFxRuntime } from './fx-host'
+import { createWxEnv } from './env'
+import { resolveRoute } from './route'
+import { loadDevConfig } from './dev'
+import { createTicketProvider } from './ticket'
+import { markdownToHtml, plainText } from '../markdown'
+import { storage } from '../storage'
+import { randomId } from '../../utils/uuid'
+import type {
+  ApprovalOutcome,
+  ChatItem,
+  ImageRef,
+  LocalEvent,
+  QuestionAnswer,
+  SessionSnapshot,
+  SessionSummary,
+} from '../../types/protocol'
+
+const devConfig = loadDevConfig()
+
+interface StoredSession {
+  summary: SessionSummary
+  cursor: number
+  items: ChatItem[]
+}
+
+interface PendingPermission {
+  approvalId: string
+  sessionId: string
+  allowOptionId: string | null
+  resolve: (optionId: string | null) => void
+}
+
+interface TurnState {
+  attemptId: string
+  text: string
+  thinking: string
+  deltaIndex: number
+  toolItemByCallId: Map<string, string>
+}
+
+const DEMO_TOOLS = [
+  {
+    name: 'get_weather',
+    description: 'Get current weather for a city (demo tool for fx wasm runtime)',
+    inputSchema: { type: 'object', properties: { city: { type: 'string' } }, required: ['city'] },
+  },
+]
+
+/**
+ * 五根 VFS 文件工具（services/vfs，rules/filesystem.md §6）。
+ * 语义与 nano workspace lane 法同源：相对路径落 cwd=/data/{session}，
+ * /mnt /backup /root/.profile /data/*\/artifacts 只读，五根外 unsafe-workspace-path。
+ */
+const FILE_TOOLS = [
+  {
+    name: 'file_read',
+    description: 'Read a file from the workspace VFS. Paths: /data/<session>/ (your session cwd), /tmp/, /root/, /mnt/, /backup/. Relative paths resolve inside your session cwd.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: { type: 'string' },
+        offset: { type: 'integer' },
+        max_bytes: { type: 'integer' },
+      },
+      required: ['path'],
+    },
+  },
+  {
+    name: 'file_write',
+    description: 'Write text content to a workspace VFS file. Writable lanes: /data/<session>/, /tmp/, /root/.',
+    inputSchema: {
+      type: 'object',
+      properties: { path: { type: 'string' }, content: { type: 'string' } },
+      required: ['path', 'content'],
+    },
+  },
+  {
+    name: 'file_list',
+    description: 'List directory entries in the workspace VFS (/ lists the five lane roots).',
+    inputSchema: {
+      type: 'object',
+      properties: { path: { type: 'string' }, cursor: { type: 'string' }, limit: { type: 'integer' } },
+      required: ['path'],
+    },
+  },
+  {
+    name: 'file_stat',
+    description: 'Stat a path in the workspace VFS (exists/kind/size/content_hash/placement).',
+    inputSchema: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] },
+  },
+  {
+    name: 'file_remove',
+    description: 'Remove a file from the workspace VFS (writable lanes only).',
+    inputSchema: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] },
+  },
+]
+
+const ALL_TOOLS = [...DEMO_TOOLS, ...FILE_TOOLS]
+
+function executeDemoTool(name: string, input: unknown): HostToolResult {
+  const args = (input ?? {}) as Record<string, unknown>
+  if (name === 'get_weather') {
+    return { content: JSON.stringify({ city: args.city, temp_c: 22, condition: 'sunny', source: 'dsh-mini-demo' }), isError: false }
+  }
+  return { content: `unknown tool ${name}`, isError: true }
+}
+
+/** file_* → services/vfs。dsh session 即 VFS session 作用域（cwd=/data/{dshId}）。 */
+function executeFileTool(name: string, input: unknown, dshSessionId: string): HostToolResult {
+  const args = (input ?? {}) as Record<string, unknown>
+  const path = typeof args.path === 'string' ? args.path : ''
+  try {
+    switch (name) {
+      case 'file_read': {
+        const r = vfs.read(path, {
+          sessionId: dshSessionId,
+          offset: typeof args.offset === 'number' ? args.offset : undefined,
+          maxBytes: typeof args.max_bytes === 'number' ? args.max_bytes : undefined,
+        })
+        return {
+          content: JSON.stringify({ path: r.path, text: r.text, object_version: r.object_version, size_bytes: r.size_bytes, eof: r.eof, truncated: r.truncated }),
+          isError: false,
+        }
+      }
+      case 'file_write': {
+        const s = vfs.write(path, typeof args.content === 'string' ? args.content : '', { sessionId: dshSessionId })
+        return { content: JSON.stringify(s), isError: false }
+      }
+      case 'file_list': {
+        const r = vfs.list(path, {
+          sessionId: dshSessionId,
+          cursor: typeof args.cursor === 'string' ? args.cursor : undefined,
+          limit: typeof args.limit === 'number' ? args.limit : undefined,
+        })
+        return { content: JSON.stringify(r), isError: false }
+      }
+      case 'file_stat':
+        return { content: JSON.stringify(vfs.stat(path, { sessionId: dshSessionId })), isError: false }
+      case 'file_remove':
+        return { content: JSON.stringify({ removed: vfs.remove(path, { sessionId: dshSessionId }) }), isError: false }
+      default:
+        return { content: `unknown file tool ${name}`, isError: true }
+    }
+  } catch (e) {
+    const code = e instanceof VfsError ? e.code : 'error'
+    return { content: JSON.stringify({ error: code, message: e instanceof Error ? e.message : String(e) }), isError: true }
+  }
+}
+
+export class FxLocalRuntime {
+  private readonly sessions = new Map<string, StoredSession>()
+  private readonly listeners = new Set<(event: LocalEvent) => void>()
+  private readonly acpSessions = new Map<string, string>()
+  private readonly turns = new Map<string, TurnState>()
+  private readonly pendingPermissions = new Map<string, PendingPermission>()
+  private wasm: WasmRuntime | undefined
+  private client: AcpClient | undefined
+  private coreStarting: Promise<void> | undefined
+  private coreFailed: Error | undefined
+  /** 在飞轮次的 dsh session——host-import 工具调用无 sessionId 时的兜底作用域。 */
+  private activeDshId: string | undefined
+
+  constructor() {
+    const saved = storage.getSessions<StoredSession>()
+    if (saved !== undefined) {
+      for (const s of saved) {
+        // wasm 会话是进程内对象：重启后 running 状态不可恢复，归一为 idle
+        if (s.summary.status === 'running') s.summary.status = 'idle'
+        this.sessions.set(s.summary.id, s)
+      }
+    }
+  }
+
+  static isUsable(): boolean {
+    return devConfig !== undefined && typeof WXWebAssembly !== 'undefined'
+  }
+
+  subscribe(listener: (event: LocalEvent) => void): () => void {
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
+  }
+
+  list(): SessionSummary[] {
+    return [...this.sessions.values()].map((s) => ({ ...s.summary })).sort((a, b) => b.updatedAt - a.updatedAt)
+  }
+
+  open(id: string): SessionSnapshot {
+    const s = this.require(id)
+    return { sessionId: id, cursor: s.cursor, status: s.summary.status, items: [...s.items], hasMore: false }
+  }
+
+  create(): SessionSummary {
+    const now = Date.now()
+    const summary: SessionSummary = {
+      id: randomId('session'),
+      title: '新会话',
+      updatedAt: now,
+      status: 'idle',
+      lastMessage: '开始一个新的对话',
+      messageCount: 0,
+    }
+    this.sessions.set(summary.id, { summary, cursor: 0, items: [] })
+    this.persist()
+    this.emit({ type: 'status', sessionId: summary.id, state: 'idle' })
+    return { ...summary }
+  }
+
+  rename(id: string, title: string): SessionSummary {
+    const s = this.require(id)
+    s.summary.title = title
+    s.summary.updatedAt = Date.now()
+    this.persist()
+    return { ...s.summary }
+  }
+
+  remove(id: string): void {
+    this.sessions.delete(id)
+    this.acpSessions.delete(id)
+    this.persist()
+  }
+
+  prompt(id: string, text: string, images: ImageRef[] = []): { messageId: string } {
+    const s = this.require(id)
+    if (s.summary.status === 'running') throw new Error('当前会话仍在运行')
+    let blocks: AcpPromptBlock[]
+    try {
+      blocks = this.buildPromptBlocks(text, images)
+    } catch (e) {
+      this.emit({ type: 'error', code: 'image_error', message: e instanceof Error ? e.message : '图片读取失败', retryable: false })
+      return { messageId: '' }
+    }
+    s.summary.status = 'running'
+    s.summary.updatedAt = Date.now()
+    this.emit({ type: 'status', sessionId: id, state: 'running', step: 1 })
+    const messageId = randomId('user')
+    this.append(id, { kind: 'user_message', id: messageId, seq: this.nextSeq(s), text, images: images.length > 0 ? images : undefined })
+    if (s.summary.title === '新会话' && text.trim().length > 0) s.summary.title = text.trim().slice(0, 28)
+    this.persist()
+
+    void this.runTurn(id, blocks).catch((error) => {
+      s.summary.status = 'error'
+      this.emit({ type: 'error', code: 'turn_failed', message: error instanceof Error ? error.message : 'turn 执行失败', retryable: true })
+      this.emit({ type: 'status', sessionId: id, state: 'error' })
+      this.persist()
+    })
+    return { messageId }
+  }
+
+  cancel(id: string): void {
+    const s = this.require(id)
+    const acpId = this.acpSessions.get(id)
+    if (acpId !== undefined && this.client) this.client.cancel(acpId)
+    for (const p of this.pendingPermissions.values()) {
+      if (p.sessionId === id) {
+        p.resolve(null)
+        this.pendingPermissions.delete(p.approvalId)
+      }
+    }
+    s.summary.status = 'idle'
+    this.emit({ type: 'status', sessionId: id, state: 'idle' })
+    this.emit({ type: 'error', code: 'cancelled', message: '已停止当前轮次', retryable: false })
+    this.persist()
+  }
+
+  answerApproval(approvalId: string, outcome: ApprovalOutcome): void {
+    const p = this.pendingPermissions.get(approvalId)
+    if (p === undefined) return
+    this.pendingPermissions.delete(approvalId)
+    p.resolve(outcome === 'allowed-once' ? p.allowOptionId : null)
+  }
+
+  answerQuestion(_questionId: string, _answers: QuestionAnswer[]): void {
+    // fx core 的 question 面未接（libfx hooks 未启用）。
+  }
+
+  clear(): void {
+    this.sessions.clear()
+    this.restartCore()
+    storage.clearConversations()
+  }
+
+  /** 重启 wasm core（模型切换/注入变更后调用）：会话数据保留，acp 会话句柄作废。 */
+  restartCore(): void {
+    this.acpSessions.clear()
+    this.pendingPermissions.clear()
+    this.wasm?.abort()
+    this.wasm = undefined
+    this.client = undefined
+    this.coreStarting = undefined
+    this.coreFailed = undefined
+  }
+
+  // ---- core 生命周期 ----
+
+  private async ensureCore(): Promise<void> {
+    if (this.client) return
+    if (this.coreFailed) throw this.coreFailed
+    if (this.coreStarting) return this.coreStarting
+    if (devConfig === undefined) throw new Error('fx dev-config 缺失：先运行 node scripts/fx-dev-config.mjs')
+    this.coreStarting = (async () => {
+      const cfg = devConfig!
+      const route = resolveRoute(cfg)
+      const ticket = createTicketProvider(route, cfg)
+      // ready() 解析凭证来源：local=dev 直连；sim=注入记录优先/dev 兜底自动注入；cloud=必须用户注入。
+      const source = await ticket.ready()
+      const fxEnv = { ...cfg.fxEnv }
+      // wasm provider 定义以生效源重建：cloudish 时 base_url 改写为数据面代理（wasm 无感，见 rules/topology-local.md §4）
+      const baseUrl = route.proxyBaseUrl !== undefined ? `${route.proxyBaseUrl}/v1` : source.upstreamBaseUrl
+      fxEnv.FX_PROVIDER = source.provider
+      fxEnv.FX_MODEL = source.model
+      fxEnv.FX_CONFIGURED_PROVIDERS = JSON.stringify({
+        [source.provider]: {
+          protocol: 'openai-chat-completions',
+          base_url: baseUrl,
+          auth: { type: 'none' },
+          model_metadata: cfg.modelMeta,
+        },
+      })
+      const env = createWxEnv()
+      const rawFetch = env.fetch
+      env.fetch = (url, init) =>
+        ticket.authHeaders(url).then((headers) => rawFetch(url, { ...init, headers: { ...(init.headers ?? {}), ...headers } }))
+      const wasm = createFxRuntime(env, {
+        args: ['acp'],
+        env: fxEnv,
+        stderr: () => {},
+        hostToolExecutor: (name, input, sid, _callId) => this.dispatchTool(name, input, sid),
+      })
+      const client = createAcpClient(wasm, {
+        tools: ALL_TOOLS,
+        executeTool: async (name, input, _callId, sid) => this.dispatchTool(name, input, sid),
+        onUpdate: (acpId, update) => this.onUpdate(acpId, update),
+        onPermission: (params) => this.onPermission(params),
+        onProtocolError: (e) => {
+          this.emit({ type: 'error', code: 'protocol', message: `fx 协议异常: ${e.message}`, retryable: false })
+        },
+      })
+      await wasm.start(devConfig!.wasmPath)
+      await client.init()
+      this.wasm = wasm
+      this.client = client
+    })()
+    try {
+      await this.coreStarting
+    } catch (e) {
+      this.coreFailed = e instanceof Error ? e : new Error(String(e))
+      throw this.coreFailed
+    }
+  }
+
+  private async ensureAcpSession(dshId: string): Promise<string> {
+    const known = this.acpSessions.get(dshId)
+    if (known !== undefined) return known
+    const acpId = await this.client!.newSession()
+    this.acpSessions.set(dshId, acpId)
+    return acpId
+  }
+
+  // ---- turn ----
+
+  /** tool_call 分派：file_* → VFS（acpId→dshId 得 session 作用域）；其余 → demo。 */
+  private dispatchTool(name: string, input: unknown, acpId: string | undefined): HostToolResult {
+    if (name.startsWith('file_')) {
+      const dshId = acpId !== undefined ? this.findDshId(acpId) : this.activeDshId
+      if (dshId === undefined) return { content: JSON.stringify({ error: 'no-session', message: '无会话上下文' }), isError: true }
+      return executeFileTool(name, input, dshId)
+    }
+    return executeDemoTool(name, input)
+  }
+
+  /**
+   * prompt blocks：images 先 text 后。fx 上限 8 张/6MB 合计/单张 20MB（客户端先记一笔账，
+   * 同「读取前记账」纪律）。ImageRef.url 为本地临时路径，FSM base64 读出。
+   */
+  private buildPromptBlocks(text: string, images: ImageRef[]): AcpPromptBlock[] {
+    const blocks: AcpPromptBlock[] = []
+    if (images.length > 8) throw new Error('图片最多 8 张')
+    let total = 0
+    for (const image of images) {
+      const fsm = wx.getFileSystemManager()
+      const stat = fsm.statSync(image.url) as unknown as { size?: number }
+      const size = Array.isArray(stat) ? 0 : stat.size ?? 0
+      if (size > 20 * 1024 * 1024) throw new Error('单张图片超过 20MB')
+      if (size === 0) throw new Error('图片为空或不可读')
+      total += size
+      if (total > 6 * 1024 * 1024) throw new Error('图片合计超过 6MB')
+      const data = fsm.readFileSync(image.url, 'base64')
+      if (typeof data !== 'string') throw new Error('图片读取失败')
+      const mime = guessMime(image.url)
+      blocks.push({ type: 'image', data, mimeType: mime !== undefined && mime.startsWith('image/') ? mime : 'image/png' })
+    }
+    blocks.push({ type: 'text', text })
+    return blocks
+  }
+
+  private async runTurn(dshId: string, blocks: AcpPromptBlock[]): Promise<void> {
+    const s = this.require(dshId)
+    await this.ensureCore()
+    const acpId = await this.ensureAcpSession(dshId)
+    const turn: TurnState = { attemptId: randomId('attempt'), text: '', thinking: '', deltaIndex: 0, toolItemByCallId: new Map() }
+    this.turns.set(acpId, turn)
+    // wasm host-import 通道（fx_host_tool_call）不带 sessionId——单活动会话下以在飞轮次兜底。
+    this.activeDshId = dshId
+    try {
+      await this.client!.prompt(acpId, blocks)
+    } finally {
+      this.turns.delete(acpId)
+      this.activeDshId = undefined
+    }
+    const item: ChatItem = {
+      kind: 'assistant_message',
+      id: randomId('msg'),
+      seq: this.nextSeq(s),
+      text: turn.text,
+      html: markdownToHtml(turn.text),
+      thinking: turn.thinking || undefined,
+    }
+    this.append(dshId, item)
+    s.summary.status = 'idle'
+    s.summary.updatedAt = Date.now()
+    this.emit({ type: 'assistant.settle', sessionId: dshId, seq: item.seq, messageId: item.id })
+    this.emit({ type: 'status', sessionId: dshId, state: 'idle' })
+    this.persist()
+  }
+
+  private onUpdate(acpId: string, update: AcpUpdate): void {
+    const dshId = this.findDshId(acpId)
+    if (dshId === undefined) return
+    const turn = this.turns.get(acpId)
+    const kind = update.sessionUpdate
+    if (kind === 'agent_message_chunk') {
+      const text = (update.content as { text?: string } | undefined)?.text
+      if (typeof text !== 'string' || text.length === 0) return
+      const index = turn ? turn.deltaIndex++ : 0
+      if (turn) turn.text += text
+      this.emit({ type: 'assistant.delta', sessionId: dshId, attemptId: turn?.attemptId ?? 'unknown', index, text })
+      return
+    }
+    if (kind === 'agent_thought_chunk' && turn) {
+      const text = (update.content as { text?: string } | undefined)?.text
+      if (typeof text === 'string') turn.thinking += text
+      return
+    }
+    if (kind === 'tool_call' && typeof update.toolCallId === 'string') {
+      const s = this.require(dshId)
+      const name = typeof update.name === 'string' && update.name.length > 0 ? update.name : 'tool_call'
+      const args = update.rawInput !== undefined ? truncate(JSON.stringify(update.rawInput)) : undefined
+      const item: ChatItem = {
+        kind: 'tool_call',
+        id: randomId('tool'),
+        seq: this.nextSeq(s),
+        tool: name,
+        status: 'running',
+        title: typeof update.title === 'string' ? update.title : name,
+        callId: update.toolCallId,
+        detail: args,
+        args,
+      }
+      turn?.toolItemByCallId.set(update.toolCallId, item.id)
+      this.append(dshId, item)
+      return
+    }
+    if (kind === 'tool_call_update' && typeof update.toolCallId === 'string') {
+      const s = this.require(dshId)
+      const itemId = turn?.toolItemByCallId.get(update.toolCallId)
+      const status = update.status === 'completed' ? 'ok' : update.status === 'failed' ? 'error' : 'running'
+      const out = extractToolOutput(update)
+      if (itemId !== undefined) {
+        const current = s.items.find((i) => i.id === itemId)
+        if (current?.kind === 'tool_call') {
+          this.replace(dshId, { ...current, status, detail: out !== undefined ? truncate(out) : current.detail })
+        }
+      }
+      if (status !== 'running' && out !== undefined) {
+        const toolItem = itemId !== undefined ? s.items.find((i) => i.id === itemId) : undefined
+        this.append(dshId, {
+          kind: 'tool_result',
+          id: randomId('result'),
+          seq: this.nextSeq(s),
+          tool: toolItem?.kind === 'tool_call' ? toolItem.tool : 'tool_call',
+          status,
+          summary: truncate(out.split('\n')[0] || out, 120),
+          detail: truncate(out),
+        })
+      }
+      return
+    }
+  }
+
+  private onPermission(params: unknown): Promise<string | null> {
+    const p = params as { sessionId?: string; toolCall?: { title?: string }; options?: Array<{ optionId: string; kind?: string; name?: string }> }
+    const acpId = typeof p.sessionId === 'string' ? p.sessionId : ''
+    const dshId = this.findDshId(acpId)
+    if (dshId === undefined) return Promise.resolve(null)
+    const allow = (p.options ?? []).find((o) => o.kind === 'allow_once' || o.kind === 'allow_always')
+    const approvalId = randomId('approval')
+    return new Promise<string | null>((resolve) => {
+      this.pendingPermissions.set(approvalId, { approvalId, sessionId: dshId, allowOptionId: allow?.optionId ?? null, resolve })
+      this.emit({
+        type: 'approval.request',
+        approval: {
+          id: approvalId,
+          sessionId: dshId,
+          toolName: p.toolCall?.title ?? 'tool',
+          reason: 'fx runtime 请求执行许可',
+          createdAt: Date.now(),
+        },
+      })
+    })
+  }
+
+  private findDshId(acpId: string): string | undefined {
+    for (const [dsh, acp] of this.acpSessions) if (acp === acpId) return dsh
+    return undefined
+  }
+
+  // ---- 存储与事件 ----
+
+  private require(id: string): StoredSession {
+    const s = this.sessions.get(id)
+    if (s === undefined) throw new Error('会话不存在')
+    return s
+  }
+
+  private nextSeq(s: StoredSession): number {
+    s.cursor += 1
+    return s.cursor
+  }
+
+  private append(sessionId: string, item: ChatItem): void {
+    const s = this.require(sessionId)
+    const stamped: ChatItem = item.ts === undefined ? ({ ...item, ts: Date.now() } as ChatItem) : item
+    s.items.push(stamped)
+    s.summary.updatedAt = Date.now()
+    s.summary.messageCount = s.items.length
+    if (stamped.kind === 'assistant_message') s.summary.lastMessage = plainText(stamped.text)
+    else if (stamped.kind === 'user_message') s.summary.lastMessage = stamped.text
+    this.persist()
+    this.emit({ type: 'item.append', sessionId, seq: stamped.seq, item: stamped })
+  }
+
+  private replace(sessionId: string, item: ChatItem): void {
+    const s = this.require(sessionId)
+    const index = s.items.findIndex((c) => c.id === item.id)
+    const previous = index === -1 ? undefined : s.items[index]
+    const stamped: ChatItem = item.ts === undefined
+      ? ({ ...item, ts: previous?.ts ?? Date.now() } as ChatItem)
+      : item
+    if (index !== -1) s.items[index] = stamped
+    s.summary.updatedAt = Date.now()
+    this.persist()
+    this.emit({ type: 'item.replace', sessionId, seq: stamped.seq, item: stamped })
+  }
+
+  private persist(): void {
+    storage.setSessions([...this.sessions.values()])
+  }
+
+  private emit(event: LocalEvent): void {
+    for (const listener of this.listeners) listener(event)
+  }
+}
+
+function stringifyResult(output: unknown): string {
+  if (typeof output === 'string') return output
+  try {
+    return JSON.stringify(output)
+  } catch {
+    return String(output)
+  }
+}
+
+/** tool_call_update.content = [{type:'content', content:{type:'text',text}}] → 纯文本 */
+function extractToolOutput(update: AcpUpdate): string | undefined {
+  if (update.rawOutput !== undefined) return stringifyResult(update.rawOutput)
+  if (Array.isArray(update.content)) {
+    const parts = update.content
+      .map((c) => (c as { content?: { text?: string } })?.content?.text)
+      .filter((t): t is string => typeof t === 'string')
+    if (parts.length > 0) return parts.join('')
+  }
+  return undefined
+}
+
+function truncate(s: string, max = 500): string {
+  return s.length > max ? s.slice(0, max) + '…' : s
+}
+
+export const fxRuntime = new FxLocalRuntime()
