@@ -30,7 +30,7 @@
   "preloadRule": {
     "pages/workspace/workspace": {
       "network": "all",
-      "packages": ["kernel", "fxcore"]
+      "packages": ["subpkg/kernel", "subpkg/fx"]
     }
   },
   "dsh": {
