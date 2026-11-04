@@ -42,6 +42,7 @@ DeepSeek Harness（dsh）的原生微信小程序客户端。
 | `ui-sidebar-right`、`ui-sidebar-files`、`ui-sidebar-terminal`、`ui-sidebar-browser` | `components/right-panel`：文件/终端/浏览器/任务/计划/团队 |
 | `ui-primitives/icons` | `components/dsh-icon` + `assets/icons`：按 dsh 原始 SVG 路径生成 |
 | `ui-primitives/Menu`、`Modal`、`Toast`、`Switch` | `components/dsh-menu`、`dsh-dialog`、`dsh-toast`、`dsh-switch` |
+| `ui-primitives/Tabs`、`Button` | `components/dsh-tabs`（underline·normal/compact + pill）、`components/dsh-button`（default/primary/ghost/danger/icon × md/sm） |
 | `ui-theme/design-platform.css` | `app.less` 中的 `--dsw-*` 设计令牌（浅色/深色两套） |
 
 品牌资源来自 dsh 仓库：`ui-primitives/FishLogo.tsx` 的鱼形路径、`ui-chat/assets/running-whale@2x.png`。
@@ -60,7 +61,7 @@ DeepSeek Harness（dsh）的原生微信小程序客户端。
 app.json / app.ts / app.less     小程序入口与全局设计令牌
 pages/workspace                   dsh 工作区（侧栏、会话、输入框、审批）
 pages/settings                    dsh 设置面板 + nano-agent 账户连接
-components/                       composer-bar、command-menu、trajectory-view、chat-bubble、tool-card、reasoning-row、message-actions、feedback-dialog、goal-bar、right-panel、dsh-icon、dsh-menu、dsh-dialog、dsh-toast、dsh-switch
+components/                       composer-bar、command-menu、trajectory-view、chat-bubble、tool-card、reasoning-row、message-actions、feedback-dialog、goal-bar、right-panel、dsh-icon、dsh-menu、dsh-dialog、dsh-toast、dsh-switch、dsh-tabs、dsh-button
 services/                         nano-agent HTTP/WS 运行时、本地兜底运行时、会话 store、markdown、主题、存储
 types/                            ChatItem / Session / Approval / Question 数据模型
 assets/                           鱼形 logo、running whale、dsh 图标
