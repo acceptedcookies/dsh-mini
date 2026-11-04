@@ -12,7 +12,7 @@
 | 证据上限 | S1 结论不覆盖真机；R1/R2 缺席时相关行记 `NOT_RUN`，不得由 S1 推断 |
 | 判读口径 | 2MB 与「可用」的判据写死在下文 §3，跑完不挪 |
 
-**边界声明**：不改 `context/fx` 源码；不在 spike 内构建 fx wasm（那是 `fx-wasm-size` 的事）；spike 小程序工程 `mp/` 用 `touristappid`，与产品 AppID `wxb62ed54d3d2d51a8` 隔离；不产生 provider 调用；本目录结论被 [业主] 登记后可整体删除。
+**边界声明**：不改 `context/fx` 源码；不在 spike 内构建 fx wasm（那是 `fx-wasm-size` 的事）；spike 小程序工程 `mp/` 用 `touristappid`，与产品 AppID `wx356d3abb52825466` 隔离；不产生 provider 调用；本目录结论被 [业主] 登记后可整体删除。
 
 ---
 
