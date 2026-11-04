@@ -214,7 +214,7 @@
           >
             <view
               wx:if="{{item.turnLabel}}"
-              class="turn-process {{item.turnCollapsible && !collapsedTurns[item.turn] ? 'turn-process-open' : ''}}"
+              class="turn-process {{item.turnCollapsible && !item.processHidden ? 'turn-process-open' : ''}}"
               data-turn="{{item.turnCollapsible ? item.turn : 0}}"
               bindtap="toggleTurn"
             >

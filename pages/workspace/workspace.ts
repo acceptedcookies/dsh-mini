@@ -104,6 +104,9 @@ const WORKSPACE_MENU: MenuItem[] = [
 
 let unsubscribe: (() => void) | undefined
 let resizeHandler: ((result: WechatMiniprogram.OnWindowResizeListenerResult) => void) | undefined
+/** 按会话记住折叠的轮次。页面实例在热重载时会被换掉，所以不挂在 this 上。 */
+const foldedTurns = new Map<string, Set<number>>()
+let foldGuardUntil = 0
 let runClock: ReturnType<typeof setInterval> | undefined
 
 Page({
@@ -138,7 +141,6 @@ Page({
     runtimeLabel: sessionStore.runtimeLabel(),
     showHero: true,
     view: 'chat' as 'chat' | 'trajectory',
-    collapsedTurns: {} as Record<number, boolean>,
     atTail: true,
     chatViewportHeight: 0,
     displayItems: [] as DisplayItem[],
@@ -340,9 +342,9 @@ Page({
     const items = state.current?.items ?? []
     const busy = state.current?.status === 'running' || state.streaming !== undefined
     const sessionChanged = currentId !== this.data.currentId
-    const collapsedTurns = sessionChanged ? {} : this.data.collapsedTurns
+    const folded = foldedTurns.get(currentId) ?? new Set<number>()
     const atTail = sessionChanged ? true : this.data.atTail
-    const turns = buildTurns(items, busy, collapsedTurns)
+    const turns = buildTurns(items, busy, folded)
     const last = turns.items[turns.items.length - 1]
     const scrollTarget = !atTail
       ? this.data.scrollTarget
@@ -364,7 +366,6 @@ Page({
       runtimeLabel: sessionStore.runtimeLabel(),
       title: summary?.title ?? '新会话',
       rows,
-      collapsedTurns,
       atTail,
       scrollTarget,
       approval: state.approvals[0] ?? null,
@@ -477,8 +478,15 @@ Page({
   toggleTurn(event: WechatMiniprogram.TouchEvent) {
     const turn = Number(event.currentTarget.dataset.turn)
     if (!Number.isFinite(turn) || turn <= 0) return
-    const collapsedTurns = { ...this.data.collapsedTurns, [turn]: this.data.collapsedTurns[turn] !== true }
-    this.setData({ collapsedTurns })
+    const now = Date.now()
+    if (now < foldGuardUntil) return
+    foldGuardUntil = now + 350
+    const sessionId = this.data.currentId
+    const folded = foldedTurns.get(sessionId) ?? new Set<number>()
+    if (folded.has(turn)) folded.delete(turn)
+    else folded.add(turn)
+    foldedTurns.set(sessionId, folded)
+    this.apply(this.data.state)
   },
 
   openCommandMenu() {
@@ -1127,7 +1135,7 @@ interface TurnMeta {
 function buildTurns(
   items: ChatItem[],
   live: boolean,
-  collapsedTurns: Record<number, boolean>,
+  collapsed: Set<number>,
 ): { items: DisplayItem[]; marks: TurnMark[] } {
   const display: DisplayItem[] = []
   const marks: TurnMark[] = []
@@ -1210,15 +1218,15 @@ function buildTurns(
       : meta.start > 0 && meta.end >= meta.start
         ? `已完成，用时 ${formatRunDuration(Math.max(1000, meta.end - meta.start))}`
         : '已完成'
-    const collapsed = collapsedTurns[index + 1] === true && meta.hasContent && !meta.failed
+    const folded = collapsed.has(index + 1) && meta.hasContent && !meta.failed
     display[meta.headerIndex] = {
       ...entry,
       turn: index + 1,
       turnLabel: label,
       turnCollapsible: meta.hasContent && !meta.failed,
-      processHidden: collapsed && entry.process === true,
+      processHidden: folded && entry.process === true,
     }
-    if (collapsed) {
+    if (folded) {
       for (let row = meta.headerIndex; row < display.length; row += 1) {
         const candidate = display[row]
         if (candidate?.process === true) display[row] = { ...candidate, processHidden: true }
