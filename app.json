@@ -8,6 +8,11 @@
       "root": "subpkg/fx",
       "name": "fxcore",
       "pages": []
+    },
+    {
+      "root": "subpkg/kernel",
+      "name": "kernel",
+      "pages": []
     }
   ],
   "window": {

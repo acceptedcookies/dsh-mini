@@ -3,9 +3,11 @@
   "version": "0.3.0",
   "private": true,
   "description": "DeepSeek Harness 微信小程序客户端",
+  "kernelPin": "f72875054f65c2b1a4224192fd1fbe3b3ad6a3b0",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck"
+    "check": "npm run typecheck",
+    "build:kernel": "node scripts/build-kernel.mjs"
   },
   "devDependencies": {
     "miniprogram-api-typings": "^5.2.3",

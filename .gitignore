@@ -21,6 +21,10 @@ context/
 # fx wasm 分包产物（由 zig build + wasm-opt 再生成，见 .local.development.md）
 subpkg/fx/*.wasm
 
+# kernel 分包产物（由 scripts/build-kernel.mjs 再生成）
+subpkg/kernel/kernel.js
+cloud/functions/sweeper/vendor/
+
 # 由 .local.development.json 生成的小程序端 dev 配置
 services/fx/dev-config.ts
 # cloud-sim 本地记录与云侧依赖

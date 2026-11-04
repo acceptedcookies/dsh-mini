@@ -135,7 +135,6 @@ Page({
     rows: [] as SessionRow[],
     query: '',
     version: APP_VERSION,
-    buildMark: 'fold-4',
     runtimeLabel: sessionStore.runtimeLabel(),
     showHero: true,
     view: 'chat' as 'chat' | 'trajectory',
