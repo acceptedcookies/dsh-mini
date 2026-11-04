@@ -18,7 +18,7 @@ const { signTicket, verifyTicket } = require("../lib/ticket.cjs");
 const here = dirname(fileURLToPath(import.meta.url));
 // 存放于 os.tmpdir：写库不得落项目目录内——DevTools 文件监听会把写库当成代码变更触发重编译，
 // 直接杀死在途 turn（实测复现）。
-const DB_PATH = join(tmpdir(), "dsh-cloud-sim-db.json");
+const DB_PATH = join(process.env.SIM_DB_DIR ?? tmpdir(), "dsh-cloud-sim-db.json");
 const PORT = Number(process.env.SIM_PORT ?? 3426);
 // dev 面常量：本地 sim 的唯一租户与密钥——非生产凭证，仅约束 sim 内部一致性。
 const SIM_OPENID = "sim_dev_user";

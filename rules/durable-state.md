@@ -56,7 +56,7 @@ client
 ```
 小程序客户端 (appService, 可随时死)
   ├─ local-runtime：fx wasm + VFS（USER_DATA_PATH cache-tier）
-  │    └─ 本地 alarm：仅前台 setTimeout；关闭 → 下次启动 catch-up（经 cloud 面读 due 队列）
+  │    └─ 本地 alarm：仅前台 interval + 本地 localCas 键区；关闭 → 下次启动 catch-up（扫本地 due 队列）
   └─ wx.cloud ──→ CloudBase
        ├─ 客户端面（已建：openid + 票据 + BYOK 托管）
        └─ alarm-sweeper 函数（config.json 单定时触发器，周期 ≈30s）
@@ -182,7 +182,7 @@ nano `session.do` 的可贵之处不在「有个 DO」，而在三条纪律，�
 本地会话调度「30 分钟后续跑」，用户 10 分钟后关闭 app。
 
 - nano 对应：无（local-runtime 是小程序特有）。
-- 本案路径：alarm 键**总是写云端**（经 cloud 面→worker），不因 local 而本地记账——否则 catch-up 失去真源。前台 `setTimeout` 到期正常跑；关闭后键仍在；**下次启动时 catch-up**：经 cloud 面拉 `alarms/due?owner=me` → due 已过的立即执行或标 expired。
+- 本案路径（MN01 T-O-9 已冻结，修正原"总是写云端"表述）：**local 车道 alarm 键写本地 localCas**（`dsh-mini/alarms/local/{dueAt}-{sid}`，wx.storage 替身——本地键区与云端是两个独立后端，不互见）。前台 `onShow` 30s interval 到期正常跑；`onHide` 停 interval 并落 `pending-catchup` 标记；**下次启动 catch-up**：`onLaunch` 扫 localCas due alarm → 恢复 turn 续跑。本地会话的 alarm 不上行（本地 turn 状态本就只住本地——单一真源：哪条车道的状态由哪条车道管）。
 - 原语：alarm 写 + due 查询；worker 侧按 openid 前缀隔离保证只见自己的报警。
 - **诚实降级**：local alarm = best-effort foreground + catch-up；不承诺后台唤醒。想升级必须该会话走 cloud-runtime。
 
