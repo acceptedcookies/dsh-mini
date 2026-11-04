@@ -8,8 +8,12 @@ import { createRequire } from "node:module";
 import { createServer } from "node:http";
 
 const require = createRequire(import.meta.url);
-const { decryptKey } = require("../lib/envelope.cjs");
-const { verifyTicket } = require("../lib/ticket.cjs");
+// 双布局兼容：仓库内 ../lib = cloud/lib（canonical）；部署 zip 内 ./lib = 容器根同级。
+const lib = (p) => {
+  try { return require(`../lib/${p}`) } catch { return require(`./lib/${p}`) }
+};
+const { decryptKey } = lib("envelope.cjs");
+const { verifyTicket } = lib("ticket.cjs");
 
 const PORT = Number(process.env.PORT ?? 8080);
 const MASTER_KEY = process.env.MASTER_KEY;
@@ -19,9 +23,14 @@ const ALLOWED_MODELS = (process.env.ALLOWED_MODELS ?? "").split(",").map((s) => 
 if (!MASTER_KEY || !TICKET_SECRET) throw new Error("MASTER_KEY/TICKET_SECRET required");
 
 // @cloudbase/node-sdk 为部署期依赖（见 package.json）；本地 sim 不走此文件。
+// env 缺省时用 SYMBOL_CURRENT_ENV 让 SDK 自动探测容器所在环境——注入凭证只对
+// 容器自身 env 生效，env 写死到别的环境会触发 "missing secretId or secretKey"。
 const tcb = require("@cloudbase/node-sdk");
-const app = tcb.init({ env: process.env.TCB_ENV });
+const dbEnv = process.env.TCB_ENV || tcb.SYMBOL_CURRENT_ENV;
+const app = tcb.init({ env: dbEnv });
 const db = app.database();
+const logEnv = process.env.TCB_ENV ?? "(current)";
+console.log(`[proxy] tcb env: ${logEnv}`);
 const _ = db.command;
 
 const log = (...a) => console.log(`[proxy ${new Date().toISOString().slice(11, 19)}]`, ...a);
