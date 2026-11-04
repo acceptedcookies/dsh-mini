@@ -9,5 +9,18 @@ project.private.config.json
 
 # 业主文档
 # 不参与小程序build, 是我们开发小程序的文档和参考系位置
+AGENTS.md
 docs/
 context/
+
+# 本地开发秘钥
+.local.development.**
+
+# fx wasm 分包产物（由 zig build + wasm-opt 再生成，见 .local.development.md）
+subpkg/fx/*.wasm
+
+# 由 .local.development.json 生成的小程序端 dev 配置
+services/fx/dev-config.ts
+# cloud-sim 本地记录与云侧依赖
+cloud/sim/db.local.json
+cloud/**/node_modules

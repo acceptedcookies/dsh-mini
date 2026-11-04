@@ -18,14 +18,8 @@
     "strictPropertyInitialization": true,
     "lib": ["ES2020"],
     "skipLibCheck": true,
-    "typeRoots": [
-      "./typings"
-    ]
+    "types": ["miniprogram-api-typings"]
   },
-  "include": [
-    "./**/*.ts"
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+  "include": ["./app.ts", "./pages/**/*.ts", "./components/**/*.ts", "./services/**/*.ts", "./types/**/*.ts", "./utils/**/*.ts", "./typings/**/*.d.ts"],
+  "exclude": ["node_modules", "context", "docs"]
 }

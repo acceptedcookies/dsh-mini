@@ -1,6 +1,17 @@
 {
   "name": "dsh-mini",
-  "version": "1.0.0",
+  "version": "0.3.0",
   "private": true,
-  "description": "dsh-mini 微信小程序"
+  "description": "DeepSeek Harness 微信小程序客户端",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck"
+  },
+  "devDependencies": {
+    "miniprogram-api-typings": "^5.2.3",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
 }
