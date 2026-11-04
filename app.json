@@ -7,12 +7,12 @@
     {
       "root": "subpkg/fx",
       "name": "fxcore",
-      "pages": []
+      "pages": ["p/index"]
     },
     {
       "root": "subpkg/kernel",
       "name": "kernel",
-      "pages": []
+      "pages": ["p/index"]
     }
   ],
   "window": {
