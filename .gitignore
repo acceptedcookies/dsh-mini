@@ -12,6 +12,8 @@ project.private.config.json
 AGENTS.md
 docs/
 context/
+.adocs
+.anote
 
 # 本地开发秘钥
 .local.development.**
