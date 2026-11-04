@@ -99,10 +99,6 @@ Component({
       this.present(moveTo)
     },
 
-    presentCurrent() {
-      this.present(this.data.index)
-    },
-
     onOptionTap(event: WechatMiniprogram.TouchEvent) {
       const current = this.data.current
       if (current === null) return

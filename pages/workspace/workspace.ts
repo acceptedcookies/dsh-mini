@@ -30,6 +30,7 @@ type DisplayItem = ChatItem & {
   turn?: number
   turnLabel?: string
   turnCollapsible?: boolean
+  turnCollapsed?: boolean
   process?: boolean
   processHidden?: boolean
   toolView?: ToolView
@@ -106,7 +107,6 @@ let unsubscribe: (() => void) | undefined
 let resizeHandler: ((result: WechatMiniprogram.OnWindowResizeListenerResult) => void) | undefined
 /** 按会话记住折叠的轮次。页面实例在热重载时会被换掉，所以不挂在 this 上。 */
 const foldedTurns = new Map<string, Set<number>>()
-let foldGuardUntil = 0
 let runClock: ReturnType<typeof setInterval> | undefined
 
 Page({
@@ -478,12 +478,11 @@ Page({
   toggleTurn(event: WechatMiniprogram.TouchEvent) {
     const turn = Number(event.currentTarget.dataset.turn)
     if (!Number.isFinite(turn) || turn <= 0) return
-    const now = Date.now()
-    if (now < foldGuardUntil) return
-    foldGuardUntil = now + 350
     const sessionId = this.data.currentId
     const folded = foldedTurns.get(sessionId) ?? new Set<number>()
-    if (folded.has(turn)) folded.delete(turn)
+    const header = (this.data.displayItems as DisplayItem[]).find((item) => item.turn === turn && item.turnLabel !== undefined)
+    const collapsed = header?.turnCollapsed === true
+    if (collapsed) folded.delete(turn)
     else folded.add(turn)
     foldedTurns.set(sessionId, folded)
     this.apply(this.data.state)
@@ -1224,6 +1223,7 @@ function buildTurns(
       turn: index + 1,
       turnLabel: label,
       turnCollapsible: meta.hasContent && !meta.failed,
+      turnCollapsed: folded,
       processHidden: folded && entry.process === true,
     }
     if (folded) {

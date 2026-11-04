@@ -36,7 +36,7 @@ DeepSeek Harness（dsh）的原生微信小程序客户端。
 | `ui-chat/MessageIconActions`、`ui-message-feedback` | `components/message-actions`：日期时钟、复制（勾选反馈）、赞/踩、分支；`components/feedback-dialog`：分类 chip、详情输入与提交 |
 | `ui-goal/GoalBar` | `components/goal-bar`：composer 上方的目标条（目标标签、截断目标、内联编辑、清除） |
 | `ui-approval/ApprovalPanel` | `components/approval-sheet` |
-| `ui-user-questions/QuestionComposer` | `components/question-sheet` |
+| `ui-user-questions/QuestionComposer` | `components/question-sheet`：逐题翻页、编号/多选选项、推荐标记、自定义答案、跳过/下一题/提交 |
 | `ui-settings-general/SettingsRoot` | `pages/settings`：800px 面板、188px 导航、移动端横向导航 |
 | `ui-sidebar-right`、`ui-sidebar-files`、`ui-sidebar-terminal`、`ui-sidebar-browser` | `components/right-panel`：文件/终端/浏览器/任务/计划/团队 |
 | `ui-primitives/icons` | `components/dsh-icon` + `assets/icons`：按 dsh 原始 SVG 路径生成 |
@@ -68,8 +68,9 @@ typings/                          IAppOption
 
 ## 当前范围
 
-- 界面 port 已完成：工作区 shell、侧栏、空态 hero、composer、消息、工具行、推理行、轮次标题/导航、消息操作、审批/提问、设置九个分节、右侧六类面板、浅色/深色主题、PC/平板/手机断点。
-- 轨迹视图：`时长`/`轮次`/`调用` 折叠、轨迹搜索、三泳道时间线、请求账本、明细面板（概述/参数/结果/思考/计时）。
+- 界面 port 范围：工作区 shell、侧栏、空态 hero、composer、消息、工具行、推理行、轮次标题/导航、消息操作、审批/提问、设置九个分节、右侧六类面板、浅色/深色主题、PC/平板/手机断点。
+- 继续 1:1 对齐中的面：轮次过程折叠、提问卡逐题流程、差异块增删着色、工具子调用折叠、审批「始终允许」、各弹窗与动效的逐项对照。
+- 轨迹视图：`时长`/`轮次`/`调用` 折叠、轨迹搜索、三泳道时间线、请求账本、明细面板（概述/参数/结果/思考/计时）；当前投影没有工具父子关系，`子调用` 按钮置为不可用。
 - 指令与动效：`/` 指令菜单、权限选择弹窗、目标/计划/反馈/压缩/模型/导出动作；菜单、对话框、Toast、明细面板与消息均有进入/退出动效。
 - 消息与 composer 细节：日期时钟、复制成功勾选、赞/踩与反馈分类弹窗（落本地，含评分持久化）、目标条内联编辑、工具输入/输出展开卡、运行中工具行、离开尾部时的回到底部按钮。
 - 真实运行时已接入：nano-agent 登录、会话列表/创建/启动/输入/取消、历史分页、WebSocket 流式事件、工具调用/结果、确认请求、断线重连与 seq ack。

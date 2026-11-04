@@ -8,7 +8,7 @@
         theme="{{theme}}"
         size="{{14}}"
       />
-      <dsh-icon wx:else tone="tertiary" name="{{view.icon}}" theme="{{theme}}" size="{{14}}" />
+      <dsh-icon wx:else tone="tertiary" name="{{view.icon || 'sparkle'}}" theme="{{theme}}" size="{{14}}" />
     </view>
     <text class="tool-title">{{view.title}}</text>
     <block wx:if="{{view.summary}}">

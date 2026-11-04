@@ -18,10 +18,19 @@ Component({
     },
     item(item: { kind?: string; text?: string }) {
       if (item?.kind !== 'diff') return
-      const diffLines = (item.text ?? '').split('\n').map((line) => ({
-        text: line.length > 0 && (line.startsWith('+') || line.startsWith('-')) ? line.slice(1) : line,
-        kind: line.startsWith('+') ? 'add' : line.startsWith('-') ? 'del' : line.startsWith('@@') ? 'hunk' : 'context',
-      }))
+      const diffLines = (item.text ?? '').split('\n').map((line) => {
+        const kind = line.startsWith('@@') || line.startsWith('+++') || line.startsWith('---')
+          ? 'hunk'
+          : line.startsWith('+')
+            ? 'add'
+            : line.startsWith('-')
+              ? 'del'
+              : 'context'
+        return {
+          text: kind === 'add' || kind === 'del' ? line.slice(1) : line,
+          kind,
+        }
+      })
       this.setData({ diffLines })
     },
   },

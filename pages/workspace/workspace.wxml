@@ -214,9 +214,9 @@
           >
             <view
               wx:if="{{item.turnLabel}}"
-              class="turn-process {{item.turnCollapsible && !item.processHidden ? 'turn-process-open' : ''}}"
+              class="turn-process {{item.turnCollapsible && !item.turnCollapsed ? 'turn-process-open' : ''}}"
               data-turn="{{item.turnCollapsible ? item.turn : 0}}"
-              bindtap="toggleTurn"
+              catchtap="toggleTurn"
             >
               <text class="turn-label">{{item.turnLabel}}</text>
               <dsh-icon wx:if="{{item.turnCollapsible}}" class="turn-chevron" name="chevron-down-outline" tone="tertiary" theme="{{theme}}" size="{{14}}" />
