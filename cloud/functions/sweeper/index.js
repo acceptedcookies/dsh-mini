@@ -52,22 +52,32 @@ function ioState(openid) {
   return {
     async get(key) {
       const r = await call(openid, "state/get", { key: wire(key) });
-      return r.status === 404 ? null : { body: r.body.body, etag: r.body.etag };
+      // 与 services/state/remote-cas.ts 同语义：仅 404 是 miss，其余非 2xx 如实抛——不伪装 miss/空。
+      if (r.status === 404) return null;
+      if (r.status !== 200) throw new Error(`state/get ${wire(key)} → ${r.status}`);
+      return { body: r.body.body, etag: r.body.etag };
     },
     async putCas(key, body, cond) {
       if (body.length > 256 * 1024) return { status: 413 };
       const r = await call(openid, "state/put-cas", { key: wire(key), body, cond });
-      return r.status === 200 ? { status: 200, etag: r.body.etag } : { status: 412 };
+      if (r.status === 200) return { status: 200, etag: r.body.etag };
+      if (r.status === 412) return { status: 412 };
+      throw new Error(`state/put-cas ${wire(key)} → ${r.status}`);
     },
     async listPrefix(p) {
       if (!/^dsh-mini\/alarms\/[^/]+\/?$/.test(p)) throw new Error(`listPrefix 收窄面仅 alarms: ${p}`);
       const r = await call(openid, "alarm/due", { now: Date.now() });
+      // 枚举失败必须抛——返回 [] 会让后端故障伪装成「无 due」静默丢闹钟。
+      if (r.status !== 200) throw new Error(`alarm/due → ${r.status}`);
       return (r.body.keys ?? []).map(unwire);
     },
     async del(key) {
       // alarm 行：接 alarm/claim 原子消费（否则远端行永不消费）；claim 行靠 TTL 过期。
       const m = key.match(/^dsh-mini\/alarms\/[^/]+\/(.+)$/);
-      if (m !== null) await call(openid, "alarm/claim", { key: m[1], holder: `sweeper-${Date.now()}` });
+      if (m === null) return;
+      const r = await call(openid, "alarm/claim", { key: m[1], holder: `sweeper-${Date.now()}` });
+      // 404 = 已被并发消费者取走（at-least-once 容忍）；其余失败如实抛——不静默漏消费。
+      if (r.status !== 200 && r.status !== 404) throw new Error(`alarm/claim ${m[1]} → ${r.status}`);
     },
   };
 }

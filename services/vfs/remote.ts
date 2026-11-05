@@ -69,12 +69,14 @@ export function createRemoteVfs(deps: RemoteVfsDeps) {
   }
 
   return {
-    /** 写对象/行字节；key 为 `vfs/` 内相对键（如 objects/{sha}、rows/…）。 */
-    async put(key: string, bytes: ArrayBuffer, opts: { mime?: string; ifNoneMatch?: boolean } = {}): Promise<RemoteVfsPutResult> {
+    /** 写对象/行字节；key 为 `vfs/` 内相对键（如 objects/{sha}、rows/…）。
+     *  ifNoneMatch=create-only；ifMatch=etag 条件写（manifest CAS 用）。 */
+    async put(key: string, bytes: ArrayBuffer, opts: { mime?: string; ifNoneMatch?: boolean; ifMatch?: string } = {}): Promise<RemoteVfsPutResult> {
       if (bytes.byteLength > MAX_OBJ_BYTES) throw new VfsError('overflow', `remote vfs 对象 >8MB（${bytes.byteLength}B）`)
       const r = await call('/v1/vfs/put', {
         key: `vfs/${key}`, bytes_b64: toB64(bytes), mime: opts.mime,
         if_none_match: opts.ifNoneMatch === true ? true : undefined,
+        if_match: opts.ifMatch,
       })
       if (r.status === 412) throw new VfsError('fence-blocked', `remote ${key} 已存在（if-none-match）`)
       if (r.status !== 200) return err('vfs/put', r)
@@ -98,13 +100,20 @@ export function createRemoteVfs(deps: RemoteVfsDeps) {
       return (r.body as { removed: boolean }).removed === true
     },
 
-    /** 前缀列举：prefix 为 `vfs/` 内相对前缀；返回剥回相对键。 */
-    async list(prefix: string, limit = 500): Promise<string[]> {
-      const r = await call('/v1/vfs/list', { prefix: `vfs/${prefix}`, limit })
-      if (r.status !== 200) return err('vfs/list', r)
-      return ((r.body as { keys: string[] }).keys ?? [])
-        .filter((k) => k.startsWith('vfs/'))
-        .map((k) => k.slice('vfs/'.length))
+    /** 前缀列举：prefix 为 `vfs/` 内相对前缀；start_after 续页（服务端 truncated/next_token）。 */
+    async list(prefix: string, limit = 500, startAfter?: string): Promise<string[]> {
+      const keys: string[] = []
+      let token = startAfter
+      do {
+        const r = await call('/v1/vfs/list', { prefix: `vfs/${prefix}`, limit, start_after: token })
+        if (r.status !== 200) return err('vfs/list', r)
+        const b = r.body as { keys: string[]; truncated?: boolean; next_token?: string }
+        for (const k of b.keys ?? []) {
+          if (k.startsWith('vfs/')) keys.push(k.slice('vfs/'.length))
+        }
+        token = b.truncated === true ? b.next_token : undefined
+      } while (token !== undefined)
+      return keys
     },
 
     /** artifacts 公网出口：content-hash 寻址 + 公网 URL（G4 图像双形态之一）。 */

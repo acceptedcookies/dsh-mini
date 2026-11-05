@@ -36,7 +36,7 @@ export async function nanoMiniCatchUp(): Promise<string[]> {
 export function nanoMiniStartTick(): void {
   if (timer !== undefined) return
   const pending = wx.getStorageSync(PENDING_KEY) as boolean | '' | undefined
-  if (pending === true) void nanoMiniCatchUp()
+  if (pending === true) nanoMiniCatchUp().catch((e) => console.warn('[nano-mini] pending catchUp failed:', e))
   timer = setInterval(() => {
     nanoMiniCatchUp().catch((e) => console.warn('[nano-mini] tick catchUp failed:', e))
   }, TICK_MS)

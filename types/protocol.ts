@@ -28,6 +28,9 @@ export type ChatItem = ChatItemBase & (
       kind: 'user_message'
       text: string
       images?: ImageRef[]
+      /** 已解析的 image_url parts（cloud=https artifact、local=data: 内联）——
+       *  跨轮历史回放/转录重建用；原始 ImageRef.url 是临时路径跨启动即失效。 */
+      imageParts?: Array<{ kind: 'image_url'; url: string }>
       files?: FileRef[]
     }
   | {

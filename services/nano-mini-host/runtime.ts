@@ -19,7 +19,7 @@ import { storage } from '../storage'
 import { randomId } from '../../utils/uuid'
 import { ioStateFor } from '../state/provider'
 import { resolveImageParts } from './images'
-import { syncTranscript } from './transcript'
+import { syncTranscript, dropTranscript } from './transcript'
 import { kernelUsable, loadKernelAsync } from './kernel-loader'
 import { runPump } from './pump'
 import { createIoTool } from './io/tool'
@@ -44,11 +44,20 @@ function fxLegacyKnob(): boolean {
   }
 }
 
-/** 跨轮历史：转录本中 user/assistant 文本行，截尾去本轮 input（已入 turn.messages），限量 20 条。 */
-function historyMessages(s: StoredSession): Array<{ role: string; content: string }> {
+/** 跨轮历史：转录本中 user/assistant 行，截尾去本轮 input（已入 turn.messages），限量 20 条。
+ *  用户行携带已解析 imageParts（https artifact URL）——前轮图片对后续轮可见（审查 B8）；
+ *  data: 内联形态不沉淀（体积+时效面），local 车道跨轮仅文本——登记边界。 */
+function historyMessages(s: StoredSession): Array<{ role: string; content: unknown }> {
   const msgs = s.items
     .filter((i) => i.kind === 'user_message' || i.kind === 'assistant_message')
-    .map((i) => ({ role: i.kind === 'user_message' ? 'user' : 'assistant', content: i.text }))
+    .map((i) => {
+      const role = i.kind === 'user_message' ? 'user' : 'assistant'
+      if (i.kind === 'user_message' && i.imageParts !== undefined && i.imageParts.length > 0) {
+        const parts = i.imageParts.filter((p) => p.url.startsWith('https://') || p.url.startsWith('http://'))
+        if (parts.length > 0) return { role, content: [...parts, ...(i.text.trim().length > 0 ? [{ kind: 'text', text: i.text }] : [])] }
+      }
+      return { role, content: i.text }
+    })
   return msgs.slice(0, -1).slice(-20)
 }
 
@@ -109,11 +118,15 @@ export class KernelMiniRuntime {
   remove(id: string): void {
     this.sessions.delete(id)
     this.persist()
+    // 远端转录行+本地指针随会话删除清理（best-effort，不阻塞本地删——审查 B8）。
+    void dropTranscript(id)
   }
 
   async prompt(id: string, text: string, images: ImageRef[] = []): Promise<{ messageId: string }> {
     const s = this.require(id)
     if (this.running.has(id)) throw new Error('当前会话仍在运行')
+    // 防御性清陈旧 cancel 标记（idle 期误触 cancel 不得吃掉下一轮）。
+    this.cancelled.delete(id)
     const messageId = randomId('user')
     this.append(id, { kind: 'user_message', id: messageId, seq: this.nextSeq(s), text, images: images.length > 0 ? images : undefined })
     if (s.summary.title === '新会话' && text.trim().length > 0) s.summary.title = text.trim().slice(0, 28)
@@ -122,10 +135,17 @@ export class KernelMiniRuntime {
     this.persist()
     // G4：images → kernel image_url parts（cloud=publish→https，local/sim=data: 内联）。
     // 解析失败（远端 lane 缺位/文件读不出）如实上报——不丢图静默跑文本。
+    // 已解析 parts 沉淀进 user item（imageParts）——跨轮历史/转录重建用；
+    // https artifact URL 内容寻址天然稳定，data: 形态不沉淀（体积+时效）。
     let input: unknown = { role: 'user', content: text }
     if (images.length > 0) {
       try {
         const parts = await resolveImageParts(images)
+        const stored = s.items[s.items.length - 1]
+        if (stored.kind === 'user_message' && stored.id === messageId) {
+          stored.imageParts = parts
+          this.persist()
+        }
         input = {
           role: 'user',
           content: [...parts, ...(text.trim().length > 0 ? [{ kind: 'text', text }] : [])],
@@ -140,7 +160,10 @@ export class KernelMiniRuntime {
   }
 
   cancel(id: string): void {
-    this.cancelled.add(id)
+    // 仅对进行中的轮有效——idle 期留标记会让下一 prompt 首步即被 cancel 吞掉。
+    if (this.running.has(id) || this.sessions.get(id)?.summary.status === 'running') {
+      this.cancelled.add(id)
+    }
   }
 
   answerApproval(_approvalId: string, _outcome: ApprovalOutcome): void { /* kernel 审批面后续 AP */ }
@@ -210,10 +233,12 @@ export class KernelMiniRuntime {
       if (r.outcome === 'completed') {
         this.settleAssistant(sessionId, assistantText)
       } else if (r.outcome === 'suspended') {
-        this.append(sessionId, { kind: 'notice', id: randomId('notice'), seq: this.nextSeq(s), level: 'info', text: '本轮已挂起，等待 tick 恢复续跑。' })
+        // confirmation_pending/fatal_error 挂起不落 alarm——无自动复活路径，
+        // 只有新 prompt（waiting→input_arrived→resume）能续跑，文案如实说。
+        this.append(sessionId, { kind: 'notice', id: randomId('notice'), seq: this.nextSeq(s), level: 'info', text: '本轮已挂起（等待确认或外部输入），发送新消息即可继续。' })
         this.idle(sessionId)
       } else if (r.outcome === 'fenced' || r.outcome === 'claim-denied') {
-        this.fail(sessionId, r.outcome, `会话写者冲突：${r.rival ?? r.outcome}`)
+        this.fail(sessionId, r.outcome, `会话写者冲突：${r.rival ?? r.outcome}`, false)
       } else {
         this.fail(sessionId, r.outcome, `本轮未正常完成：${r.outcome}（${r.trace.slice(-3).join('>')}）`)
       }
@@ -257,14 +282,14 @@ export class KernelMiniRuntime {
     this.persist()
   }
 
-  private fail(sessionId: string, code: string, message: string): void {
+  private fail(sessionId: string, code: string, message: string, retryable = true): void {
     const s = this.sessions.get(sessionId)
     if (s !== undefined) {
       s.summary.status = 'error'
       this.persist()
     }
     this.emit({ type: 'status', sessionId, state: 'error' })
-    this.emit({ type: 'error', code, message, retryable: true })
+    this.emit({ type: 'error', code, message, retryable })
   }
 
   private require(id: string): StoredSession {
@@ -295,7 +320,10 @@ export class KernelMiniRuntime {
   }
 
   private emit(event: LocalEvent): void {
-    for (const listener of this.listeners) listener(event)
+    // 单监听器抛错不得波及其余订阅方或回写轮次状态（审查 B8）。
+    for (const listener of this.listeners) {
+      try { listener(event) } catch (e) { console.warn('[runtime] listener 抛错:', e instanceof Error ? e.message : e) }
+    }
   }
 }
 

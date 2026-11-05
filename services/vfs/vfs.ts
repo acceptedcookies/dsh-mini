@@ -84,6 +84,52 @@ const FIXED_ROOTS = [
   { name: 'backup', path: '/backup' },
 ]
 
+// ── 远端镜像钩子（MN02 §0.2.3）：写/删成功后通知 remote-sync 推送；
+//    scratch lane 不镜像（local-scratch 本义即非 durable）。由 app.ts 在
+//    cloud 车道绑定时挂接——vfs 层不知道远端存在（单向依赖不回头）。
+type MirrorHook = (path: string, kind: 'write' | 'remove') => void
+let mirrorHook: MirrorHook | undefined
+export function setVfsMirrorHook(fn: MirrorHook | undefined): void {
+  mirrorHook = fn
+}
+
+/** `/mnt/{ws}/{sid}/{sub}` read-through 投影 → `/data/{sid}/{sub}`；
+ *  `/mnt/{ws}/{sid}` → `/data/{sid}`；未挂载/形状不符 → null。 */
+function mountProjection(absolute: string): string | null {
+  const segs = absolute.split('/')
+  if (segs[1] !== 'mnt' || segs.length < 4 || segs[3] === undefined) return null
+  const mount = vfsStore.getMount(segs[2])
+  if (mount === undefined || !mount.sessions.includes(segs[3])) return null
+  return `/data/${segs[3]}${segs.length > 4 ? `/${segs.slice(4).join('/')}` : ''}`
+}
+
+/** 普通 lane 的一级列举（seen-map 去重：文件/隐式目录）。
+ *  displayPrefix 非空时 entry.path 以展示前缀回放（mount 投影面）。 */
+function listRowsUnder(absolute: string, displayPrefix?: string): VfsListEntry[] {
+  const prefix = `${absolute}/`
+  const display = (p: string): string => displayPrefix !== undefined ? p.replace(absolute, displayPrefix) : p
+  const seen = new Map<string, VfsListEntry>()
+  for (const row of vfsStore.rowsUnder(absolute)) {
+    const rest = row.virtual_path.slice(prefix.length)
+    if (rest.length === 0) continue
+    const slash = rest.indexOf('/')
+    if (slash === -1) {
+      seen.set(rest, {
+        name: rest,
+        path: display(row.virtual_path),
+        kind: 'file',
+        size_bytes: row.size_bytes,
+        content_hash: row.content_hash,
+        placement: row.placement,
+      })
+    } else {
+      const dir = rest.slice(0, slash)
+      if (!seen.has(dir)) seen.set(dir, { name: dir, path: display(`${prefix}${dir}`), kind: 'dir' })
+    }
+  }
+  return [...seen.values()].sort((a, b) => (a.name < b.name ? -1 : 1))
+}
+
 export const vfs = {
   cwd(sessionId: string): string {
     return sessionCwd(sessionId)
@@ -114,6 +160,7 @@ export const vfs = {
       }
       vfsStore.putRow(row)
       vfsJournal.finish(id)
+      if (resolved.lane !== 'scratch') mirrorHook?.(resolved.absolute, 'write')
       return this.stat(resolved.absolute, { sessionId: opts.sessionId })
     } catch (e) {
       vfsJournal.abandon(id)
@@ -123,7 +170,9 @@ export const vfs = {
 
   read(path: string, opts: { sessionId: string; offset?: number; maxBytes?: number }): VfsReadResult {
     const resolved = resolveVfsPath(path, opts.sessionId)
-    const row = vfsStore.getRow(resolved.absolute)
+    // mount lane read-through：/mnt/{ws}/{sid}/{sub} → /data/{sid}/{sub} 行
+    const rowPath = resolved.lane === 'mount' ? mountProjection(resolved.absolute) : resolved.absolute
+    const row = rowPath === null ? undefined : vfsStore.getRow(rowPath)
     if (row === undefined || !row.committed) throw new VfsError('path-not-found', `${resolved.absolute} 不存在`)
     const bytes = localObjects.read(row.object_key)
     const actual = sha256Hex(new Uint8Array(bytes))
@@ -163,14 +212,27 @@ export const vfs = {
     const under = vfsStore.rowsUnder(resolved.absolute)
     const isFixedRoot = FIXED_ROOTS.some((r) => r.path === resolved.absolute)
     if (under.length > 0 || isFixedRoot) return { path: resolved.absolute, exists: true, kind: 'dir' }
-    // /mnt 挂载注册表：/mnt/{name} 存在当挂载行在册；/mnt/{name}/{sid} 存在当 session 已挂
+    // /mnt 挂载注册表：/mnt/{name} 存在当挂载行在册；/mnt/{name}/{sid} 存在当 session 已挂；
+    // 更深层 read-through 到 /data/{sid}/{sub}（行=file、子孙=dir、无=none——不再幻影 dir）。
     if (resolved.lane === 'mount' && resolved.laneKey !== undefined) {
       const mount = vfsStore.getMount(resolved.laneKey)
       if (mount === undefined) return { path: resolved.absolute, exists: false, kind: 'none' }
-      const third = resolved.absolute.split('/')[3]
-      if (third === undefined || mount.sessions.includes(third)) {
-        return { path: resolved.absolute, exists: true, kind: 'dir' }
+      const proj = mountProjection(resolved.absolute)
+      if (proj !== null) {
+        if (proj === `/data/${resolved.absolute.split('/')[3]}`) return { path: resolved.absolute, exists: true, kind: 'dir' }
+        const prow = vfsStore.getRow(proj)
+        if (prow !== undefined && prow.committed) {
+          return {
+            path: resolved.absolute, exists: true, kind: 'file',
+            size_bytes: prow.size_bytes, content_hash: prow.content_hash,
+            object_version: prow.content_hash, placement: prow.placement, updated_ms: prow.updated_ms,
+          }
+        }
+        if (vfsStore.rowsUnder(proj).length > 0) return { path: resolved.absolute, exists: true, kind: 'dir' }
+        return { path: resolved.absolute, exists: false, kind: 'none' }
       }
+      const third = resolved.absolute.split('/')[3]
+      if (third === undefined) return { path: resolved.absolute, exists: true, kind: 'dir' }
     }
     return { path: resolved.absolute, exists: false, kind: 'none' }
   },
@@ -183,7 +245,8 @@ export const vfs = {
     if (resolved.absolute === '/') {
       entries = FIXED_ROOTS.map((r): VfsListEntry => ({ name: r.name, path: r.path, kind: 'dir' }))
     } else if (resolved.lane === 'mount') {
-      // 挂载注册表：/mnt 列 workspace 挂载名；/mnt/{ws} 列已挂 session（remote-sync 投影）
+      // 挂载注册表：/mnt 列 workspace 挂载名；/mnt/{ws} 列已挂 session；
+      // /mnt/{ws}/{sid}/{sub} read-through 列 /data/{sid}/{sub}（幻影重列已修——审查 B8）
       if (resolved.laneKey === undefined) {
         entries = vfsStore.allMounts()
           .map((m): VfsListEntry => ({ name: m.name, path: `/mnt/${m.name}`, kind: 'dir' }))
@@ -191,33 +254,26 @@ export const vfs = {
       } else {
         const mount = vfsStore.getMount(resolved.laneKey)
         if (mount === undefined) throw new VfsError('path-not-found', `${resolved.absolute} 无挂载`)
-        entries = mount.sessions.map((sid): VfsListEntry => ({ name: sid, path: `/mnt/${mount.name}/${sid}`, kind: 'dir' }))
+        const proj = mountProjection(resolved.absolute)
+        if (proj === null) {
+          const third = resolved.absolute.split('/')[3]
+          if (third === undefined) {
+            entries = mount.sessions.map((sid): VfsListEntry => ({ name: sid, path: `/mnt/${mount.name}/${sid}`, kind: 'dir' }))
+          } else {
+            throw new VfsError('path-not-found', `${resolved.absolute} 未挂载该 session`)
+          }
+        } else {
+          entries = listRowsUnder(proj, resolved.absolute)
+          if (entries.length === 0 && proj !== `/data/${resolved.absolute.split('/')[3]}`) {
+            throw new VfsError('path-not-found', `${resolved.absolute} 不存在`)
+          }
+        }
       }
     } else if (resolved.lane === 'backup') {
       // 副本名注册表：首版为空（rules/filesystem.md §5 占位留缝）
       if (resolved.laneKey !== undefined) throw new VfsError('path-not-found', `${resolved.absolute} 无副本`)
     } else {
-      const prefix = `${resolved.absolute}/`
-      const seen = new Map<string, VfsListEntry>()
-      for (const row of vfsStore.rowsUnder(resolved.absolute)) {
-        const rest = row.virtual_path.slice(prefix.length)
-        if (rest.length === 0) continue
-        const slash = rest.indexOf('/')
-        if (slash === -1) {
-          seen.set(rest, {
-            name: rest,
-            path: row.virtual_path,
-            kind: 'file',
-            size_bytes: row.size_bytes,
-            content_hash: row.content_hash,
-            placement: row.placement,
-          })
-        } else {
-          const dir = rest.slice(0, slash)
-          if (!seen.has(dir)) seen.set(dir, { name: dir, path: `${prefix}${dir}`, kind: 'dir' })
-        }
-      }
-      entries = [...seen.values()].sort((a, b) => (a.name < b.name ? -1 : 1))
+      entries = listRowsUnder(resolved.absolute)
       if (entries.length === 0 && this.stat(resolved.absolute, opts).kind === 'none') {
         throw new VfsError('path-not-found', `${resolved.absolute} 不存在`)
       }
@@ -238,6 +294,7 @@ export const vfs = {
     try {
       const row = vfsStore.removeRow(resolved.absolute)
       vfsJournal.finish(id)
+      if (row !== undefined && resolved.lane !== 'scratch') mirrorHook?.(resolved.absolute, 'remove')
       return row !== undefined // 对象字节按无引用惰性清扫，不即时删（同 nano 对象层惰性）
     } catch (e) {
       vfsJournal.abandon(id)

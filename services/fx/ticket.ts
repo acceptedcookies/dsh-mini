@@ -4,6 +4,7 @@
  * bio 门禁与注入面见 ./enrollment.ts（业主裁决：无 bio 禁止 apikey 注入）。
  */
 import type { RouteConfig } from './route'
+import { DSH_MINI_BASE_URL } from '../config'
 import {
   collectBioProof,
   ensureServerEnrollment,
@@ -53,6 +54,12 @@ let inflight: Promise<string> | undefined
 
 function cachedTicket(): string | undefined {
   return sharedTicket !== undefined && sharedTicket.expMs - REFRESH_SKEW_MS > Date.now() ? sharedTicket.token : undefined
+}
+
+/** 有效票据已缓存（不触发 bio）：后台面（launch/tick）用它门控远端操作——
+ *  无票据时不得静默发起 SOTER（生物识别须用户手势上下文，审查 B8）。 */
+export function hasFreshTicket(): boolean {
+  return cachedTicket() !== undefined
 }
 
 interface WxCloud {
@@ -124,8 +131,9 @@ class CloudTicketProvider implements TicketProvider {
     private readonly cfg: TicketSource,
   ) {
     // durable 收窄面（POD1 fss3）：同 unlock 票据、同 scope——命中 durableBase 亦注入。
+    // durableUrl 缺省时与 provider.ts 同回落 DSH_MINI_BASE_URL——否则请求发默认域却不带票据静默 401。
     const d = cfg.cloud.durableUrl
-    this.durableBase = d !== undefined && d.length > 0 ? d.replace(/\/$/, '') : undefined
+    this.durableBase = (d !== undefined && d.length > 0 ? d : DSH_MINI_BASE_URL).replace(/\/$/, '')
   }
 
   async ready(): Promise<CredentialSource> {

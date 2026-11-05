@@ -107,14 +107,27 @@ async function casPut(env, fullKey, body, cond = {}) {
   const etag = (r.headers.get("etag") ?? "").replace(/"/g, "");
   return { status: 200, etag };
 }
-async function casDel(env, fullKey) {
-  await s3(env, "DELETE", fullKey);
+async function casDel(env, fullKey, cond = {}) {
+  const opts = {};
+  if (cond.ifMatch !== undefined) opts.ifMatch = `"${cond.ifMatch}"`;
+  return s3(env, "DELETE", fullKey, opts);
 }
 async function listKeys(env, prefix) {
-  const r = await s3(env, "GET", "", { query: `list-type=2&prefix=${uriEncode(prefix, false)}` });
-  if (!r.ok) return [];
-  const xml = await r.text();
-  return [...xml.matchAll(/<Key>([^<]+)<\/Key>/g)].map((m) => m[1]);
+  const keys = [];
+  let token;
+  do {
+    let q = `list-type=2&prefix=${uriEncode(prefix, false)}`;
+    if (token !== undefined) q += `&continuation-token=${uriEncode(token, false)}`;
+    const r = await s3(env, "GET", "", { query: q });
+    if (!r.ok) throw new Error(`s3 LIST ${prefix} → ${r.status}`);
+    const xml = await r.text();
+    for (const m of xml.matchAll(/<Key>([^<]+)<\/Key>/g)) keys.push(m[1]);
+    token = /<IsTruncated>true<\/IsTruncated>/.test(xml)
+      ? (xml.match(/<NextContinuationToken>([^<]+)<\/NextContinuationToken>/)?.[1] ?? null)
+      : undefined;
+    if (token === null) throw new Error("s3 LIST truncated without continuation token");
+  } while (token !== undefined);
+  return keys;
 }
 
 const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { "content-type": "application/json" } });
@@ -124,6 +137,8 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (request.method !== "POST" || !url.pathname.startsWith("/v1/")) return json({ error: "no route" }, 404);
+    // fail-closed：secret 缺位时 HMAC("") 仍可验出「合法」票据——宁可 500 不可放行。
+    if (typeof env.TICKET_SECRET !== "string" || env.TICKET_SECRET === "") return json({ error: "server misconfig: TICKET_SECRET missing" }, 500);
     const auth = request.headers.get("authorization") ?? "";
     const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
     const payload = await verifyTicket(env.TICKET_SECRET, token, "byok-proxy");
@@ -190,7 +205,10 @@ export default {
         if (k === null) return json({ error: "bad key shape" }, 400);
         const row = await casGet(env, k);
         if (row === null) return json({ error: "not-found" }, 404);
-        await casDel(env, k);
+        // 条件删兑现原子消费：并发 claimer 只有一个拿到 200，其余 412→404（已被消费）。
+        const d = await casDel(env, k, { ifMatch: row.etag });
+        if (d.status === 412 || d.status === 404) return json({ error: "already-claimed" }, 404);
+        if (!d.ok) return json({ error: `backend ${d.status}` }, d.status);
         return json({ body: row.body });
       }
       return json({ error: `no route ${ep}` }, 404);

@@ -80,7 +80,9 @@ export function createRemoteCas(opts: RemoteCasOpts): IoState {
       // alarm 行：接 /alarm/claim 原子消费端点（否则远端行永不消费——审查 P0）。
       const m = key.match(/^dsh-mini\/alarms\/[^/]+\/(.+)$/)
       if (m !== null) {
-        await call('alarm/claim', { key: m[1], holder: 'remote-cas' })
+        const r = await call('alarm/claim', { key: m[1], holder: 'remote-cas' })
+        // 404 = 已被并发消费者取走（at-least-once 容忍）；其余失败如实抛——不静默漏消费。
+        if (r.status !== 200 && r.status !== 404) throw new Error(`alarm/claim ${r.status}: ${JSON.stringify(r.body).slice(0, 200)}`)
         return
       }
       // claim 行释放：worker 语义靠 TTL 自然过期，无显式 del。

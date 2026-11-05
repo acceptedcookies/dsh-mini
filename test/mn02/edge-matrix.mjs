@@ -157,6 +157,146 @@ export const vfsRemoteFor = () => remote
   check('E7:durable 指针 last_seq=4', ptr?.last_seq === 4)
 }
 
+// ── E8 B8 修复面验证 ─────────────────────────────────────────────────
+// mount read-through、mirror 钩子、claim 心跳、manifest CAS、vfs/list 续页。
+{
+  const { vfs, setVfsMirrorHook } = await bundle(`import { vfs, setVfsMirrorHook } from '${repo}/services/vfs/vfs'; export { vfs, setVfsMirrorHook }`)
+  const { vfsStore } = await bundle(`import { vfsStore } from '${repo}/services/vfs/store'; export { vfsStore }`)
+  const SID = `${RUN}-mt`
+  vfs.write(`/data/${SID}/proj/a.txt`, 'through', { sessionId: SID })
+  vfs.write(`/data/${SID}/proj/sub/b.txt`, 'through2', { sessionId: SID })
+  vfsStore.putMount({ name: 'mt-ws', workspace: 'mt-ws', sessions: [SID], created_ms: Date.now() })
+  const r1 = vfs.read(`/mnt/mt-ws/${SID}/proj/a.txt`, { sessionId: 'other' })
+  check('E8:mount read-through 文件', r1.text === 'through')
+  const l1 = vfs.list(`/mnt/mt-ws/${SID}/proj`, { sessionId: 'other' })
+  check('E8:mount 深层 list 投影', l1.entries.length === 2 && l1.entries.every((e) => e.path.startsWith('/mnt/')), JSON.stringify(l1.entries.map((e) => e.path)))
+  const s1 = vfs.stat(`/mnt/mt-ws/${SID}/proj/sub`, { sessionId: 'other' })
+  const s2 = vfs.stat(`/mnt/mt-ws/${SID}/proj/ghost`, { sessionId: 'other' })
+  const s3 = vfs.stat(`/mnt/mt-ws/not-mounted/x`, { sessionId: 'other' })
+  check('E8:mount stat 投影 file/dir/none', s1.kind === 'dir' && s2.kind === 'none' && s3.kind === 'none', `${s1.kind}/${s2.kind}/${s3.kind}`)
+  let hookErr = null
+  try { vfs.list(`/mnt/mt-ws/not-mounted`, { sessionId: 'other' }) } catch (e) { hookErr = e.code }
+  check('E8:mount 未挂 sid list → path-not-found', hookErr === 'path-not-found')
+
+  // mirror 钩子：write→pushPath、remove→pushRemove（真 RemoteVfs + POD1）
+  const { createRemoteVfs } = await bundle(`import { createRemoteVfs } from '${repo}/services/vfs/remote'; export { createRemoteVfs }`)
+  const { createVfsSync: mkSync } = await bundle(`import { createVfsSync } from '${repo}/services/vfs/remote-sync'; export { createVfsSync }`)
+  const rv = createRemoteVfs({ baseUrl: BASE, headers: () => ({ authorization: `Bearer ${TICKET}` }), post: async (u, h, b) => { const r = await fetch(u, { method: 'POST', headers: h, body: JSON.stringify(b) }); return { status: r.status, body: await r.json().catch(() => null) } } })
+  const sync = mkSync(rv)
+  const mir = `${RUN}-mir`
+  setVfsMirrorHook((path, kind) => {
+    const p = kind === 'write' ? sync.pushPath(path) : sync.pushRemove(path)
+    p.catch(() => {})
+  })
+  // 推送是异步网络往返——轮询等待而非定值 sleep（POD1 跨国延迟抖动）。
+  const waitFor = async (key, want, ms = 10000) => {
+    const end = Date.now() + ms
+    while (Date.now() < end) {
+      const g = await post('vfs/get', { key })
+      if (g.status === want) return g
+      await new Promise((r) => setTimeout(r, 400))
+    }
+    return post('vfs/get', { key })
+  }
+  vfs.write(`/data/${mir}/hooked.txt`, 'mirrored', { sessionId: mir })
+  const rowKey = `vfs/rows/data/${mir}/hooked.txt`
+  const g1 = await waitFor(rowKey, 200)
+  check('E8:mirror 钩子 write→远端行', g1.status === 200)
+  vfs.write(`/tmp/${mir}/scratch.txt`, 'no-mirror', { sessionId: mir })
+  await new Promise((r) => setTimeout(r, 1500))
+  const g2 = await post('vfs/get', { key: `vfs/rows/tmp/${mir}/scratch.txt` })
+  check('E8:mirror scratch 不镜像', g2.status === 404)
+  vfs.remove(`/data/${mir}/hooked.txt`, { sessionId: mir })
+  const g3 = await waitFor(rowKey, 404)
+  check('E8:mirror 钩子 remove→远端行删', g3.status === 404, `status=${g3.status}`)
+  setVfsMirrorHook(undefined)
+
+  // manifest CAS：mountSession 保留对手条目（并发合并）
+  await sync.mountSession(`${RUN}-cas`, 'sess-a')
+  // 模拟对手直写清单丢条目 → 再 mount 另一 sid → 两条都活
+  const mk = await post('vfs/get', { key: `vfs/workspaces/${RUN}-cas.json` })
+  const mani = JSON.parse(Buffer.from(mk.body.body_b64, 'base64').toString())
+  mani.sessions = ['rival-sess']
+  await post('vfs/put', { key: `vfs/workspaces/${RUN}-cas.json`, bytes_b64: Buffer.from(JSON.stringify(mani)).toString('base64') })
+  await sync.mountSession(`${RUN}-cas`, 'sess-b')
+  const mk2 = await post('vfs/get', { key: `vfs/workspaces/${RUN}-cas.json` })
+  const mani2 = JSON.parse(Buffer.from(mk2.body.body_b64, 'base64').toString())
+  check('E8:manifest CAS 保留对手条目', mani2.sessions.includes('rival-sess') && mani2.sessions.includes('sess-b'), JSON.stringify(mani2.sessions))
+
+  // vfs/list 续页：limit=2 翻页拿全
+  const pref = `vfs/rows/data/${mir}p/`
+  for (let i = 0; i < 3; i++) await post('vfs/put', { key: `${pref}f${i}.txt`, bytes_b64: Buffer.from('x').toString('base64') })
+  const p1 = await post('vfs/list', { prefix: pref, limit: 2 })
+  const p2 = await post('vfs/list', { prefix: pref, limit: 2, start_after: p1.body.next_token })
+  check('E8:vfs/list 续页（truncated+next_token）', p1.body.truncated === true && p1.body.keys.length === 2 && p2.body.keys.length === 1 && p2.body.truncated === false, `p1=${p1.body.keys?.length} p2=${p2.body.keys?.length}`)
+
+  // claim 心跳：claimTtlMs=300 + 慢 tool（500ms）→ turn 内续约，fenced 不出现
+  const cas = mkCas('o1')
+  let slow = 0
+  const hbIo = {
+    state: cas,
+    llm: async () => { slow += 1; return slow === 1 ? { toolCalls: [{ id: 'c1', name: 'file_read', input: {} }] } : { text: 'hb done' } },
+    tool: async () => { await new Promise((r) => setTimeout(r, 500)); return { kind: 'inline-text', text: '{}', byte_length: 2, provenance: { context_layer: 'transcript', context_role: 'assistant', context_property: 'tool-result' } } },
+  }
+  const t0 = Date.now()
+  const hb = await host.runPump({ kernel, io: hbIo, owner: 'o1', holder: 'hb' }, `${RUN}-hb`, { input: { role: 'user', content: 'x' }, claimTtlMs: 300 })
+  const hbClaim = await post('state/get', { key: `claims/${RUN}-hb` })
+  const hbParsed = hbClaim.status === 200 ? JSON.parse(hbClaim.body.body) : null
+  // 续约证据：claim.expires > t0+300（初始 ttl 写面）即证明 turn 内续约发生
+  check('E8:claim 心跳（长 turn 续约不 fenced）', hb.outcome === 'completed' && hbParsed !== null && Date.parse(hbParsed.expires) > t0 + 300, `outcome=${hb.outcome} exp=${hbParsed?.expires}`)
+}
+
+// ── E9 模型优先级：设置页显式选择 > enrollment.model（审查 B8 回归）─────
+// local 车道（cfg 在场）：activeModel 归一化；cfg 缺席（生产云车道）：
+// 白名单内显式选择仍赢 enrollment，无效/未选回退 enrollment.model。
+{
+  const { createIoLlm } = await bundle(`import { createIoLlm } from '${repo}/services/nano-mini-host/io/llm'; export { createIoLlm }`, [
+    swap(/fx\/dev$/, stub('dev', `export const currentRoute = () => ({ mode: 'local' })
+export const loadDevConfig = () => ({ providerName: 'magpie', upstreamBaseUrl: 'http://127.0.0.1:9', providerApiKey: '', model: 'cfg-model', allowedModels: [], sim: { baseUrl: '' }, cloud: { envId: '', proxyUrl: '' } })`)),
+  ])
+  let wire = null
+  const llm = createIoLlm({ request: async (_u, _h, data) => { wire = data; return { status: 200, body: { choices: [{ message: { content: 'ok' } }] } } } })
+  const msg = [{ role: 'user', content: [{ kind: 'text', text: 'x' }] }]
+
+  wx.setStorageSync('dsh:model:v2', 'workbuddy/deepseek-v4-pro')
+  wx.setStorageSync('dsh:byok-enrollment:v1', { provider: 'byok', upstreamBaseUrl: 'http://127.0.0.1:9', model: 'deepseek-flash' })
+  await llm(msg)
+  check('E9:cfg 在场 picked>enrollment（设置页赢）', wire.model === 'workbuddy/deepseek-v4-pro', `model=${wire.model}`)
+
+  wx.setStorageSync('dsh:model:v2', 'bogus-model-x')
+  await llm(msg)
+  check('E9:picked 不在白名单→归一化默认', wire.model === 'workbuddy/deepseek-v4.1-flash', `model=${wire.model}`)
+}
+
+// cfg 缺席云车道：route=cloud 无 proxyBaseUrl → LocalTicketProvider（零网络），
+// enrollment 已注入 → ready() 走 manual 源，model 只看 io/llm 的解析序。
+{
+  const { createIoLlm } = await bundle(`import { createIoLlm } from '${repo}/services/nano-mini-host/io/llm'; export { createIoLlm }`, [
+    swap(/fx\/dev$/, stub('devc', `export const currentRoute = () => ({ mode: 'cloud' })
+export const loadDevConfig = () => undefined`)),
+  ])
+  let wire = null
+  const llm = createIoLlm({ request: async (_u, _h, data) => { wire = data; return { status: 200, body: { choices: [{ message: { content: 'ok' } }] } } } })
+  const msg = [{ role: 'user', content: [{ kind: 'text', text: 'x' }] }]
+  // enrollment.model 故意取非 MODELS 值——能区分「picked 赢」与「enrollment 兜底」。
+  wx.setStorageSync('dsh:byok-enrollment:v1', { provider: 'byok', upstreamBaseUrl: 'http://127.0.0.1:9', model: 'enrolled-upstream-model' })
+
+  wx.setStorageSync('dsh:model:v2', 'deepseek-flash')
+  await llm(msg)
+  check('E9:cfg 缺席 picked∈MODELS 仍赢 enrollment', wire.model === 'deepseek-flash', `model=${wire.model}`)
+
+  wx.setStorageSync('dsh:model:v2', 'bogus-model-x')
+  await llm(msg)
+  check('E9:cfg 缺席 picked 非法→enrollment 兜底', wire.model === 'enrolled-upstream-model', `model=${wire.model}`)
+
+  wx.removeStorageSync('dsh:model:v2')
+  await llm(msg)
+  check('E9:cfg 缺席未选→enrollment.model', wire.model === 'enrolled-upstream-model', `model=${wire.model}`)
+
+  wx.removeStorageSync('dsh:model:v2')
+  wx.removeStorageSync('dsh:byok-enrollment:v1')
+}
+
 const failed = results.filter((r) => !r.ok)
 console.log(`\n${results.length - failed.length}/${results.length} PASS  @ ${new Date().toISOString()}`)
 process.exit(failed.length === 0 ? 0 : 1)

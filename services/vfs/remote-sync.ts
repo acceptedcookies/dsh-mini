@@ -66,8 +66,9 @@ export function createVfsSync(remote: RemoteVfs) {
     if (row === undefined || !row.committed) throw new VfsError('path-not-found', `push: ${path} 无已提交行`)
     const bytes = localObjects.read(row.object_key)
     await remote.put(`objects/${row.object_key}`, bytes, { mime: row.mime, ifNoneMatch: true }).catch((e) => {
-      // if-none-match 412 = 同 hash 已存（content-addressed 幂等）——非失败
-      if (e instanceof VfsError && e.code === 'fence-blocked') return undefined
+      // if-none-match 412 = 同 hash 已存（content-addressed 幂等）——非失败；
+      // 鸭子类型查 code 不用 instanceof（跨 bundle 打包实例不恒等——审查 B8 实证）。
+      if ((e as { code?: string }).code === 'fence-blocked') return undefined
       throw e
     })
     const r = await remote.put(rowKey(path), enc(JSON.stringify(row)), { mime: 'application/json' })
@@ -122,6 +123,8 @@ export function createVfsSync(remote: RemoteVfs) {
       try {
         row = JSON.parse(dec(r.bytes)) as VfsRow
       } catch {
+        // 坏行如实 warn——静默跳过会让毒化行永远缺席且无面可查（审查 B8）。
+        console.warn(`[remote-sync] pullRows 跳过坏行 ${key}`)
         continue
       }
       if (local !== undefined && local.updated_ms >= row.updated_ms) continue
@@ -144,53 +147,83 @@ export function createVfsSync(remote: RemoteVfs) {
     return true
   }
 
+  /** workspace 清单 etag 条件写（多设备挂载并发防丢条目）：读→合并→ifMatch 写，
+   *  409 冲突重读重试一次；仍冲突如实抛（对手持有中，调用方下一轮 reconcile 自愈）。 */
+  async function putManifestCas(safe: string, mutate: (w: { kind: string; name: string; sessions: string[]; created_ms: number }) => void): Promise<void> {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const cur = await remote.get(wsKey(safe))
+      let manifest: { kind: string; name: string; sessions: string[]; created_ms: number }
+      if (cur !== null) {
+        try { manifest = JSON.parse(dec(cur.bytes)) as typeof manifest } catch { manifest = { kind: 'workspace', name: safe, sessions: [], created_ms: Date.now() } }
+      } else {
+        manifest = { kind: 'workspace', name: safe, sessions: [], created_ms: Date.now() }
+      }
+      mutate(manifest)
+      const r = await remote.put(wsKey(safe), enc(JSON.stringify(manifest)), {
+        mime: 'application/json',
+        ifMatch: cur?.etag,
+      }).then(() => true).catch((e) => {
+        if ((e as { code?: string }).code === 'fence-blocked') return false
+        throw e
+      })
+      if (r) return
+    }
+    throw new VfsError('fence-blocked', `workspace ${safe} 清单写冲突（重试耗尽）`)
+  }
+
   /** workspace 建立：远端清单 + 本地 /mnt 挂载投影。 */
   async function createWorkspace(name: string): Promise<MountRow> {
     const safe = sanitizeName(name)
-    const manifest = { kind: 'workspace', name: safe, sessions: [], created_ms: Date.now() }
-    await remote.put(wsKey(safe), enc(JSON.stringify(manifest)), { mime: 'application/json' })
-    const mount: MountRow = { name: safe, workspace: safe, sessions: [], created_ms: manifest.created_ms }
-    vfsStore.putMount(mount)
-    return mount
+    await putManifestCas(safe, () => { /* 存在即幂等——sessions 保留对手已挂条目 */ })
+    const existing = vfsStore.getMount(safe) ?? { name: safe, workspace: safe, sessions: [], created_ms: Date.now() }
+    vfsStore.putMount(existing)
+    return existing
   }
 
-  /** session 挂载：挂载行 + workspace 清单 sessions[] 追加 + 本地投影更新。 */
+  /** session 挂载：挂载行 + workspace 清单 sessions[] 追加（CAS）+ 本地投影更新。 */
   async function mountSession(workspace: string, sessionId: string): Promise<MountRow> {
     const safe = sanitizeName(workspace)
-    let mount = vfsStore.getMount(safe)
-    if (mount === undefined) {
-      // 远端已有 workspace（换机/重装投影丢失）→ 以远端为准复活本地投影
-      const r = await remote.get(wsKey(safe))
-      const remoteSessions = r === null ? [] : ((JSON.parse(dec(r.bytes)) as { sessions?: string[] }).sessions ?? [])
-      mount = { name: safe, workspace: safe, sessions: remoteSessions, created_ms: Date.now() }
-    }
-    if (!mount.sessions.includes(sessionId)) {
-      mount = { ...mount, sessions: [...mount.sessions, sessionId] }
-    }
     await remote.put(mountKey(safe, sessionId), enc(JSON.stringify({ kind: 'session-mount', workspace: safe, session_id: sessionId, mounted_ms: Date.now() })), { mime: 'application/json' })
-    await remote.put(wsKey(safe), enc(JSON.stringify({ kind: 'workspace', name: safe, sessions: mount.sessions, created_ms: mount.created_ms })), { mime: 'application/json' })
+    await putManifestCas(safe, (m) => {
+      if (!m.sessions.includes(sessionId)) m.sessions.push(sessionId)
+    })
+    // 本地投影与远端清单对齐（含对手条目）——挂载表是投影非真源。
+    const cur = await remote.get(wsKey(safe))
+    const sessions = cur !== null ? ((JSON.parse(dec(cur.bytes)) as { sessions?: string[] }).sessions ?? []) : []
+    const mount: MountRow = { name: safe, workspace: safe, sessions, created_ms: vfsStore.getMount(safe)?.created_ms ?? Date.now() }
     vfsStore.putMount(mount)
     return mount
   }
 
-  /** 远端 workspace 清单 → 本地 /mnt 投影重建（返回 workspace 名列表）。 */
+  /** 远端 workspace 清单 → 本地 /mnt 投影重建（返回 workspace 名列表）。
+   *  sessions/* 挂载行并入清单 sessions[]——清单丢条目时挂载行仍可真源复活。 */
   async function pullWorkspaces(): Promise<string[]> {
     const keys = await remote.list('workspaces/', 500)
-    const names: string[] = []
+    const names = new Set<string>()
     for (const key of keys) {
       const m = key.match(/^workspaces\/([^/]+)\.json$/)
-      if (m === null) continue
-      const r = await remote.get(key)
-      if (r === null) continue
-      try {
-        const w = JSON.parse(dec(r.bytes)) as { name: string; sessions?: string[]; created_ms?: number }
-        vfsStore.putMount({ name: w.name, workspace: w.name, sessions: w.sessions ?? [], created_ms: w.created_ms ?? Date.now() })
-        names.push(w.name)
-      } catch {
-        /* 坏行跳过 */
+      if (m !== null) {
+        const r = await remote.get(key)
+        if (r === null) continue
+        try {
+          const w = JSON.parse(dec(r.bytes)) as { name: string; sessions?: string[]; created_ms?: number }
+          vfsStore.putMount({ name: w.name, workspace: w.name, sessions: w.sessions ?? [], created_ms: w.created_ms ?? Date.now() })
+          names.add(w.name)
+        } catch {
+          /* 坏行跳过 */
+        }
+        continue
+      }
+      // sessions/{sid}.json 挂载行：清单丢条目时的自愈源
+      const sm = key.match(/^workspaces\/([^/]+)\/sessions\/([^/]+)\.json$/)
+      if (sm !== null) {
+        const mount = vfsStore.getMount(sm[1])
+        if (mount !== undefined && !mount.sessions.includes(sm[2])) {
+          vfsStore.putMount({ ...mount, sessions: [...mount.sessions, sm[2]] })
+        }
       }
     }
-    return names
+    return [...names]
   }
 
   return { syncedMap, pushPath, pushAll, pushRemove, pullRows, hydrate, createWorkspace, mountSession, pullWorkspaces }

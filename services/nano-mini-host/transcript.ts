@@ -7,7 +7,7 @@
  * 指针是消费回执不是真源——远端行是真源，指针只记上行水位。
  */
 import { vfsRemoteFor } from '../state/provider'
-import { encodeUtf8 } from '../fx/utf8'
+import { encodeUtf8, decodeUtf8 } from '../fx/utf8'
 import type { ChatItem } from '../../types/protocol'
 
 const PTR_PREFIX = 'dsh:mini:session-ptr:'
@@ -71,4 +71,44 @@ export async function syncTranscript(sessionId: string, items: ChatItem[], meta:
     })
   }
   return { pushed, skipped, lastSeq }
+}
+
+const dec = (b: ArrayBuffer): string => decodeUtf8(new Uint8Array(b))
+
+/**
+ * GSTH-like 异设备重建面：远端 transcripts/{sid}/* 行 → ChatItem[]（seq 升序）。
+ * remote lane 缺位/无前缀 → null（调用方按 null 降级）。坏行跳过（如实计数）。
+ */
+export async function pullTranscript(sessionId: string): Promise<{ items: ChatItem[]; skipped: number } | null> {
+  const remote = vfsRemoteFor()
+  if (remote === null) return null
+  const keys = (await remote.list(`transcripts/${sessionId}/`, 1000))
+    .filter((k) => /\/\d{6}\.json$/.test(k)).sort()
+  if (keys.length === 0) return null
+  const items: ChatItem[] = []
+  let skipped = 0
+  for (const k of keys) {
+    const r = await remote.get(k)
+    if (r === null) continue
+    try {
+      items.push(JSON.parse(dec(r.bytes)) as ChatItem)
+    } catch {
+      skipped += 1
+    }
+  }
+  return { items, skipped }
+}
+
+/** 会话删除的远端面：transcript 行 + _meta + 本地指针清理（best-effort，
+ *  行删失败 warn 不阻塞本地删除——行是 owner 私域，残留仅占用不计语义）。 */
+export async function dropTranscript(sessionId: string): Promise<void> {
+  wx.removeStorageSync(`${PTR_PREFIX}${sessionId}`)
+  const remote = vfsRemoteFor()
+  if (remote === null) return
+  try {
+    const keys = await remote.list(`transcripts/${sessionId}/`, 1000)
+    for (const k of keys) await remote.del(k)
+  } catch (e) {
+    console.warn(`[transcript] drop ${sessionId} 远端行清理失败:`, e instanceof Error ? e.message : e)
+  }
 }

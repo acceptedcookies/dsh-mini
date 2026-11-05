@@ -76,8 +76,19 @@ export async function writeAlarm(ctx: PumpCtx, sessionId: string, etag: string |
 }
 
 export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions & { cancelRequested?: () => boolean } = {}): Promise<PumpResult> {
-  const cl = await claim(ctx, sessionId, opts.claimTtlMs ?? 30000)
+  const claimTtl = opts.claimTtlMs ?? 30000
+  const cl = await claim(ctx, sessionId, claimTtl)
   if (cl.status !== 200) return { outcome: 'claim-denied', trace: [], rival: cl.holder }
+  // claim 心跳：长 turn（>ttl）不续约会被对手接管 → 每步检查、过期前 30% 续约；
+  // 续约 412 = 已丢单写者 → 如实 fenced（审查 B8）。claimTtl<=0 为测试自杀车道不续约。
+  let claimDeadline = claimTtl > 0 ? Date.now() + claimTtl : Number.POSITIVE_INFINITY
+  const renewClaim = async (): Promise<boolean> => {
+    if (claimTtl <= 0 || Date.now() < claimDeadline - claimTtl * 0.3) return true
+    const r = await claim(ctx, sessionId, claimTtl)
+    if (r.status !== 200) return false
+    claimDeadline = Date.now() + claimTtl
+    return true
+  }
 
   let { snap, etag } = await loadSnap(ctx, sessionId)
   if (snap === null) {
@@ -117,6 +128,7 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
 
   const trace: string[] = []
   for (let i = 0; i < (opts.maxSteps ?? 50); i++) {
+    if (!(await renewClaim())) return { outcome: 'fenced', trace }
     const turn = snap.activeTurn as { turnId?: string; epoch?: number; stepIndex?: number; messages?: unknown[]; pendingToolCalls?: unknown[]; llmFinished?: boolean } | null
     const signals: SchedulerSignals = {
       hasMoreToolCalls: (turn?.pendingToolCalls?.length ?? 0) > 0,
@@ -198,7 +210,10 @@ export async function sweepTick(
     const row = await ctx.io.state.get(key)
     if (row === null) continue
     let rec: AlarmRecord
-    try { rec = JSON.parse(row.body) as AlarmRecord } catch { await ctx.io.state.del(key); continue }
+    try { rec = JSON.parse(row.body) as AlarmRecord } catch {
+      try { await ctx.io.state.del(key) } catch { /* 消费失败留行下 tick 重试——不终止整批 */ }
+      continue
+    }
     if (rec.dueAt > Date.now()) continue
     const io = makeIo !== undefined ? makeIo(rec.sessionId) : ctx.io
     try {
@@ -208,9 +223,10 @@ export async function sweepTick(
       await ctx.io.state.del(key)
       ran.push({ sessionId: rec.sessionId, outcome: r.outcome })
     } catch (e) {
-      // 毒化行不终止整批：留 alarm 等下 tick（天然退避=周期），登记 outcome
+      // 毒化行不终止整批：留 alarm 等下 tick（天然退避=周期）；
+      // outcome 沿用 step-exhausted 枚举（不扩约），真实原因日志登记——不谎报。
+      console.warn(`[pump] sweepTick ${rec.sessionId} pump error: ${(e as Error).message ?? e}`)
       ran.push({ sessionId: rec.sessionId, outcome: 'step-exhausted' })
-      void e
     }
   }
   return ran

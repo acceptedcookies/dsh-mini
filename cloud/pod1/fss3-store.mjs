@@ -77,14 +77,20 @@ export function createStore(root) {
     head(key) {
       return readMeta(key);
     },
-    del(key) {
+    /** 条件删：ifMatch 给定且 etag 不符 → {status:412}；成功 → {status:200|404}。 */
+    del(key, opts = {}) {
+      const cur = readMeta(key);
       const had = existsSync(objPath(key));
+      if (opts.ifMatch !== undefined) {
+        const want = String(opts.ifMatch).replace(/"/g, "");
+        if (cur === null || cur.etag !== want) return { status: 412 };
+      }
       try { unlinkSync(objPath(key)); } catch { /* absent */ }
       try { unlinkSync(metaPath(key)); } catch { /* absent */ }
-      return had;
+      return { status: had ? 200 : 404 };
     },
-    /** 前缀列举：解码路径段还原 key；返回 {key,size,etag,updated_ms}。 */
-    list(prefix = "", maxKeys = 1000) {
+    /** 前缀列举：解码路径段还原 key；startAfter 游标续页；返回 {key,size,etag,updated_ms}。 */
+    list(prefix = "", maxKeys = 1000, startAfter = undefined) {
       const out = [];
       const walk = (dir, parts) => {
         if (out.length >= maxKeys) return;
@@ -96,6 +102,7 @@ export function createStore(root) {
           if (e.isDirectory()) { walk(join(dir, e.name), [...parts, e.name]); continue; }
           const key = [...parts, e.name].map(decodeURIComponent).join("/");
           if (!key.startsWith(prefix)) continue;
+          if (startAfter !== undefined && key <= startAfter) continue;
           const meta = readMeta(key);
           if (meta === null) continue;
           out.push({ key, size: meta.size, etag: meta.etag, updated_ms: meta.updated_ms });

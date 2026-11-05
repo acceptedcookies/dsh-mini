@@ -7,7 +7,8 @@
 
 import { createTicketProvider } from '../../fx/ticket'
 import { loadDevConfig, currentRoute } from '../../fx/dev'
-import { readEnrollment } from '../../fx/enrollment'
+import { readEnrollment, activeModel } from '../../fx/enrollment'
+import { MODELS, DEFAULT_MODEL } from '../../config'
 import { isContainerUrl, callContainer, parseContainerUrl } from '../../fx/container'
 import { storage } from '../../storage'
 import type { LlmOutput, LlmToolCall } from '../types'
@@ -116,7 +117,15 @@ export function createIoLlm(deps: IoLlmDeps = {}): (messages: unknown[]) => Prom
     const cfg = loadDevConfig()
     const route = currentRoute()
     const enrollment = readEnrollment()
-    const model = enrollment?.model ?? storage.getModel() ?? cfg?.model ?? 'unknown'
+    // 生效模型=设置页选择（白名单内归一化），enrollment.model 仅登记信息（resolveSource 同合同）；
+    // 此前顺序颠倒导致设置页选模型静默失效（审查 B8）。cfg 缺席（生产云车道）时：
+    // 设置页白名单内显式选择仍优先；无有效选择才回退 enrollment.model（BYOK 车道登记值）。
+    const picked = storage.getModel()
+    const model = cfg !== undefined
+      ? activeModel(cfg)
+      : picked !== undefined && MODELS.some((m) => m.id === picked)
+        ? picked
+        : enrollment?.model ?? DEFAULT_MODEL
 
     let url = ''
     let headers: Record<string, string> = { 'content-type': 'application/json' }

@@ -27,35 +27,45 @@ export function remoteDurableEnabled(): boolean {
 }
 
 let cachedTicketProvider: ReturnType<typeof createTicketProvider> | undefined
+let cachedTicketKey = ''
+let cachedRemoteKey = ''
 
-/** 共享票据提供器（remoteCas / vfsRemote 同车道复用——模块级票据缓存已单飞）。 */
-function durableTicketProvider(): { base: string; provider: ReturnType<typeof createTicketProvider> } | null {
+/** 共享票据提供器（remoteCas / vfsRemote 同车道复用——模块级票据缓存已单飞）。
+ *  输入指纹变（路由/端点/供应商）即重建——缓存不得跨配置变更存活（审查 B8）。 */
+function durableTicketProvider(): { base: string; provider: ReturnType<typeof createTicketProvider>; key: string } | null {
   const route = currentRoute()
   if (route.mode !== 'cloud') return null
   const cfg = loadDevConfig()
   const enrollment = readEnrollment()
   const durableBase = (cfg?.cloud.durableUrl ?? '') !== '' ? cfg!.cloud.durableUrl! : DSH_MINI_BASE_URL
-  cachedTicketProvider ??= createTicketProvider(route, {
-    providerName: cfg?.providerName ?? enrollment?.provider ?? 'byok',
-    upstreamBaseUrl: cfg?.upstreamBaseUrl ?? enrollment?.upstreamBaseUrl ?? '',
-    providerApiKey: cfg?.providerApiKey ?? '',
-    model: enrollment?.model ?? 'unknown',
-    allowedModels: cfg?.allowedModels,
-    sim: cfg?.sim ?? { baseUrl: 'http://127.0.0.1:3426' },
-    cloud: cfg?.cloud ?? { envId: route.cloudEnvId ?? '', proxyUrl: route.proxyBaseUrl ?? '', durableUrl: durableBase },
-  })
-  return { base: durableBase, provider: cachedTicketProvider }
+  const key = `${route.mode}|${durableBase}|${cfg?.providerName ?? ''}|${cfg?.upstreamBaseUrl ?? ''}|${cfg?.cloud.envId ?? ''}|${cfg?.cloud.proxyUrl ?? ''}`
+  if (key !== cachedTicketKey) {
+    cachedTicketKey = key
+    cachedTicketProvider = createTicketProvider(route, {
+      providerName: cfg?.providerName ?? enrollment?.provider ?? 'byok',
+      upstreamBaseUrl: cfg?.upstreamBaseUrl ?? enrollment?.upstreamBaseUrl ?? '',
+      providerApiKey: cfg?.providerApiKey ?? '',
+      model: enrollment?.model ?? 'unknown',
+      allowedModels: cfg?.allowedModels,
+      sim: cfg?.sim ?? { baseUrl: 'http://127.0.0.1:3426' },
+      cloud: cfg?.cloud ?? { envId: route.cloudEnvId ?? '', proxyUrl: route.proxyBaseUrl ?? '', durableUrl: durableBase },
+    })
+  }
+  return { base: durableBase, provider: cachedTicketProvider!, key }
 }
 
 export function ioStateFor(): IoState {
   const t = durableTicketProvider()
   if (t === null || !remoteDurableEnabled()) return localCas
-  cachedRemote ??= createRemoteCas({
-    baseUrl: t.base,
-    owner: 'self',
-    headers: () => t.provider.authHeaders(t.base),
-  })
-  return cachedRemote
+  if (t.key !== cachedRemoteKey) {
+    cachedRemoteKey = t.key
+    cachedRemote = createRemoteCas({
+      baseUrl: t.base,
+      owner: 'self',
+      headers: () => t.provider.authHeaders(t.base),
+    })
+  }
+  return cachedRemote!
 }
 
 /** 远端 vfs 客户端句柄：cloud 路由且开关开 → RemoteVfs；否则 null（诚实降级）。 */

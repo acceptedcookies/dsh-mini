@@ -35,6 +35,9 @@ const TICKET_SECRET = env.TICKET_SECRET ?? "";
 const ADMIN_TOKEN = env.ADMIN_TOKEN ?? "";
 const ACCESS_KEY = env.ACCESS_KEY ?? "";
 const SECRET_KEY = env.SECRET_KEY ?? "";
+// fail-closed：TICKET_SECRET 缺位时 HMAC("") 仍可铸出「合法」票据——宁可起不来，不可放行。
+if (TICKET_SECRET === "") { console.error("[fss3] TICKET_SECRET missing — refuse to start"); process.exit(1); }
+if (ACCESS_KEY === "" || SECRET_KEY === "") { console.error("[fss3] S3 ACCESS_KEY/SECRET_KEY missing — refuse to start"); process.exit(1); }
 const BUCKET = env.BUCKET ?? "dsh-mini-fss3";
 const PUBLIC_BASE = (env.PUBLIC_BASE ?? "https://dsh-mini.haimang.com.cn").replace(/\/$/, "");
 const API_PORT = Number(env.API_PORT ?? 9095);
@@ -69,10 +72,12 @@ const json = (res, status, obj) => {
 const xmlEscape = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const EXT_BY_MIME = {
   "image/png": ".png", "image/jpeg": ".jpg", "image/gif": ".gif",
-  "image/webp": ".webp", "image/svg+xml": ".svg",
+  "image/webp": ".webp",
   "application/json": ".json", "text/markdown": ".md", "text/plain": ".txt",
   "application/pdf": ".pdf",
 };
+// artifacts 公网域白名单：html/svg 类可执行 mime 一律拒（nosniff 不足以挡正确-mime 活动内容）。
+const ARTIFACT_MIMES = new Set(Object.keys(EXT_BY_MIME));
 
 function ticketPayload(req, scope = "byok-proxy") {
   const auth = req.headers.authorization ?? "";
@@ -140,16 +145,25 @@ const s3Server = createServer(async (req, res) => {
 
     const segs = url.pathname.slice(1).split("/");
     const bucket = segs[0];
-    const key = segs.slice(1).map(decodeURIComponent).join("/");
+    let key;
+    try {
+      key = segs.slice(1).map(decodeURIComponent).join("/");
+    } catch {
+      return s3Err(res, 400, "InvalidKey", "bad percent-encoding");
+    }
     if (bucket !== BUCKET) return s3Err(res, 404, "NoSuchBucket", bucket);
 
-    // ListObjectsV2：GET /{bucket}?list-type=2&prefix=...
+    // ListObjectsV2：GET /{bucket}?list-type=2&prefix=&max-keys=&start-after=/continuation-token=
     if ((req.method === "GET" || req.method === "HEAD") && key === "" && url.searchParams.get("list-type") === "2") {
       const prefix = url.searchParams.get("prefix") ?? "";
       const maxKeys = Math.min(Number(url.searchParams.get("max-keys") ?? 1000), 1000);
-      const objs = store.list(prefix, maxKeys);
-      const contents = objs.map((o) => `<Contents><Key>${xmlEscape(o.key)}</Key><Size>${o.size}</Size><ETag>&quot;${o.etag}&quot;</ETag><LastModified>${new Date(o.updated_ms).toISOString()}</LastModified></Contents>`).join("");
-      const out = `<ListBucketResult><Name>${xmlEscape(BUCKET)}</Name><Prefix>${xmlEscape(prefix)}</Prefix><KeyCount>${objs.length}</KeyCount><MaxKeys>${maxKeys}</MaxKeys><IsTruncated>false</IsTruncated>${contents}</ListBucketResult>`;
+      const startAfter = url.searchParams.get("continuation-token") ?? url.searchParams.get("start-after") ?? undefined;
+      const objs = store.list(prefix, maxKeys + 1, startAfter);
+      const truncated = objs.length > maxKeys;
+      const page = truncated ? objs.slice(0, maxKeys) : objs;
+      const contents = page.map((o) => `<Contents><Key>${xmlEscape(o.key)}</Key><Size>${o.size}</Size><ETag>&quot;${o.etag}&quot;</ETag><LastModified>${new Date(o.updated_ms).toISOString()}</LastModified></Contents>`).join("");
+      const tokenXml = truncated ? `<NextContinuationToken>${xmlEscape(page[page.length - 1].key)}</NextContinuationToken>` : "";
+      const out = `<ListBucketResult><Name>${xmlEscape(BUCKET)}</Name><Prefix>${xmlEscape(prefix)}</Prefix><KeyCount>${page.length}</KeyCount><MaxKeys>${maxKeys}</MaxKeys><IsTruncated>${truncated}</IsTruncated>${tokenXml}${contents}</ListBucketResult>`;
       res.writeHead(200, { "content-type": "application/xml" });
       return res.end(out);
     }
@@ -179,8 +193,9 @@ const s3Server = createServer(async (req, res) => {
       return res.end(req.method === "HEAD" ? undefined : r.body);
     }
     if (req.method === "DELETE") {
-      const had = store.del(key);
-      if (!had) return s3Err(res, 404, "NoSuchKey", key);
+      const r = store.del(key, { ifMatch: req.headers["if-match"] });
+      if (r.status === 412) return s3Err(res, 412, "PreconditionFailed", "etag condition failed");
+      if (r.status === 404) return s3Err(res, 404, "NoSuchKey", key);
       res.writeHead(204);
       return res.end();
     }
@@ -227,7 +242,8 @@ const apiServer = createServer(async (req, res) => {
     if (path.startsWith("/dev/")) {
       if (ADMIN_TOKEN === "" || req.headers["x-admin-token"] !== ADMIN_TOKEN) return json(res, 403, { error: "admin token required" });
       if (req.method === "POST" && path === "/dev/ticket") {
-        const j = JSON.parse((await readBody(req, 4096)).toString("utf8") || "{}");
+        let j;
+        try { j = JSON.parse((await readBody(req, 4096)).toString("utf8") || "{}"); } catch { return json(res, 400, { error: "bad json" }); }
         if (typeof j.oid !== "string" || j.oid.length === 0) return json(res, 400, { error: "oid required" });
         const now = Math.floor(Date.now() / 1000);
         const ttl = Math.min(Number(j.ttl_s ?? 1800), 90 * 86400);
@@ -243,18 +259,29 @@ const apiServer = createServer(async (req, res) => {
       return json(res, 404, { error: `no dev route ${path}` });
     }
 
+    /** JSON body 解析失败 → 400 而非 500。 */
+    const parseJson = async (req, max) => {
+      const raw = (await readBody(req, max)).toString("utf8");
+      try { return JSON.parse(raw || "{}"); } catch { return null; }
+    };
+
     if (req.method === "POST" && path === "/v1/artifacts/publish") {
       const payload = ticketPayload(req);
       if (!payload?.oid) return json(res, 401, { error: "byok ticket required" });
-      const j = JSON.parse((await readBody(req, VFS_MAX * 2)).toString("utf8") || "{}");
+      const j = await parseJson(req, VFS_MAX * 2);
+      if (j === null) return json(res, 400, { error: "bad json" });
+      const mime = typeof j.mime === "string" ? j.mime : "application/octet-stream";
+      if (!ARTIFACT_MIMES.has(mime) && mime !== "application/octet-stream") {
+        return json(res, 400, { error: "mime not allowed (executable/active content rejected)" });
+      }
       const bytes = Buffer.from(String(j.bytes_b64 ?? ""), "base64");
       if (bytes.byteLength === 0 || bytes.byteLength > VFS_MAX) return json(res, 400, { error: "bytes_b64 required (≤8MB)" });
       const sha = sha256Hex(bytes);
       const key = `dsh-mini/artifacts-pub/${sha}`;
       if (store.head(key) === null) {
-        store.put(key, bytes, { contentType: typeof j.mime === "string" ? j.mime : "application/octet-stream" });
+        store.put(key, bytes, { contentType: mime });
       }
-      const ext = EXT_BY_MIME[j.mime] ?? "";
+      const ext = EXT_BY_MIME[mime] ?? "";
       log(`artifacts/publish oid=${payload.oid} sha=${sha.slice(0, 12)} ${bytes.byteLength}B`);
       return json(res, 200, { sha256: sha, url: `${PUBLIC_BASE}/a/${sha}${ext}`, object_key: key });
     }
@@ -264,7 +291,8 @@ const apiServer = createServer(async (req, res) => {
       if (!payload?.oid) return json(res, 401, { error: "byok ticket required" });
       const openid = payload.oid;
       const ep = path.slice("/v1/vfs/".length);
-      const j = JSON.parse((await readBody(req, VFS_MAX * 2)).toString("utf8") || "{}");
+      const j = await parseJson(req, VFS_MAX * 2);
+      if (j === null) return json(res, 400, { error: "bad json" });
       if (ep === "put") {
         const k = vfsFull(j.key, openid);
         if (k === null) return json(res, 400, { error: "bad key shape" });
@@ -274,6 +302,7 @@ const apiServer = createServer(async (req, res) => {
           return json(res, 400, { error: "sha256 mismatch" });
         }
         const r = store.put(k, bytes, {
+          ifMatch: typeof j.if_match === "string" ? j.if_match : undefined,
           ifNoneMatch: j.if_none_match === true ? "*" : undefined,
           contentType: typeof j.mime === "string" ? j.mime : "application/octet-stream",
         });
@@ -283,22 +312,25 @@ const apiServer = createServer(async (req, res) => {
       if (ep === "get") {
         const k = vfsFull(j.key, openid);
         if (k === null) return json(res, 400, { error: "bad key shape" });
-        const offset = Number(j.offset ?? 0);
-        const r = store.getRange(k, offset, typeof j.max_bytes === "number" ? j.max_bytes : undefined);
+        const offset = Math.max(0, Number(j.offset ?? 0));
+        const maxBytes = typeof j.max_bytes === "number" ? Math.max(0, j.max_bytes) : undefined;
+        const r = store.getRange(k, offset, maxBytes);
         if (r === null) return json(res, 404, { error: "not-found" });
         return json(res, 200, { body_b64: r.body.toString("base64"), etag: r.etag, size: r.size, eof: offset + r.body.byteLength >= r.total });
       }
       if (ep === "del") {
         const k = vfsFull(j.key, openid);
         if (k === null) return json(res, 400, { error: "bad key shape" });
-        return json(res, 200, { removed: store.del(k) });
+        return json(res, 200, { removed: store.del(k).status === 200 });
       }
       if (ep === "list") {
         const m = typeof j.prefix === "string" && j.prefix.match(/^vfs\/(.*)$/);
         if (m === null || /(^|\/)\.\.(\/|$)|\/\/|^\/|dsh-mini/.test(m[1])) return json(res, 400, { error: "bad prefix shape" });
-        const keys = store.list(`dsh-mini/vfs/${openid}/${m[1]}`, Math.min(Number(j.limit ?? 500), 1000))
-          .map((o) => o.key.slice(`dsh-mini/vfs/${openid}/`.length));
-        return json(res, 200, { keys: keys.map((k) => `vfs/${k}`) });
+        const limit = Math.min(Number(j.limit ?? 500), 1000);
+        const startAfter = typeof j.start_after === "string" ? `dsh-mini/vfs/${openid}/${j.start_after.replace(/^vfs\//, "")}` : undefined;
+        const objs = store.list(`dsh-mini/vfs/${openid}/${m[1]}`, limit + 1, startAfter);
+        const page = objs.slice(0, limit).map((o) => `vfs/${o.key.slice(`dsh-mini/vfs/${openid}/`.length)}`);
+        return json(res, 200, { keys: page, truncated: objs.length > limit, next_token: objs.length > limit ? page[page.length - 1] : undefined });
       }
       return json(res, 404, { error: `no vfs route ${ep}` });
     }

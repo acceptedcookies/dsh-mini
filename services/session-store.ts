@@ -282,6 +282,10 @@ class SessionStore {
           : this.state.current
         this.setState({
           current,
+          // delta 后失败/挂起不 settle——error/idle 必须同步清 streaming 幽灵泡（审查 B8）。
+          streaming: event.state === 'error' || event.state === 'idle'
+            ? (this.state.streaming?.sessionId === event.sessionId ? undefined : this.state.streaming)
+            : this.state.streaming,
           sessions: this.state.sessions.map((session) => session.id === event.sessionId
             ? { ...session, status: event.state, updatedAt: Date.now() }
             : session),
