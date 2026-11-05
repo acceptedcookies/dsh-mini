@@ -233,6 +233,8 @@ export class FxLocalRuntime {
     s.summary.status = 'running'
     s.summary.updatedAt = Date.now()
     const messageId = randomId('user')
+    const prevTitle = s.summary.title
+    const prevLastMessage = s.summary.lastMessage
     try {
       this.append(id, { kind: 'user_message', id: messageId, seq: this.nextSeq(s), text, images: images.length > 0 ? images : undefined })
       if (s.summary.title === '新会话' && text.trim().length > 0) s.summary.title = text.trim().slice(0, 28)
@@ -240,11 +242,14 @@ export class FxLocalRuntime {
     } catch (e) {
       // persist/quota 抛错不得滞留 running——否则该会话此后永不可 prompt（F5-1 同族）。
       // append 先 push 后 persist：抛错时消息行已在 items 而 append 事件未发——
-      // 回滚该行保持转录/UI 一致（审查十二轮 D8）。
+      // 回滚该行保持转录/UI 一致（审查十二轮 D8）；title/lastMessage 同回滚，
+      // 否则未发出的草稿永久占住标题派生（F-3 残余面）。
       s.summary.status = 'idle'
       const idx = s.items.findIndex((i) => i.id === messageId)
       if (idx !== -1) s.items.splice(idx, 1)
       s.summary.messageCount = s.items.length
+      s.summary.title = prevTitle
+      s.summary.lastMessage = prevLastMessage
       throw e
     }
     this.emit({ type: 'status', sessionId: id, state: 'running', step: 1 })
@@ -260,6 +265,9 @@ export class FxLocalRuntime {
       // 换代后的迟到失败（cancel+重发/看守强收）——新轮已接管 status，
       // 旧轮不得覆写 error 或弹幽灵横幅（审查十二轮 D1b）。
       if (this.turnEpoch.get(id) !== epoch) {
+        // 但旧轮 delta 可能已重建 streaming 泡且无人收——补 settle 收幽灵泡；
+        // 此刻链上仅本 turn 刚退出、新轮尚未产 delta，settle 不误杀（审查十二轮 F-1）。
+        this.emit({ type: 'assistant.settle', sessionId: id, seq: 0, messageId: '' })
         console.warn(`[fx-runtime] stale turn_failed suppressed for ${id}:`, error instanceof Error ? error.message : error)
         return
       }
@@ -327,6 +335,10 @@ export class FxLocalRuntime {
     // 等答复永挂、turn 卡 running；dispose 拒绝 acp pending 使 client.prompt 的
     // await 被拒而非死等（wasm.abort 后响应永不至）。approval.cancel 同步收 UI 卡（审查九轮 D9a）。
     this.resolveSessionApprovals()
+    // 非 client-await（ready/start/instantiate）的竞争者实拒——否则其楔死
+    // 不在 dispose 视野，turnChain 链头仍占（审查十二轮 F-5）。
+    for (const r of this.restartSignals) r(new Error('fx core 已重启'))
+    this.restartSignals.clear()
     this.client?.dispose('fx core 已重启')
     this.startingClient?.dispose('fx core 已重启')
     this.wasm?.abort()
@@ -355,7 +367,7 @@ export class FxLocalRuntime {
       const ticket = createTicketProvider(route, cfg)
       this.ticket = ticket
       // ready() 解析凭证来源：local=dev 直连；sim=注入记录优先/dev 兜底自动注入；cloud=必须用户注入。
-      const source = await ticket.ready()
+      const source = await this.raceWithRestart(ticket.ready())
       // ready() 可达 challenge/SOTER 秒级——期间 restartCore 换代后 resume 写共享
       // 字段会覆盖新一代 starting* 注册使其资源不可达（审查十轮 D10-1）；抛错而
       // 非空 resolve——等待方须得到实拒而非走 client! TypeError（审查十轮 D10-4）。
@@ -394,7 +406,7 @@ export class FxLocalRuntime {
         },
       })
       this.startingClient = client
-      await wasm.start(devConfig!.wasmPath)
+      await this.raceWithRestart(wasm.start(devConfig!.wasmPath))
       await client.init()
       // 启动窗内 restartCore 已换代——stale-model 核不落地，abort 自收（审查八轮 D4）。
       // 清字段按同一引守卫——不得清掉新一代 IIFE 已注册的 starting*（审查十轮 D10-1）；
@@ -501,6 +513,22 @@ export class FxLocalRuntime {
    *  双终局清（审查十二轮 D2/D5）。 */
   private readonly inFlightTurns = new Map<string, unknown>()
 
+  /** restartCore 强收信号——client.pending 可经 dispose 拒绝，但 ticket.ready()/
+   *  wasm.start 等非 client-await 不被 restartCore 触及：楔死即 turnChain 永占
+   *  链头（审查十二轮 F-5）。restartCore 拒绝全部注册竞争。 */
+  private readonly restartSignals = new Set<(e: Error) => void>()
+
+  private raceWithRestart<T>(p: Promise<T>): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const onDead = (e: Error) => reject(e)
+      this.restartSignals.add(onDead)
+      p.then(
+        (v) => { this.restartSignals.delete(onDead); resolve(v) },
+        (e) => { this.restartSignals.delete(onDead); reject(e) },
+      )
+    })
+  }
+
   /** 取消无应答看守：session/cancel fire-and-forget——任何阶段楔死 20s 未结算
    *  即 restartCore 全量强收（拒 pending+abort wedged wasm+换代+清 acpSessions），
    *  turnChain 链头解除、次轮重建新核（审查十一轮 D11-3/十二轮 D4）。 */
@@ -538,11 +566,11 @@ export class FxLocalRuntime {
       // 票据过期重铸：core 常驻跨多轮，ensureCore 只在首轮铸票——票据 ~30min TTL
       // 过期后 env.fetch 的 authHeaders 永久空头上行=每轮 401 死锁（审查三轮 N2）。
       // runTurn=用户手势上下文，ready() 允许 SOTER；local 车道 ready() 为纯解析零成本。
-      if (this.ticket !== undefined && !hasFreshTicket()) await this.ticket.ready()
+      if (this.ticket !== undefined && !hasFreshTicket()) await this.raceWithRestart(this.ticket.ready())
       // ready() 重铸可达 challenge/SOTER 秒级——窗内 restartCore 清 client 后
       // 直进 ensureAcpSession 会撞 client!.newSession TypeError（审查十一轮 D11-2）。
       if (this.client === undefined) throw new Error('fx core 已重启')
-      const acpId = await this.ensureAcpSession(dshId)
+      let acpId = await this.ensureAcpSession(dshId)
       // 出队后至 prompt 注册间的全部 await（ensureCore/ready/ensureAcpSession）窗口内
       // cancel+重发换代——旧轮不得借新轮 running 复活（审查十一轮自审+D12）。
       if (this.turnEpoch.get(dshId) !== epoch) return
@@ -551,13 +579,38 @@ export class FxLocalRuntime {
       // wasm host-import 通道（fx_host_tool_call）不带 sessionId——单活动会话下以在飞轮次兜底。
       this.activeDshId = dshId
       try {
-        await this.client!.prompt(acpId, blocks)
+        try {
+          await this.client!.prompt(acpId, blocks)
+        } catch (e) {
+          // wasm 单活动槽在 libfx/new 之外被毁（核心自溃/释放后故障）→ 死柄永砖：
+          // 检出即作废槽位+映射，重铸一次（审查十二轮 F-6）。
+          if (!(e instanceof Error && e.message.includes('Session is not active'))) throw e
+          this.turns.delete(acpId)
+          this.acpSessions.delete(dshId)
+          if (this.acpActive !== undefined && this.acpActive.dshId === dshId) this.acpActive = undefined
+          acpId = await this.ensureAcpSession(dshId)
+          if (this.turnEpoch.get(dshId) !== epoch) return
+          this.turns.set(acpId, turn)
+          await this.client!.prompt(acpId, blocks)
+        }
       } finally {
         this.turns.delete(acpId)
         this.activeDshId = undefined
         // 轮失败/中止在 request_permission 悬于未答时——轮终即该请求永不可答，
         // 连 UI 卡以 null+cancel 收（审查十一轮 D11-4）。
         this.resolveSessionApprovals(dshId)
+        // 轮终仍 running 的工具卡不再有更新路径——cancel/看守杀/遗漏皆成永转
+        // 幽灵卡（审查十二轮 F-2，与 kernel D1 终态化同构）。
+        for (const itemId of turn.toolItemByCallId.values()) {
+          const current = s.items.find((i) => i.id === itemId)
+          if (current?.kind === 'tool_call' && current.status === 'running') {
+            try {
+              this.replace(dshId, { ...current, status: 'error', detail: current.detail ?? '（轮次结束时工具调用未返回）' })
+            } catch (e) {
+              console.warn('[fx-runtime] 工具卡终态化失败:', e instanceof Error ? e.message : e)
+            }
+          }
+        }
       }
       const item: ChatItem = {
         kind: 'assistant_message',
