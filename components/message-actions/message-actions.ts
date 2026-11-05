@@ -4,6 +4,7 @@ import { errorBus } from '../../services/error-report'
 const COPY_RESET_MS = 1600
 
 Component({
+  externalClasses: ['ext-class'],
   properties: {
     text: { type: String, value: '' },
     theme: { type: String, value: 'light' },

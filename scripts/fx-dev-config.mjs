@@ -21,10 +21,12 @@ if (!p?.base_url || !p?.model) throw new Error(".local.development.json provider
 
 const ROUTES = new Set(["local", "cloud", "cloud-sim"]);
 let appRoute = "local";
+let appFxLegacy = false;
 try {
   const appJson = JSON.parse(readFileSync(join(root, "app.json"), "utf8"));
   const v = appJson?.dsh?.localRuntimeRoute;
   if (ROUTES.has(v)) appRoute = v;
+  appFxLegacy = appJson?.dsh?.fxLegacy === true;
 } catch { /* app.json 缺失时用默认 */ }
 
 const contextWindow = cfg.catalog?.[p.model]?.context_window ?? 256000;
@@ -56,8 +58,11 @@ export const providerName = ${JSON.stringify(p.name)}
 export const baseUrl = ${JSON.stringify(p.base_url)}
 export const model = ${JSON.stringify(p.model)}
 
-/** 旋钮镜像：真源 app.json["dsh"].localRuntimeRoute，仅作 require 失败时的 fallback。 */
+/** 旋钮镜像：真源 app.json["dsh"].localRuntimeRoute——运行时 require app.json
+ *  读不到自定义顶层键（DevTools schema 剥非标准键），dev-config 是唯一可达通道。 */
 export const route: 'local' | 'cloud' | 'cloud-sim' = ${JSON.stringify(appRoute)}
+/** fxLegacy 旋钮镜像（同上）：真源 app.json["dsh"].fxLegacy。 */
+export const fxLegacy = ${JSON.stringify(appFxLegacy)}
 /** 本地模拟微信云端端点（dev 面）。 */
 export const sim = ${JSON.stringify({ baseUrl: sim.base_url ?? "http://127.0.0.1:3426" }, null, 1)}
 /** 真微信云端端点：env_id + 云托管 proxy https。 */

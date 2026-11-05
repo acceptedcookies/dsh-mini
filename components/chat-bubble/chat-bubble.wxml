@@ -51,6 +51,7 @@
       <markdown-view text="{{item.text}}" html="{{item.html}}" theme="{{theme}}" />
       <message-actions
         wx:if="{{item.messageActions}}"
+        ext-class="assistant-ma"
         text="{{item.text}}"
         time="{{item.ts || 0}}"
         clock="end"

@@ -179,13 +179,21 @@ function httpStatusOf(message: string): number | undefined {
   return undefined
 }
 
+/** 包装码（pump/host 兜底层）——其 message 内的真上游/域错误身份优先于壳码
+ *  （MN03-B9 实证：'host-error: io.llm upstream 404' 若停在壳码，'运行错误'
+ *  通用弹窗吞掉上游 404 语义；让位后呈 upstream-404 专属面）。 */
+const WRAPPER_CODES = new Set(['host-error', 'turn_failed', 'pump-error'])
+
 function taxonFor(code: string, message: string, objStatus?: number): { code: string; taxon: Taxon; status?: number } {
   const known = TAXONOMY[code]
-  if (known !== undefined) return { code, taxon: known, status: objStatus }
-  // 序：domain 锚定码 → http status（≥400 才抢分类）→ 自由文本启发式。
+  // 序：已知 taxonomy 码 → domain 锚定 → http status（≥400 才抢分类）→ 自由文本。
+  // 已知码短路也补 status 抽取——诊断面如实记 message 内嵌的上游状态（MN03-B9）。
+  if (known !== undefined && !WRAPPER_CODES.has(code)) {
+    return { code, taxon: known, status: objStatus ?? httpStatusOf(message) }
+  }
   for (const row of SPECIFIC_TABLE) {
     if (row.pattern.test(code) || row.pattern.test(message)) {
-      return { code: row.code, taxon: TAXONOMY[row.code] ?? TAXONOMY['unknown-error'], status: objStatus }
+      return { code: row.code, taxon: TAXONOMY[row.code] ?? TAXONOMY['unknown-error'], status: objStatus ?? httpStatusOf(message) }
     }
   }
   // 对象自带 status（NanoApiError.status 等结构化字段）优先于文本抽取（MN03-R2 C-3）。
@@ -201,7 +209,8 @@ function taxonFor(code: string, message: string, objStatus?: number): { code: st
       return { code: row.code, taxon: TAXONOMY[row.code] ?? TAXONOMY['unknown-error'] }
     }
   }
-  return { code: code.length > 0 ? code : 'unknown-error', taxon: TAXONOMY['unknown-error'] }
+  // 包装码无命中——回自身 known taxon（保 'host-error' 运行错误面而非掉 unknown）。
+  return { code: code.length > 0 ? code : 'unknown-error', taxon: known ?? TAXONOMY['unknown-error'] }
 }
 
 export interface ClassifyInput {

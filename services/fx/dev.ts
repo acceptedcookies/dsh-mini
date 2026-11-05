@@ -11,6 +11,8 @@ export interface DevConfig {
   baseUrl: string
   model: string
   route: 'local' | 'cloud' | 'cloud-sim'
+  /** fxLegacy 旋钮镜像（app.json["dsh"].fxLegacy → dev-config 生成物）。 */
+  fxLegacy?: boolean
   sim: { baseUrl: string }
   cloud: { envId: string; containerEnvId?: string; proxyUrl: string; service?: string; durableUrl?: string }
   providerApiKey: string

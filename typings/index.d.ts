@@ -13,5 +13,7 @@ interface IAppOption {
     /** MN03 诊断/错误钩子：__diagnostics(sid?)→bundle；__errorBus=总线实例。 */
     __diagnostics?: unknown
     __errorBus?: unknown
+    /** MN03-B9 agentic 真轮探针钩：__sessionStore=sessionStore 单例。 */
+    __sessionStore?: unknown
   }
 }

@@ -128,6 +128,19 @@ const { classifyError, errorBus, reportText, reportSilent } = await bundle(
   check('M15:500 个文件复合单位词不误归 upstream-500', c15.code === 'unknown-error')
   const c16 = classifyError(new Error('error 500 server unreachable'))
   check('M16:500 server 裸三位无单位词仍归 upstream-500', c16.code === 'upstream-500', `code=${c16.code}`)
+
+  // MN03-B9：包装码（host-error/turn_failed/pump-error）让位——message 内真
+  // 上游/域身份优先于壳码；无命中回自身 known taxon；已知码短路仍抽 status。
+  const c17 = classifyError({ code: 'host-error', message: 'io.llm upstream 404: {"error":"model not found"}' })
+  check('M17:host-error 包上游 404→让位 upstream-404+status', c17.code === 'upstream-404' && c17.diagnostics.status === 404 && c17.category === 'upstream', `code=${c17.code} status=${c17.diagnostics.status}`)
+  const c18 = classifyError({ code: 'turn_failed', message: 'io.llm upstream 503 aborted' })
+  check('M18:turn_failed 包上游 503 aborted→upstream-503（abort 不抢）', c18.code === 'upstream-503' && c18.diagnostics.status === 503, `code=${c18.code}`)
+  const c19 = classifyError({ code: 'host-error', message: 'kernel 分包不可加载' })
+  check('M19:host-error 包域锚定→让位 kernel-unavailable', c19.code === 'kernel-unavailable' && c19.severity === 'fatal', `code=${c19.code}`)
+  const c20 = classifyError({ code: 'host-error', message: 'plain host failure no match' })
+  check('M20:host-error 无命中→回自身 runtime taxon', c20.code === 'host-error' && c20.category === 'runtime', `code=${c20.code}`)
+  const c21 = classifyError({ code: 'session-busy', message: 'io.llm upstream 500: x' })
+  check('M21:已知码保 code 仍抽 message status 入诊断', c21.code === 'session-busy' && c21.diagnostics.status === 500, `code=${c21.code} status=${c21.diagnostics.status}`)
 }
 
 // ── bus：surface 路由 + dedupe + cap + 队列 ─────────────────────────

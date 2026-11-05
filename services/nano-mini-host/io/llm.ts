@@ -131,13 +131,21 @@ export function createIoLlm(deps: IoLlmDeps = {}): (messages: unknown[]) => Prom
         ? picked
         : enrollment?.model ?? DEFAULT_MODEL
 
+    // upstreamBaseUrl 形态两侧不一致：dev-config 生成物自带 /v1 尾，enroll 记录
+    // 与裸 baseUrl 不带——统一归一（/vN 尾不再拼 v1），否则 /v1/v1/... 真 404
+    // （MN03-B9 实证：kernel lane 对真 dev-config 从未可达，stub 恰好绕过）。
+    const chatUrl = (base: string): string => {
+      const b = base.replace(/\/+$/, '')
+      return `${/\/v\d+$/i.test(b) ? b : `${b}/v1`}/chat/completions`
+    }
+
     let url = ''
     let headers: Record<string, string> = { 'content-type': 'application/json' }
     if (route.mode === 'local') {
       // 本地直连（dev 车道）：无代理票据，命中 upstream + dev key
       const upstream = cfg?.upstreamBaseUrl ?? cfg?.baseUrl ?? ''
       if (upstream.length === 0) throw new Error('io.llm: local 模式缺少 upstreamBaseUrl')
-      url = `${upstream.replace(/\/$/, '')}/v1/chat/completions`
+      url = chatUrl(upstream)
       if (cfg?.providerApiKey !== undefined && cfg.providerApiKey.length > 0) {
         headers = { ...headers, Authorization: `Bearer ${cfg.providerApiKey}` }
       }
@@ -161,7 +169,7 @@ export function createIoLlm(deps: IoLlmDeps = {}): (messages: unknown[]) => Prom
       }
       const resolved = await ticket.ready()
       const base = route.proxyBaseUrl ?? resolved.upstreamBaseUrl
-      url = `${base.replace(/\/$/, '')}/v1/chat/completions`
+      url = chatUrl(base)
       headers = { ...headers, ...(await ticket.authHeaders(url)) }
     }
 

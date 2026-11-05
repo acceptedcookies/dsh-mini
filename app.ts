@@ -6,6 +6,7 @@ import { vfs, vfsReadView, vfsStore } from './services/vfs/api'
 import { setVfsMirrorHook } from './services/vfs/vfs'
 import { nanoMiniCatchUp, nanoMiniStartTick, nanoMiniStopTick } from './services/nano-mini-host/tick'
 import { vfsRemoteFor, vfsSyncFor, ioStateFor, ensureDurableTicket } from './services/state/provider'
+import { sessionStore } from './services/session-store'
 import { hasFreshTicket, onTicketMinted } from './services/fx/ticket'
 
 /** cloud 车道 VFS 远端镜像接线（MN02 G1 durable lane 活线）：
@@ -72,6 +73,9 @@ App<IAppOption>({
      *  （`getApp().globalData.__diagnostics(sid?)`，sid 缺席=当前会话）。 */
     __diagnostics: sessionDiagnostics as unknown,
     __errorBus: errorBus as unknown,
+    /** MN03-B9：agentic 真轮探针钩——automator evaluate 驱动 create/prompt/cancel，
+     *  验证 local-runtime（kernel/fx）→ magpie 全链 agentic chat。 */
+    __sessionStore: sessionStore as unknown,
   },
   onLaunch() {
     watchSystemTheme((theme) => {
