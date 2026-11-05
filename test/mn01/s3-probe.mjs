@@ -51,8 +51,8 @@ try {
   check('GET', get.ok && (await get.text()) === 'v1', `→ ${get.status}`)
   const head = await s3('HEAD', K)
   check('HEAD', head.ok, `→ ${head.status}`)
-  const range = await s3('GET', K, { extraHeaders: { range: 'bytes=0-1' } })
-  check('Range', range.status === 206 && (await range.text()) === 'v1'.slice(0, 1), `→ ${range.status}`)
+  const range = await s3('GET', K, { extraHeaders: { range: 'bytes=1-1' } })
+  check('Range', range.status === 206 && (await range.text()) === 'v1'.slice(1, 2), `→ ${range.status}`)
   const list = await s3('GET', '', { query: `list-type=2&prefix=${uri('mn01-probe/', false)}` })
   check('List', list.ok && (await list.text()).includes(K), `→ ${list.status}`)
   const condOk = await s3('PUT', K, { body: 'v2', extraHeaders: { 'if-match': `"${etag}"` } })
@@ -61,11 +61,14 @@ try {
   check('If-Match-stale-412', stale.status === 412, `→ ${stale.status}（pgs3/MinIO 条件写语义实测）`)
   const inn = await s3('PUT', K, { body: 'v4', extraHeaders: { 'if-none-match': '*' } })
   check('If-None-Match-*', inn.status === 412, `→ ${inn.status}`)
+  // 共享前置 etag：两写者读同一版本后并发写——恰一胜一 412（probe 原实现各自 HEAD
+  // 会把 HEAD2 排到 PUT1 之后，前置不确定；现钉死共享读版本）。
+  const sharedEtag = (await s3('HEAD', K)).headers.get('etag')
   const [c1, c2] = await Promise.all([
-    s3('PUT', K, { body: 'w1', extraHeaders: { 'if-match': `"${(await s3('HEAD', K)).headers.get('etag')}"` } }),
-    s3('PUT', K, { body: 'w2', extraHeaders: { 'if-match': `"${(await s3('HEAD', K)).headers.get('etag')}"` } }),
+    s3('PUT', K, { body: 'w1', extraHeaders: { 'if-match': sharedEtag } }),
+    s3('PUT', K, { body: 'w2', extraHeaders: { 'if-match': sharedEtag } }),
   ])
-  check('concurrent-etag-race', [c1.status, c2.status].sort().join(',') === '200,412' || c1.ok !== c2.ok, `→ ${c1.status},${c2.status}`)
+  check('concurrent-etag-race', [c1.status, c2.status].sort().join(',') === '200,412', `→ ${c1.status},${c2.status}`)
 } finally {
   await s3('DELETE', K)
   console.log(`\n${results.filter((r) => r.ok).length}/${results.length} PASS  @ ${new Date().toISOString()}  endpoint=${S3_ENDPOINT}`)
