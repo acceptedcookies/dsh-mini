@@ -250,11 +250,6 @@
       ></view>
     </view>
 
-    <view wx:if="{{state.error}}" class="error-banner" bindtap="dismissError">
-      <text>{{state.error}}</text>
-      <dsh-icon class="error-close" name="close-outline" tone="danger" theme="{{theme}}" size="{{14}}" />
-    </view>
-
     <view wx:if="{{state.current && !showHero}}" class="composer-dock safe-bottom">
       <view class="composer-dock-inner">
         <approval-sheet
@@ -391,5 +386,15 @@
     tone="{{toastTone}}"
     theme="{{theme}}"
     bind:close="closeToast"
+  />
+  <error-center
+    toasts="{{errToasts}}"
+    modal="{{errModal}}"
+    theme="{{theme}}"
+    bind:closetoast="onErrToastClose"
+    bind:detail="onErrDetail"
+    bind:closemodal="onErrModalClose"
+    bind:copied="onErrCopied"
+    bind:copyfailed="onErrCopyFailed"
   />
 </view>

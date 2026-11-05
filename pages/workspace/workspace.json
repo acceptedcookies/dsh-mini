@@ -19,6 +19,7 @@
     "dsh-dialog": "/components/dsh-dialog/dsh-dialog",
     "dsh-switch": "/components/dsh-switch/dsh-switch",
     "dsh-tabs": "/components/dsh-tabs/dsh-tabs",
-    "dsh-toast": "/components/dsh-toast/dsh-toast"
+    "dsh-toast": "/components/dsh-toast/dsh-toast",
+    "error-center": "/components/error-center/error-center"
   }
 }

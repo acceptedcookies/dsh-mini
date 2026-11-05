@@ -1,0 +1,8 @@
+{
+  "component": true,
+  "styleIsolation": "apply-shared",
+  "usingComponents": {
+    "dsh-icon": "/components/dsh-icon/dsh-icon",
+    "dsh-button": "/components/dsh-button/dsh-button"
+  }
+}

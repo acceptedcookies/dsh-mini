@@ -4,6 +4,8 @@ import { kernelRuntime, KernelMiniRuntime } from './nano-mini-host/runtime'
 import { loadKernelAsync } from './nano-mini-host/kernel-loader'
 import { nanoRuntime } from './nano/runtime'
 import { upsertItem } from './event-fold'
+import { errorBus } from './error-report'
+import { currentRoute } from './fx/dev'
 import { storage } from './storage'
 import { throttle } from '../utils/throttle'
 import type {
@@ -73,6 +75,7 @@ class SessionStore {
       // initialized 置回 false——bindRuntime 败后保持 true 会永久堵死重试路径，
       // 应用停在一次性的 error 态（审查十四轮 L15）。
       this.initialized = false
+      this.reportError(error, 'init')
       this.setState({ loadingSessions: false, loadingSession: false, error: messageOf(error) })
       return
     }
@@ -95,6 +98,7 @@ class SessionStore {
     try {
       await this.bindRuntime()
     } catch (error) {
+      this.reportError(error, 'reinitialize')
       this.setState({ loadingSessions: false, loadingSession: false, error: messageOf(error) })
       return
     }
@@ -127,6 +131,24 @@ class SessionStore {
     return this.runtime === fxRuntime ? '本地运行时 · fx' : '本地运行时'
   }
 
+  /** 结构化车道 id——error-report 诊断字段与 __diagnostics bundle 共用。 */
+  runtimeLane(): string {
+    if (this.usingNano) return 'nano'
+    if (this.runtime === kernelRuntime) return 'kernel'
+    return this.runtime === fxRuntime ? 'fx' : 'local'
+  }
+
+  /** 统一错误上报：state.error（契约面）与 errorBus（标准 UI 面）双写。 */
+  private reportError(error: unknown, op: string, sessionId?: string): void {
+    errorBus.report(error, {
+      op,
+      lane: this.runtimeLane(),
+      route: currentRoute().mode,
+      ...(storage.getModel() !== undefined ? { model: storage.getModel() } : {}),
+      ...(sessionId !== undefined ? { sessionId } : {}),
+    })
+  }
+
   async loadSessions(): Promise<void> {
     this.setState({ sessions: await this.runtime.list(), loadingSessions: false })
   }
@@ -149,6 +171,7 @@ class SessionStore {
       this.setState({ current: snapshot, loadingSession: false })
     } catch (error) {
       if (req !== this.openSeq) return
+      this.reportError(error, 'open', sessionId)
       this.setState({ loadingSession: false, error: messageOf(error) })
     }
   }
@@ -160,6 +183,7 @@ class SessionStore {
       await this.open(summary.id)
       return summary.id
     } catch (error) {
+      this.reportError(error, 'create')
       this.setState({ error: messageOf(error) })
       return undefined
     }
@@ -182,6 +206,7 @@ class SessionStore {
       await this.runtime.prompt(this.state.current.sessionId, text, images)
       return true
     } catch (error) {
+      this.reportError(error, 'prompt', this.state.current?.sessionId)
       this.setState({ error: messageOf(error) })
       return false
     } finally {
@@ -195,6 +220,7 @@ class SessionStore {
     try {
       await this.runtime.cancel(current.sessionId)
     } catch (error) {
+      this.reportError(error, 'cancel', current.sessionId)
       this.setState({ error: messageOf(error) })
     }
   }
@@ -206,6 +232,7 @@ class SessionStore {
       await this.runtime.rename(current.sessionId, title.trim())
       await this.syncSessions()
     } catch (error) {
+      this.reportError(error, 'rename', current.sessionId)
       this.setState({ error: messageOf(error) })
     }
   }
@@ -217,6 +244,7 @@ class SessionStore {
       await this.runtime.rename(sessionId, title.trim())
       await this.syncSessions()
     } catch (error) {
+      this.reportError(error, 'rename', sessionId)
       this.setState({ error: messageOf(error) })
     }
   }
@@ -225,6 +253,7 @@ class SessionStore {
     try {
       await this.runtime.remove(sessionId)
     } catch (error) {
+      this.reportError(error, 'remove', sessionId)
       this.setState({ error: messageOf(error) })
     }
     await this.syncSessions()
@@ -239,6 +268,7 @@ class SessionStore {
     try {
       await this.runtime.answerApproval(approvalId, outcome)
     } catch (error) {
+      this.reportError(error, 'answerApproval')
       this.setState({ error: messageOf(error) })
     }
   }
@@ -248,6 +278,7 @@ class SessionStore {
     try {
       await this.runtime.answerQuestion(questionId, answers)
     } catch (error) {
+      this.reportError(error, 'answerQuestion')
       this.setState({ error: messageOf(error) })
     }
   }
@@ -292,11 +323,13 @@ class SessionStore {
       case 'item.append': {
         this.appendToCurrent(event.sessionId, event.item, event.seq)
         this.touchSession(event.sessionId, event.item)
+        this.reportToolError(event)
         break
       }
       case 'item.replace': {
         this.appendToCurrent(event.sessionId, event.item, event.seq)
         this.touchSession(event.sessionId, event.item)
+        this.reportToolError(event)
         break
       }
       case 'assistant.delta': {
@@ -348,10 +381,23 @@ class SessionStore {
         // 用户主动 stop 在 fx/local 车道落成 error 事件——不是故障，过滤掉
         // 红色横幅（kernel 车道本就不发；UI 审查 F14）。
         if (event.code === 'cancelled') break
+        // error 事件不携 sessionId（M8 公共合同扩面待决）——以当前会话
+        // 作 best-effort 归属投影，诊断字段如实注明 op=runtime-event。
+        this.reportError({ code: event.code, message: event.message, retryable: event.retryable },
+          'runtime-event', this.state.current?.sessionId)
         this.setState({ error: event.message })
         break
       }
     }
+  }
+
+  /** 工具错误结果已有 tool_result 卡专属 UI——入 bus 仅作 silent 台账
+   *  （诊断聚合面），不再双弹。 */
+  private reportToolError(event: { sessionId: string; item: ChatItem }): void {
+    const item = event.item
+    if (item.kind !== 'tool_result' || item.status !== 'error') return
+    errorBus.report({ code: 'tool-call-failed', message: `${item.tool}: ${item.summary}`, retryable: true },
+      { op: 'tool', lane: this.runtimeLane(), sessionId: event.sessionId })
   }
 
   private appendToCurrent(sessionId: string, item: ChatItem, seq: number): void {
