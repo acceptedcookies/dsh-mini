@@ -220,6 +220,7 @@ export function providerMintsTicket(route: RouteConfig): boolean {
   )
 }
 
+// 选择谓词改动必须与上方 providerMintsTicket 同步（后台 no-mint 门控同源判定）。
 export function createTicketProvider(route: RouteConfig, cfg: TicketSource): TicketProvider {
   if (route.mode === 'cloud-sim' && route.proxyBaseUrl !== undefined && route.simBaseUrl !== undefined) {
     return new SimTicketProvider(route.simBaseUrl, route.proxyBaseUrl, route, cfg)

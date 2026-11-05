@@ -323,14 +323,16 @@ export class KernelMiniRuntime {
     s.summary.status = 'idle'
     s.summary.updatedAt = Date.now()
     this.emit({ type: 'status', sessionId, state: 'idle' })
-    this.persist()
+    // 状态迁移已内存落位——持久化尽力即可：配额抛不得逃逸成 void drive()
+    // 链的 unhandled rejection 或掩盖上游真实错误路径（审查六轮）。
+    try { this.persist() } catch (e) { console.warn('[runtime] idle persist 失败:', e instanceof Error ? e.message : e) }
   }
 
   private fail(sessionId: string, code: string, message: string, retryable = true): void {
     const s = this.sessions.get(sessionId)
     if (s !== undefined) {
       s.summary.status = 'error'
-      this.persist()
+      try { this.persist() } catch (e) { console.warn('[runtime] fail persist 失败:', e instanceof Error ? e.message : e) }
     }
     this.emit({ type: 'status', sessionId, state: 'error' })
     this.emit({ type: 'error', code, message, retryable })

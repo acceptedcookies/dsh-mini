@@ -31,20 +31,19 @@ function tombstones(): Record<string, number> {
   return v !== '' && v !== undefined ? v : {}
 }
 
-/** 记碑只在缺席时落——heal 重试不得把 deleted_ms 刷前遮蔽真重建。
- *  无界增长防（审查五轮）：每删一碑且 heal 成功/远端缺席才清——满 512 逐最旧。 */
+/** 每次新删除意图都刷新碑时——唯一调用方是 pushRemove（heal 走 remote.del 不经此），
+ *  「删除→远端跨设备重建→用户再删→del 再失败」链下滞留旧碑会把新删项错判成真
+ *  重建复活（审查六轮）。无界增长防（审查五轮）：满 512 逐最旧。 */
 const TOMB_CAP = 512
 function setTomb(path: string): void {
   const t = tombstones()
-  if (t[path] === undefined) {
-    t[path] = Date.now()
-    const keys = Object.keys(t)
-    if (keys.length > TOMB_CAP) {
-      keys.sort((a, b) => (t[a] ?? 0) - (t[b] ?? 0))
-      for (const k of keys.slice(0, keys.length - TOMB_CAP)) delete t[k]
-    }
-    wx.setStorageSync(TOMB_KEY, t)
+  t[path] = Date.now()
+  const keys = Object.keys(t)
+  if (keys.length > TOMB_CAP) {
+    keys.sort((a, b) => (t[a] ?? 0) - (t[b] ?? 0))
+    for (const k of keys.slice(0, keys.length - TOMB_CAP)) delete t[k]
   }
+  wx.setStorageSync(TOMB_KEY, t)
 }
 
 function clearTomb(path: string): void {
