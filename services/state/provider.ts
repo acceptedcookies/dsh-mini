@@ -54,6 +54,11 @@ function durableTicketProvider(): { base: string; provider: ReturnType<typeof cr
   return { base: durableBase, provider: cachedTicketProvider!, key }
 }
 
+/** io.state 车道当前是否走远端（remoteCas 选中面；catchUp 预检与解锁横幅同源判定）。 */
+export function remoteDurableActive(): boolean {
+  return remoteDurableEnabled() && durableTicketProvider() !== null
+}
+
 export function ioStateFor(): IoState {
   const t = durableTicketProvider()
   if (t === null || !remoteDurableEnabled()) return localCas

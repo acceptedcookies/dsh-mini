@@ -10,6 +10,9 @@ import { storage } from '../../services/storage'
 import { DEFAULT_PERMISSION, PERMISSIONS, permissionOf, type PermissionOption } from '../../services/permissions'
 import { classifyError, errorBus, type ErrorReport } from '../../services/error-report'
 import { sessionDiagnostics } from '../../services/diagnostics'
+import { ensureDurableTicket, remoteDurableActive } from '../../services/state/provider'
+import { hasFreshTicket, onTicketMinted } from '../../services/fx/ticket'
+import { nanoMiniCatchUp } from '../../services/nano-mini-host/tick'
 import { firstCommand } from '../../services/commands'
 import { formatRelative } from '../../utils/time'
 import { toolView, type ToolView } from '../../utils/tool-view'
@@ -113,6 +116,10 @@ const WORKSPACE_MENU: MenuItem[] = [
 
 let unsubscribe: (() => void) | undefined
 let unsubscribeErr: (() => void) | undefined
+/** 铸票后隐藏解锁横幅（onTicketMinted 无 unsubscribe——模块级绑定一次，由
+ *  当前页实例填充）。 */
+let refreshUnlockFlag: (() => void) | undefined
+let mintListenerBound = false
 let resizeHandler: ((result: WechatMiniprogram.OnWindowResizeListenerResult) => void) | undefined
 /** 按会话记住折叠的轮次。页面实例在热重载时会被换掉，所以不挂在 this 上。 */
 const foldedTurns = new Map<string, Set<number>>()
@@ -173,6 +180,7 @@ Page({
       { id: 'plan', label: '计划', icon: 'plan-outline' },
       { id: 'team', label: '团队', icon: 'users-outline' },
     ],
+    needUnlock: false,
     menuVisible: false,
     menuItems: [] as MenuItem[],
     menuTitle: '',
@@ -241,6 +249,12 @@ Page({
     })
 
     void sessionStore.init()
+    refreshUnlockFlag = () => this.refreshUnlock()
+    if (!mintListenerBound) {
+      mintListenerBound = true
+      onTicketMinted(() => refreshUnlockFlag?.())
+    }
+    this.refreshUnlock()
     if (unsubscribe !== undefined) unsubscribe()
     unsubscribe = sessionStore.subscribe((state) => this.apply(state))
     if (unsubscribeErr !== undefined) unsubscribeErr()
@@ -338,9 +352,29 @@ Page({
         ...placeholderData(this.data.isWide, storage.getPlanMode() === true),
       })
     }
+    this.refreshUnlock()
+  },
+
+  /** 云 durable 车道无活票据→提示解锁横幅；本地车道/已有票→隐藏（业主 W2 裁决 C 半）。 */
+  refreshUnlock() {
+    const needUnlock = remoteDurableActive() && !hasFreshTicket()
+    if (needUnlock !== this.data.needUnlock) this.setData({ needUnlock })
+  },
+
+  /** 横幅点击=用户手势上下文，合规走 challenge→SOTER→unlock 铸票。 */
+  async onUnlockSync() {
+    try {
+      await ensureDurableTicket()
+      this.refreshUnlock()
+      void nanoMiniCatchUp().catch(() => { /* catchUp 自身兜底 */ })
+    } catch (e) {
+      errorBus.report(e, { op: 'unlock-sync', lane: 'ui' })
+      this.refreshUnlock()
+    }
   },
 
   onUnload() {
+    if (refreshUnlockFlag !== undefined) refreshUnlockFlag = undefined
     unsubscribe?.()
     unsubscribe = undefined
     unsubscribeErr?.()

@@ -108,6 +108,12 @@
       <dsh-tabs wx:if="{{!showHero}}" variant="underline" tabs="{{viewTabs}}" active="{{view}}" bind:change="onViewChange" />
     </header>
 
+    <view wx:if="{{needUnlock}}" class="unlock-banner" bindtap="onUnlockSync">
+      <dsh-icon name="shield-outline" theme="{{theme}}" size="{{14}}" />
+      <text class="unlock-banner-text">云端同步未解锁，点此验证以恢复同步</text>
+      <dsh-icon name="chevron-right-outline" theme="{{theme}}" size="{{12}}" />
+    </view>
+
     <trajectory-view
       wx:if="{{!showHero && view === 'trajectory'}}"
       id="trajectory"

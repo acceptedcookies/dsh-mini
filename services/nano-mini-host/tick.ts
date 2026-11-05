@@ -5,7 +5,8 @@
  * 本地车道 owner='local'，alarm 替身键区经 localCas。
  */
 
-import { ioStateFor } from '../state/provider'
+import { ioStateFor, remoteDurableActive } from '../state/provider'
+import { hasFreshTicket } from '../fx/ticket'
 import { loadKernelAsync } from './kernel-loader'
 import { sweepTick, type PumpCtx } from './pump'
 import { createIoTool } from './io/tool'
@@ -38,6 +39,10 @@ export function nanoMiniCatchUp(): Promise<string[]> {
 }
 
 async function doCatchUp(): Promise<string[]> {
+  // 无活票据不碰远端 durable——后台面（launch/pending/interval tick）无手势
+  // 上下文，发请求只会收获 401；预检跳过而非事后静默（业主 W2 裁决 B+C）。
+  // remoteDurableActive()=false 的车道（local / remote-durable 关）照常 sweep。
+  if (remoteDurableActive() && !hasFreshTicket()) return []
   // loadKernel 同步面的 tried 闩会把 onLaunch 首败（分包未就绪）永久锁存——
   // async 面轮询等待分包下载，launch catch-up 不哑火（审查四轮 F7）。
   const bundle = await loadKernelAsync()

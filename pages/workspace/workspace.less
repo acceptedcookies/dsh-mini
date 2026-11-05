@@ -685,6 +685,27 @@
   }
 }
 
+/* Unlock banner (W2 BL-5 C 半：云端 durable 无活票据时的手势解锁入口) */
+
+.unlock-banner {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--dsw-space-8);
+  margin: 0 var(--dsw-space-12) var(--dsw-space-4);
+  padding: var(--dsw-space-4) var(--dsw-space-8);
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-secondary);
+  font-size: var(--dsw-text-caption);
+  line-height: var(--dsw-lh-18);
+}
+
+.unlock-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
 /* Error */
 
 .error-banner {
