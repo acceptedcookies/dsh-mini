@@ -121,6 +121,13 @@ const { classifyError, errorBus, reportText, reportSilent } = await bundle(
   check('M12:裸 insufficient_quota→rate-limit（非 storage-quota）', c12.code === 'rate-limit' && c12.surface === 'toast', `code=${c12.code}`)
   const c13 = classifyError({ errMsg: 'request:fail timeout' })
   check('M13:wx errMsg 形状消费为 message→network-timeout', c13.code === 'network-timeout' && c13.message === 'request:fail timeout')
+  // R4 N1：CJK 复合单位词（前缀匹配）
+  const c14 = classifyError(new Error('重试 500 次后放弃'))
+  check('M14:500 次复合单位词不误归 upstream-500', c14.code === 'unknown-error', `code=${c14.code}`)
+  const c15 = classifyError(new Error('已缓存 500 个文件'))
+  check('M15:500 个文件复合单位词不误归 upstream-500', c15.code === 'unknown-error')
+  const c16 = classifyError(new Error('error 500 server unreachable'))
+  check('M16:500 server 裸三位无单位词仍归 upstream-500', c16.code === 'upstream-500', `code=${c16.code}`)
 }
 
 // ── bus：surface 路由 + dedupe + cap + 队列 ─────────────────────────

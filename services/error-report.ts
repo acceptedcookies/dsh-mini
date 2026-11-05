@@ -170,7 +170,10 @@ function httpStatusOf(message: string): number | undefined {
   if (anchored !== null) return Number(anchored[1])
   for (const m of message.matchAll(/(^|[\s=(,])([1-5]\d\d)\b\s*([\p{L}\p{N}%]*)/gu)) {
     const suffix = m[3] ?? ''
-    if (/^(ms|s|px|k|kb|mb|gb|bytes?|files?|items?|rows?|lines?|个|条|字节|行|次|秒|分)$/i.test(suffix)) continue
+    // latin 全等（防 '500 server'/'500 killed' 前缀误伤）；CJK 前缀匹配
+    // （'500 次后放弃'/'500 个文件' 复合词中单位在词首，MN03-R4 N1）。
+    if (/^(ms|s|sec|seconds?|min|minutes?|px|pixels?|k|kb|mb|gb|bytes?|files?|items?|rows?|lines?|tokens?|records?|entries?)$/i.test(suffix)) continue
+    if (/^(个|条|字节|行|次|秒|分|块|位|页|帧|层|项|篇|部|张|句|词|字)/.test(suffix)) continue
     return Number(m[2])
   }
   return undefined
