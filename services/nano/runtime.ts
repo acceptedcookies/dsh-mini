@@ -241,6 +241,8 @@ export class NanoRuntime {
       title: '新会话',
       updatedAt: Date.now(),
       status: 'idle',
+      // 云端引擎戳记（MN03）：nano 车道建的会话恒为 cloud-runtime。
+      engine: 'cloud',
       lastMessage: '等待第一条消息',
       messageCount: 0,
     }

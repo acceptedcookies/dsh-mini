@@ -6,6 +6,7 @@ import { vfs, vfsReadView, vfsStore } from './services/vfs/api'
 import { setVfsMirrorHook } from './services/vfs/vfs'
 import { nanoMiniCatchUp, nanoMiniStartTick, nanoMiniStopTick } from './services/nano-mini-host/tick'
 import { vfsRemoteFor, vfsSyncFor, ioStateFor, ensureDurableTicket } from './services/state/provider'
+import { engineForSession } from './services/session-engine'
 import { sessionStore } from './services/session-store'
 import { hasFreshTicket, onTicketMinted } from './services/fx/ticket'
 
@@ -43,6 +44,10 @@ function wireRemoteMirror(): void {
   }
   setVfsMirrorHook((path, kind) => {
     if (!hasFreshTicket()) return
+    // 会话车道分界（MN03 引擎戳记）：/data/{sid}/ 下 magpie 会话的文件是纯
+    // 本地车道——不镜像上行；非会话行（/root 等）无引擎归属照常全局镜像。
+    const m = /^\/data\/([^/]+)\//.exec(path)
+    if (m !== null && engineForSession(m[1]) === 'magpie') return
     const s = vfsSyncFor()
     if (s === null) return
     const p = kind === 'write' ? s.pushPath(path) : s.pushRemove(path)

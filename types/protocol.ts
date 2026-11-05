@@ -69,11 +69,19 @@ export type ChatItem = ChatItemBase & (
     }
 )
 
+/** 会话引擎戳记（业主 MN03 裁决）：建会话时从 pendingEngine 烙上，此后该会话
+ *  的 io.llm/io.state/转录/图片全按戳记车道走，不随全局旋钮漂移。
+ *  nano-agent=本地 kernel + BYOK 代理；magpie=本地 kernel + magpie 直连（dev）；
+ *  cloud=nanoRuntime 远端执行（未适配——菜单只显示不可选）。 */
+export type SessionEngine = 'nano-agent' | 'magpie' | 'cloud'
+
 export interface SessionSummary {
   id: string
   title: string
   updatedAt: number
   status: 'idle' | 'running' | 'error'
+  /** 建会话戳记；旧会话缺席→路由兜底派生（=建时全局语义，行为不变）。 */
+  engine?: SessionEngine
   lastMessage?: string
   messageCount?: number
 }

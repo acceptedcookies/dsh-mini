@@ -11,6 +11,7 @@ import type {
   ImageRef,
   LocalEvent,
   QuestionAnswer,
+  SessionEngine,
   SessionSnapshot,
   SessionSummary,
 } from '../../types/protocol'
@@ -19,6 +20,7 @@ import { reportSilent } from '../error-report'
 import { storage } from '../storage'
 import { randomId } from '../../utils/uuid'
 import { ioStateFor, ensureDurableTicket } from '../state/provider'
+import { pendingEngine, routeDefaultEngine } from '../session-engine'
 import { hasFreshTicket } from '../fx/ticket'
 import { loadDevConfig } from '../fx/dev'
 import { resolveImageParts } from './images'
@@ -114,10 +116,19 @@ export class KernelMiniRuntime {
     return { sessionId: id, cursor: s.cursor, status: s.summary.status, items: [...s.items], hasMore: false }
   }
 
+  /** 会话的生效引擎：summary.engine 戳记优先；旧会话无戳→路由兜底
+   *  （=建时全局语义，行为不变）。 */
+  private engineOf(s: StoredSession): SessionEngine {
+    return s.summary.engine ?? routeDefaultEngine()
+  }
+
   create(): SessionSummary {
     const summary: SessionSummary = {
       id: randomId('session'), title: '新会话', updatedAt: Date.now(),
       status: 'idle', lastMessage: '开始一个新的对话', messageCount: 0,
+      // 建会话引擎戳记（业主 MN03）：此后 io.llm/io.state/转录/图片全按
+      // 戳记车道走，不随全局旋钮或后续 pending 选择漂移。
+      engine: pendingEngine(),
     }
     this.sessions.set(summary.id, { summary, cursor: 0, items: [] })
     this.persist()
@@ -136,6 +147,9 @@ export class KernelMiniRuntime {
     // 在飞轮次先撤——删除不取消会让 pump 继续烧 llm 直至 require 抛错，
     // 随后 fail 向当前界面发 'host-error: 会话不存在' 幽灵横幅（UI 审查 F5）。
     this.cancelled.add(id)
+    // 引擎戳记在 delete 前取——pump 行清理要清该会话自己车道的行，
+    // 删后 engineForSession 会落路由兜底可能挑错车道（MN03）。
+    const engine = this.sessions.has(id) ? this.engineOf(this.require(id)) : undefined
     this.sessions.delete(id)
     this.persist()
     // 远端转录行+本地指针随会话删除清理（best-effort，不阻塞本地删——审查 B8）。
@@ -143,13 +157,13 @@ export class KernelMiniRuntime {
     // durable 泵态同行清理：state/claim/alarm 行不随 sessions.delete 走——
     // 残留行让 in-flight pump 继续写孤儿快照、残留 alarm 让 sweep 对死会话
     // 空跑满步（审查十四轮 M1）。best-effort：远端 del 为记录 no-op 不阻塞。
-    void this.dropPumpRows(id)
+    void this.dropPumpRows(id, engine)
   }
 
   /** kernel 泵的 durable 行（state/claims/alarms 下 owner='local'）——删除/清空共用。 */
-  private async dropPumpRows(sessionId: string): Promise<void> {
+  private async dropPumpRows(sessionId: string, engine?: SessionEngine): Promise<void> {
     try {
-      const st = ioStateFor()
+      const st = ioStateFor(engine)
       await st.del(`dsh-mini/state/local/${sessionId}`)
       await st.del(`dsh-mini/claims/local/${sessionId}`)
       const rows = await st.listPrefix('dsh-mini/alarms/local/')
@@ -185,11 +199,15 @@ export class KernelMiniRuntime {
   }
 
   private async dropAllPumpRows(): Promise<void> {
+    // 全清须覆盖两条泵行车道：magpie 会话行在 localCas，nano-agent 在
+    // remoteCas（远端无票时 ioStateFor() 落 localCas——Set 去重不重复扫）。
     try {
-      const st = ioStateFor()
-      for (const prefix of ['dsh-mini/state/local/', 'dsh-mini/claims/local/', 'dsh-mini/alarms/local/']) {
-        const rows = await st.listPrefix(prefix)
-        for (const k of rows) await st.del(k)
+      const lanes = new Set([ioStateFor('magpie'), ioStateFor()])
+      for (const st of lanes) {
+        for (const prefix of ['dsh-mini/state/local/', 'dsh-mini/claims/local/', 'dsh-mini/alarms/local/']) {
+          const rows = await st.listPrefix(prefix)
+          for (const k of rows) await st.del(k)
+        }
       }
     } catch (e) {
       console.warn('[runtime] clear 泵态键区清理失败（best-effort）:', e instanceof Error ? e.message : e)
@@ -230,8 +248,10 @@ export class KernelMiniRuntime {
     // 票据前置（用户手势上下文）：云 durable 车道无活票时 resolveImageParts 的
     // publishArtifact 与 runPump claim 同样 401——图片解析在 mint 门之前时冷启动/
     // 过期后图片发送永久失败且永无铸票路径（审查四轮 F1）。
+    // magpie=纯本地车道无任何远端面——铸票/发布全跳（MN03 引擎戳记）。
+    const engine = this.engineOf(s)
     try {
-      await ensureDurableTicket()
+      if (engine !== 'magpie') await ensureDurableTicket()
     } catch (e) {
       this.running.delete(id)
       this.fail(id, 'ticket-required', e instanceof Error ? e.message : String(e))
@@ -244,7 +264,7 @@ export class KernelMiniRuntime {
     let input: unknown = { role: 'user', content: text }
     if (images.length > 0) {
       try {
-        const parts = await resolveImageParts(images)
+        const parts = await resolveImageParts(images, engine)
         const stored = s.items[s.items.length - 1]
         if (stored.kind === 'user_message' && stored.id === messageId) {
           // 只沉淀 https:/http: 形态——data: 内联是数 MB base64，持久化爆
@@ -304,8 +324,10 @@ export class KernelMiniRuntime {
     // 云车道票据前置：authHeaders 已改缓存只读（不再铸票）——claim 是 turn 内首个
     // remote 调用，必须先 ready() 铸票，否则冷启动/票据过期后每轮 host-error 401
     // 且永无恢复路径（审查三轮 N1 死锁）。prompt=用户手势上下文允许 SOTER。
+    // magpie=纯本地车道：无远端 claim/票据面，整个跳过（MN03 引擎戳记）。
+    const engine = this.engineOf(s)
     try {
-      await ensureDurableTicket()
+      if (engine !== 'magpie') await ensureDurableTicket()
     } catch (e) {
       this.running.delete(sessionId)
       this.fail(sessionId, 'ticket-required', e instanceof Error ? e.message : String(e))
@@ -315,14 +337,14 @@ export class KernelMiniRuntime {
     let deltaIndex = 0
     const attemptId = randomId('attempt')
     const io: Io = {
-      // durable lane：cloud 路由→remoteCas（POD1），local/sim→localCas（provider.ts 裁决）
-      state: ioStateFor(),
+      // durable lane 按会话引擎裁决：nano-agent→remoteCas（POD1），magpie→localCas
+      state: ioStateFor(engine),
       llm: async (messages) => {
         // 跨轮历史 prepend（worker runtime-mainline 同构）：kernel turn.messages
         // 只装当前 turn，历史由宿主从 UI 转录本临时前置、不回写 kernel buffer。
         // noMint：铸票已在 drive 手势面完成——轮中票据过期的 ready() 会在
         // 后台上下文弹 SOTER（审查十四轮 L2），如实 401→host-error 更诚实。
-        const out = await createIoLlm({ noMint: true })([...historyMessages(s), ...messages])
+        const out = await createIoLlm({ noMint: true, engine })([...historyMessages(s), ...messages])
         if (typeof out.text === 'string' && out.text.length > 0) {
           assistantText += out.text
           // assistant.delta：io.llm 非流式 → delta 粒度=llm_call 步（诚实粒度，
@@ -430,7 +452,9 @@ export class KernelMiniRuntime {
    *  无活票据跳过（铸票=SOTER 须用户手势；水位指针未动，下次 settle 重推）。 */
   async syncTranscriptNow(sessionId: string): Promise<unknown> {
     const s = this.sessions.get(sessionId)
-    if (s === undefined || !hasFreshTicket()) return null
+    // magpie=纯本地车道：转录不上行——本地会话的内容不泄向远端（MN03 戳记），
+    // 同步徽标恒「本地」与 sessionSyncMap 无指针语义自洽。
+    if (s === undefined || this.engineOf(s) === 'magpie' || !hasFreshTicket()) return null
     try {
       // 删除竞态：sync 进行中被删，继续推行会把已删会话在远端复活（审查十四轮
       // M7）。shouldStop 逐行闸 + 收尾复检后补 dropTranscript（drop 先行已删的

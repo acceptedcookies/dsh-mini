@@ -15,6 +15,9 @@ import { sessionSyncMap } from '../../services/nano-mini-host/transcript'
 import { hasFreshTicket, onTicketMinted } from '../../services/fx/ticket'
 import { nanoMiniCatchUp } from '../../services/nano-mini-host/tick'
 import { firstCommand } from '../../services/commands'
+import {
+  engineBadge, engineLabel, magpieAvailable, pendingEngine, routeDefaultEngine, setPendingEngine,
+} from '../../services/session-engine'
 import { formatRelative } from '../../utils/time'
 import { toolView, type ToolView } from '../../utils/tool-view'
 import { getWindowMetrics, isWideLayout, type WindowMetrics } from '../../utils/window'
@@ -25,6 +28,7 @@ import type {
   ImageRef,
   QuestionAnswer,
   QuestionRequest,
+  SessionEngine,
   SessionSummary,
   UiState,
 } from '../../types/protocol'
@@ -34,6 +38,8 @@ interface SessionRow extends SessionSummary {
   /** local=仅本地 | synced=转录水位覆盖最新 | pending=有远端行但本地更新未上行。 */
   syncState: 'local' | 'synced' | 'pending'
   syncLabel: string
+  /** 引擎戳记徽标（本地·nano-agent / 本地·magpie / 云端）。 */
+  engineBadge: string
 }
 
 /* Tool rows carry their dsh presentation projection (utils/tool-view). */
@@ -63,6 +69,10 @@ interface MenuItem {
   tone?: string
   danger?: boolean
   shortcut?: string
+  checked?: boolean
+  disabled?: boolean
+  description?: string
+  badge?: string
 }
 
 type MenuContext = 'session' | 'workspace' | 'header-session' | 'permission'
@@ -112,11 +122,32 @@ const SESSION_MENU: MenuItem[] = [
   { id: 'delete', label: '删除会话', icon: 'trash-outline', danger: true },
 ]
 
-const WORKSPACE_MENU: MenuItem[] = [
-  { id: 'new-session', label: '新会话', icon: 'new-chat-outline' },
-  { id: 'diagnostics', label: '诊断', icon: 'info-outline' },
-  { id: 'settings', label: '设置', icon: 'settings-outline' },
-]
+/** 工作区菜单（业主 MN03 裁决）：新会话 + 引擎选择——新会话的 runtime 在
+ *  此处选（勾选=下一次建会话的引擎，持久跨启动）。设置/诊断移出此菜单
+ *  （设置仍在侧栏底部入口；诊断在会话 ⋯ 菜单内）。 */
+function workspaceMenuItems(): MenuItem[] {
+  const pending = pendingEngine()
+  const items: MenuItem[] = [
+    { id: 'new-session', label: '新会话', icon: 'new-chat-outline' },
+    {
+      id: 'engine:nano-agent', label: '本地引擎 · nano-agent', icon: 'layers-outline',
+      checked: pending === 'nano-agent',
+      description: '本地运行时 + 你的 BYOK',
+    },
+  ]
+  if (magpieAvailable()) {
+    items.push({
+      id: 'engine:magpie', label: '本地引擎 · magpie', icon: 'api-outline',
+      checked: pending === 'magpie', badge: 'dev',
+      description: '本地运行时 + 本机 magpie 网关',
+    })
+  }
+  items.push({
+    id: 'engine:cloud', label: '云端引擎', icon: 'globe-outline',
+    disabled: true, description: '云端运行时未适配，暂不可选',
+  })
+  return items
+}
 
 let unsubscribe: (() => void) | undefined
 let unsubscribeErr: (() => void) | undefined
@@ -1010,7 +1041,7 @@ Page({
 
   openWorkspaceMenu() {
     const selector = this.data.showHero ? '#workspace-menu-button' : '#workspace-menu-button-sidebar'
-    this.openMenu(selector, 'workspace', '', WORKSPACE_MENU, '工作区')
+    this.openMenu(selector, 'workspace', '', workspaceMenuItems(), '工作区')
   },
 
   onSessionMenu(event: WechatMiniprogram.TouchEvent) {
@@ -1066,8 +1097,13 @@ Page({
     this.setData({ menuVisible: false })
     if (context === 'workspace') {
       if (id === 'new-session') void this.newSession()
-      if (id === 'diagnostics') this.exportDiagnostics('')
-      if (id === 'settings') this.openSettings()
+      if (id.startsWith('engine:')) {
+        // 引擎选择=下一次建会话的 runtime（cloud 在菜单内 disabled 到不了这里）。
+        const engine = id.slice('engine:'.length) as SessionEngine
+        setPendingEngine(engine)
+        this.showToast(`新会话将使用${engineLabel(engine)}`, 'success')
+        return
+      }
       return
     }
     if (context === 'permission') {
@@ -1295,7 +1331,8 @@ function filterRows(sessions: SessionSummary[], query: string): SessionRow[] {
       const ptr = syncMap.get(session.id)
       const syncState = ptr === undefined ? 'local' : ptr.updated_ms >= session.updatedAt ? 'synced' : 'pending'
       const syncLabel = syncState === 'local' ? '本地' : syncState === 'synced' ? '已同步' : '待同步'
-      return { ...session, timeLabel: formatRelative(session.updatedAt), syncState, syncLabel }
+      const engine = session.engine ?? routeDefaultEngine()
+      return { ...session, timeLabel: formatRelative(session.updatedAt), syncState, syncLabel, engineBadge: engineBadge(engine) }
     })
 }
 

@@ -19,6 +19,9 @@ context/
 .local.development.**
 .env.wx.cloud
 
+# 本地开发指针：magpie 选项闸（打包不含，见 scripts/fx-dev-config.mjs）
+.dev-magpie
+
 # fx wasm 分包产物（由 zig build + wasm-opt 再生成，见 .local.development.md）
 subpkg/fx/*.wasm
 subpkg/fx/*.wasm.br

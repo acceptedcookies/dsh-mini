@@ -7,6 +7,8 @@
 
 import { createTicketProvider, hasFreshTicket, providerMintsTicket } from '../../fx/ticket'
 import { loadDevConfig, currentRoute } from '../../fx/dev'
+import { routeDefaultEngine } from '../../session-engine'
+import type { SessionEngine } from '../../../types/protocol'
 import { readEnrollment, activeModel } from '../../fx/enrollment'
 import { MODELS, DEFAULT_MODEL } from '../../config'
 import { isContainerUrl, callContainer, parseContainerUrl } from '../../fx/container'
@@ -113,6 +115,9 @@ export interface IoLlmDeps {
   /** 后台车道（sweep/tick）：铸票车道路由下无活票即抛 ticket-required——
    *  ready() 会走 bio 证明（SOTER 须用户手势上下文），后台不得触发（审查五轮 F6）。 */
   noMint?: boolean
+  /** 会话引擎戳记（MN03）：'magpie'→本地直连车道；缺席→路由兜底派生，
+   *  与无戳旧会话原语义一致（route.mode local→magpie / cloudish→nano-agent）。 */
+  engine?: SessionEngine
 }
 
 export function createIoLlm(deps: IoLlmDeps = {}): (messages: unknown[]) => Promise<LlmOutput> {
@@ -120,6 +125,8 @@ export function createIoLlm(deps: IoLlmDeps = {}): (messages: unknown[]) => Prom
   return async (messages: unknown[]): Promise<LlmOutput> => {
     const cfg = loadDevConfig()
     const route = currentRoute()
+    // 引擎裁决先于路由：戳记会话走自己的车道，不随全局旋钮漂移。
+    const engine = deps.engine ?? routeDefaultEngine()
     const enrollment = readEnrollment()
     // 生效模型=设置页选择（白名单内归一化），enrollment.model 仅登记信息（resolveSource 同合同）；
     // 此前顺序颠倒导致设置页选模型静默失效（审查 B8）。cfg 缺席（生产云车道）时：
@@ -141,8 +148,8 @@ export function createIoLlm(deps: IoLlmDeps = {}): (messages: unknown[]) => Prom
 
     let url = ''
     let headers: Record<string, string> = { 'content-type': 'application/json' }
-    if (route.mode === 'local') {
-      // 本地直连（dev 车道）：无代理票据，命中 upstream + dev key
+    if (engine === 'magpie') {
+      // magpie 引擎：本地直连 dev 车道——无代理票据，命中 upstream + dev key
       const upstream = cfg?.upstreamBaseUrl ?? cfg?.baseUrl ?? ''
       if (upstream.length === 0) throw new Error('io.llm: local 模式缺少 upstreamBaseUrl')
       url = chatUrl(upstream)

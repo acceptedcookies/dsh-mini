@@ -6,13 +6,15 @@
  */
 
 import { ioStateFor, remoteDurableActive } from '../state/provider'
+import { localCas } from '../state/local-cas'
+import { engineForSession } from '../session-engine'
 import { hasFreshTicket } from '../fx/ticket'
 import { loadKernelAsync } from './kernel-loader'
 import { sweepTick, type PumpCtx } from './pump'
 import { createIoTool } from './io/tool'
 import { createIoLlm } from './io/llm'
 import { reportSilent } from '../error-report'
-import type { Io } from './types'
+import type { Io, IoState } from './types'
 
 const PENDING_KEY = 'dsh:mini:pending-catchup'
 const TICK_MS = 30_000
@@ -23,7 +25,10 @@ let timer: ReturnType<typeof setInterval> | undefined
 function ioFor(sessionId: string): Io {
   // 后台车道不铸票：sweep 的 io.llm 无活票直接失败（pump-error→重臂），
   // 不在 30s tick/launch 上下文弹 SOTER（审查五轮 F6）。
-  return { llm: createIoLlm({ noMint: true }), tool: createIoTool(sessionId), state: ioStateFor() }
+  // 引擎戳记分道（MN03）：恢复该会话时 io.llm/io.state 全走它自己的车道——
+  // magpie 会话绝不会被远端 sweeper 用 BYOK 车道偷换上游恢复。
+  const engine = engineForSession(sessionId)
+  return { llm: createIoLlm({ noMint: true, engine }), tool: createIoTool(sessionId), state: ioStateFor(engine) }
 }
 
 let catchUpInFlight: Promise<string[]> | undefined
@@ -39,16 +44,20 @@ export function nanoMiniCatchUp(): Promise<string[]> {
 }
 
 async function doCatchUp(): Promise<string[]> {
-  // 无活票据不碰远端 durable——后台面（launch/pending/interval tick）无手势
-  // 上下文，发请求只会收获 401；预检跳过而非事后静默（业主 W2 裁决 B+C）。
-  // remoteDurableActive()=false 的车道（local / remote-durable 关）照常 sweep。
-  if (remoteDurableActive() && !hasFreshTicket()) return []
+  // 分车道 sweep（MN03 引擎戳记）：localCas 恒扫——magpie 会话行在此，
+  // 无票不该饿死本地恢复；remote durable 半程保无票跳过原语义（业主 W2：
+  // 后台面无手势上下文，发请求只会收获 401——预检跳过而非事后静默）。
   // loadKernel 同步面的 tried 闩会把 onLaunch 首败（分包未就绪）永久锁存——
   // async 面轮询等待分包下载，launch catch-up 不哑火（审查四轮 F7）。
   const bundle = await loadKernelAsync()
   if (bundle === undefined) return []
-  const ctx: PumpCtx = { kernel: bundle.kernel, io: ioFor(''), owner: 'local', holder: HOLDER }
-  const ran = await sweepTick(ctx, { batchLimit: 10 }, ioFor)
+  const lanes: IoState[] = [localCas]
+  if (remoteDurableActive() && hasFreshTicket()) lanes.push(ioStateFor())
+  const ran: Awaited<ReturnType<typeof sweepTick>> = []
+  for (const st of lanes) {
+    const ctx: PumpCtx = { kernel: bundle.kernel, io: { ...ioFor(''), state: st }, owner: 'local', holder: HOLDER }
+    ran.push(...await sweepTick(ctx, { batchLimit: 10 }, ioFor))
+  }
   // fenced/claim-denied/step-exhausted 算 ran 但恢复未成——pending 不得误清（审查 B5）；
   // ran=[] 无 due 行=无事可恢复，vacuous-true 清标记——否则首次 onHide 后
   // PENDING 永真，每个 tick 白跑一次 sweep（UI 审查 F12）。

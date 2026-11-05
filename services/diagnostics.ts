@@ -9,6 +9,7 @@ import { errorBus, type ErrorReport } from './error-report'
 import { sessionStore } from './session-store'
 import { currentRoute, lastRouteError } from './fx/dev'
 import { readSessionPointer, sessionSyncMap, type SessionPointer } from './nano-mini-host/transcript'
+import { routeDefaultEngine, pendingEngine, magpieAvailable } from './session-engine'
 import { vfsStore } from './vfs/store'
 import { storage } from './storage'
 import { APP_VERSION } from './config'
@@ -25,6 +26,8 @@ export interface SessionDiagnostics {
     route: string
     routeErr?: string
     model?: string
+    /** 引擎面（MN03）：下一次建会话的引擎 + magpie 选项可见闸。 */
+    engine: { pending: string; magpieAvailable: boolean }
   }
   session?: {
     id: string
@@ -96,6 +99,8 @@ export function sessionDiagnostics(sessionId?: string): SessionDiagnostics {
       route: route.mode,
       ...(routeErr !== undefined ? { routeErr: routeErr.message } : {}),
       model: storage.getModel(),
+      // 引擎面（MN03）：下一次建会话的引擎 + magpie 选项可见闸。
+      engine: { pending: pendingEngine(), magpieAvailable: magpieAvailable() },
     },
     ...(sid !== undefined
       ? {
@@ -123,6 +128,9 @@ export function sessionDiagnostics(sessionId?: string): SessionDiagnostics {
         const syncState = ptr === undefined ? 'local' : ptr.updated_ms >= s.updatedAt ? 'synced' : 'pending'
         return {
           id: s.id, title: s.title, status: s.status, updatedAt: s.updatedAt, messageCount: s.messageCount,
+          // 引擎戳记（MN03）：戳记缺席的旧会话暴露派生值并注明 derived——
+          // 诊断面如实区分「烙上的」与「按路由推的」。
+          engine: { value: s.engine ?? routeDefaultEngine(), stamped: s.engine !== undefined },
           sync: { state: syncState, ...(ptr !== undefined ? { lastSeq: ptr.last_seq, syncedAt: ptr.updated_ms } : {}) },
         }
       })

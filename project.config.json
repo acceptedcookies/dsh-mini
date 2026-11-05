@@ -89,6 +89,10 @@
       {
         "value": ".env.wx.cloud",
         "type": "file"
+      },
+      {
+        "value": ".dev-magpie",
+        "type": "file"
       }
     ],
     "include": []

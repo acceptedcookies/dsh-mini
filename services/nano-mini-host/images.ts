@@ -6,9 +6,9 @@
  * （vision-inline-image-forbidden）属 kernel 侧 provider 契约，mp io.llm
  * 走 chat/completions 不过该闸；线上以 publish 形态为准。
  */
-import type { ImageRef } from '../../types/protocol'
-import { currentRoute } from '../fx/dev'
+import type { ImageRef, SessionEngine } from '../../types/protocol'
 import { vfsRemoteFor } from '../state/provider'
+import { currentRoute } from '../fx/dev'
 import { guessMime } from '../vfs/vfs'
 
 export interface ImagePart {
@@ -21,10 +21,13 @@ function readLocalBytes(path: string): { bytes: ArrayBuffer; b64: string } {
   return { bytes: wx.base64ToArrayBuffer(b64), b64 }
 }
 
-export async function resolveImageParts(images: ImageRef[]): Promise<ImagePart[]> {
+export async function resolveImageParts(images: ImageRef[], engine?: SessionEngine): Promise<ImagePart[]> {
   if (images.length === 0) return []
-  const route = currentRoute()
-  if (route.mode === 'cloud') {
+  // 引擎裁决先于路由：magpie=纯本地车道 data: 内联；nano-agent=BYOK 面
+  // publish→https；无戳旧会话按建时路由派生（cloud→publish、local/sim→
+  // data: 内联——cloud-sim dev 流程逐字节不变）。
+  const publish = engine !== undefined ? engine !== 'magpie' : currentRoute().mode === 'cloud'
+  if (publish) {
     const remote = vfsRemoteFor()
     if (remote === null) {
       // 无静默回退：不偷换 data: 充数——远端 lane 缺位如实上报

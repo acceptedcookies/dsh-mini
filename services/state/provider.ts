@@ -16,6 +16,7 @@ import { loadDevConfig, currentRoute } from '../fx/dev'
 import { readEnrollment } from '../fx/enrollment'
 import { DSH_MINI_BASE_URL } from '../config'
 import type { IoState } from '../nano-mini-host/types'
+import type { SessionEngine } from '../../types/protocol'
 
 let cachedRemote: IoState | undefined
 
@@ -59,7 +60,10 @@ export function remoteDurableActive(): boolean {
   return remoteDurableEnabled() && durableTicketProvider() !== null
 }
 
-export function ioStateFor(): IoState {
+export function ioStateFor(engine?: SessionEngine): IoState {
+  // 会话引擎闸：magpie=纯本地车道——泵行住 localCas 由本地 tick 扫，
+  // 不触远端 durable（戳记会话的一切行只住自己车道，MN03 引擎裁决）。
+  if (engine === 'magpie') return localCas
   const t = durableTicketProvider()
   if (t === null || !remoteDurableEnabled()) return localCas
   if (t.key !== cachedRemoteKey) {

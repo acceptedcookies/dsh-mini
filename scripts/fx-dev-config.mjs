@@ -1,12 +1,16 @@
 // 由 .local.development.json 生成 services/fx/dev-config.ts（gitignored）。
 // 旋钮（localRuntimeRoute）真源在 app.json["dsh"].localRuntimeRoute，此处镜像进 dev-config 作 fallback。
 // 用法: node scripts/fx-dev-config.mjs
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const cfg = JSON.parse(readFileSync(join(root, ".local.development.json"), "utf8"));
+
+// 本地开发指针：仓库根 `.dev-magpie` 存在 → 前端出现「本地引擎 · magpie」选项。
+// 打包不含指针（packOptions.ignore）→ release/真机只见 nano-agent（BYOK）。
+const magpieDev = existsSync(join(root, ".dev-magpie"));
 
 // 云端密钥面（gitignored）：WX_CLOUD_ENV_ID 优先于 .local.development.json 的 cloud.env_id
 let envFile = {};
@@ -63,6 +67,8 @@ export const model = ${JSON.stringify(p.model)}
 export const route: 'local' | 'cloud' | 'cloud-sim' = ${JSON.stringify(appRoute)}
 /** fxLegacy 旋钮镜像（同上）：真源 app.json["dsh"].fxLegacy。 */
 export const fxLegacy = ${JSON.stringify(appFxLegacy)}
+/** 本地开发指针镜像：真源仓库根 .dev-magpie 文件存在性（打包不含→false）。 */
+export const magpieDev = ${JSON.stringify(magpieDev)}
 /** 本地模拟微信云端端点（dev 面）。 */
 export const sim = ${JSON.stringify({ baseUrl: sim.base_url ?? "http://127.0.0.1:3426" }, null, 1)}
 /** 真微信云端端点：env_id + 云托管 proxy https。 */
