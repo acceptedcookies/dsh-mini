@@ -8,23 +8,48 @@
 
   <scroll-view class="rp-body" scroll-y enhanced show-scrollbar="{{false}}">
     <block wx:if="{{active === 'files'}}">
-      <view class="rp-head">
-        <text class="rp-path mono">workspace</text>
+      <view class="rp-nav">
+        <view wx:if="{{!connected && navPath !== '/'}}" class="rp-action rp-back" bindtap="onNavBack">
+          <dsh-icon name="chevron-left-outline" theme="{{theme}}" size="{{16}}" />
+        </view>
+        <view class="rp-nav-main">
+          <text class="rp-nav-path mono">{{connected ? 'workspace' : navPath}}</text>
+          <text class="rp-nav-lane">{{connected ? '云端 nano 工作区 · 只读' : '本地 VFS · 五根'}}</text>
+        </view>
         <view class="rp-action" bindtap="refresh">
           <dsh-icon name="refresh-outline" theme="{{theme}}" size="{{14}}" />
         </view>
       </view>
-      <view wx:if="{{loading}}" class="rp-note">正在读取工作区文件…</view>
-      <view wx:elif="{{error}}" class="rp-note rp-error">{{error}}</view>
-      <view wx:elif="{{!files.length}}" class="rp-empty">
-        <text class="rp-empty-title">工作区没有文件</text>
-        <text class="rp-empty-copy">{{connected ? '当前会话的 workspace 为空。' : '登录 nano-agent 后显示真实工作区文件。'}}</text>
+      <view wx:if="{{loading || navLoading}}" class="rp-note">正在读取工作区文件…</view>
+      <view wx:elif="{{error || navErr}}" class="rp-note rp-error">{{error || navErr}}</view>
+      <view wx:elif="{{!fileRows.length}}" class="rp-empty">
+        <text class="rp-empty-title">{{connected ? '工作区没有文件' : '目录为空'}}</text>
+        <text class="rp-empty-copy">{{connected ? '当前会话的 workspace 为空。' : '此目录下没有条目。'}}</text>
       </view>
-      <view wx:else class="rp-tree">
-        <view wx:for="{{files}}" wx:key="path" class="tree-row tree-file">
-          <dsh-icon name="list-pen-outline" theme="{{theme}}" size="{{14}}" />
-          <text class="tree-name">{{item.path}}</text>
-          <text class="tree-size">{{item.size}}</text>
+      <view wx:else class="fm-list">
+        <view
+          wx:for="{{fileRows}}"
+          wx:key="path"
+          class="fm-row"
+          data-path="{{item.path}}"
+          data-kind="{{item.kind}}"
+          bindtap="onRowTap"
+        >
+          <dsh-icon class="fm-icon" name="{{item.icon}}" theme="{{theme}}" size="{{18}}" />
+          <view class="fm-main">
+            <text class="fm-name">{{item.name}}</text>
+            <text wx:if="{{item.meta}}" class="fm-meta">{{item.meta}}</text>
+          </view>
+          <text wx:if="{{item.syncLabel}}" class="fm-badge fm-badge-{{item.syncState}}">{{item.syncLabel}}</text>
+          <view
+            wx:if="{{item.kind === 'file'}}"
+            class="fm-menu"
+            data-path="{{item.path}}"
+            catchtap="onRowMenu"
+          >
+            <dsh-icon name="ellipsis-outline" theme="{{theme}}" size="{{16}}" />
+          </view>
+          <dsh-icon wx:else class="fm-chev" name="chevron-right-outline" tone="tertiary" theme="{{theme}}" size="{{13}}" />
         </view>
       </view>
     </block>

@@ -65,6 +65,12 @@ function pointers(): Record<string, SyncPointer> {
   return v !== '' && v !== undefined ? v : {}
 }
 
+/** 文件级同步指针只读面——文件管理器「本地/云端/待同步」徽标真源
+ *  （与 session-ptr 同语义：指针是消费回执，远端行才是真源）。 */
+export function vfsSyncMap(): Record<string, SyncPointer> {
+  return pointers()
+}
+
 function writePointers(map: Record<string, SyncPointer>): void {
   wx.setStorageSync(SYNC_KEY, map)
 }

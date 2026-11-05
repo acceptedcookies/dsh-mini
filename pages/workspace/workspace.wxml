@@ -344,6 +344,7 @@
     loading="{{rightLoading}}"
     error="{{rightError}}"
     connected="{{nanoConnected}}"
+    session-id="{{currentId}}"
     bind:select="selectRightTab"
     bind:refresh="refreshRightPanel"
     bind:close="closeRightPanel"
