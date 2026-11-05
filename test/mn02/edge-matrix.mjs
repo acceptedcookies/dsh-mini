@@ -254,20 +254,27 @@ export const vfsRemoteFor = () => remote
   const rmani = JSON.parse(Buffer.from(rm.body.body_b64, 'base64').toString())
   check('E8:manifest 创建竞态双 sid 双活', rmani.sessions.includes('sess-x') && rmani.sessions.includes('sess-y'), JSON.stringify(rmani.sessions))
 
-  // claim 心跳：claimTtlMs=300 + 慢 tool（500ms）→ turn 内续约，fenced 不出现
-  const cas = mkCas('o1')
+  // claim 心跳（审查三轮重写：结构性证据非时间面）——claimTtlMs=300 + 慢 tool(500ms)，
+  // 远端 CAS 每调用 ~百 ms，步边界必然越过 70% 续窗。claim 键 putCas 计数：
+  // 初始写恒=1，有续约≥2——expires 阈值断言被远端延迟噪声架空，写次数不可伪造。
+  const baseCas = mkCas('o1')
+  let claimWrites = 0
+  const cas = {
+    ...baseCas,
+    putCas: async (key, body, cond) => {
+      const r = await baseCas.putCas(key, body, cond)
+      if (key.includes('/claims/')) claimWrites += 1
+      return r
+    },
+  }
   let slow = 0
   const hbIo = {
     state: cas,
     llm: async () => { slow += 1; return slow === 1 ? { toolCalls: [{ id: 'c1', name: 'file_read', input: {} }] } : { text: 'hb done' } },
     tool: async () => { await new Promise((r) => setTimeout(r, 500)); return { kind: 'inline-text', text: '{}', byte_length: 2, provenance: { context_layer: 'transcript', context_role: 'assistant', context_property: 'tool-result' } } },
   }
-  const t0 = Date.now()
   const hb = await host.runPump({ kernel, io: hbIo, owner: 'o1', holder: 'hb' }, `${RUN}-hb`, { input: { role: 'user', content: 'x' }, claimTtlMs: 300 })
-  const hbClaim = await post('state/get', { key: `claims/${RUN}-hb` })
-  const hbParsed = hbClaim.status === 200 ? JSON.parse(hbClaim.body.body) : null
-  // 续约证据：claim.expires > t0+300（初始 ttl 写面）即证明 turn 内续约发生
-  check('E8:claim 心跳（长 turn 续约不 fenced）', hb.outcome === 'completed' && hbParsed !== null && Date.parse(hbParsed.expires) > t0 + 300, `outcome=${hb.outcome} exp=${hbParsed?.expires}`)
+  check('E8:claim 心跳（turn 内续约——claim 写≥2）', hb.outcome === 'completed' && claimWrites >= 2, `outcome=${hb.outcome} claimWrites=${claimWrites}`)
 }
 
 // ── E9 模型优先级：设置页显式选择 > enrollment.model（审查 B8 回归）─────
@@ -319,6 +326,78 @@ export const loadDevConfig = () => undefined`)),
 
   wx.removeStorageSync('dsh:model:v2')
   wx.removeStorageSync('dsh:byok-enrollment:v1')
+}
+
+// ── E10 冷启动云车道铸票序（审查三轮 N1 回归）─────────────────────────
+// 死锁原状：authHeaders 缓存只读后，runPump 首个 claim 在 io.llm.ready() 之前——
+// 无票据冷启动/过期后 401 且永无铸票路径。修复：drive 在 runPump 前 ensureDurableTicket()。
+// 本块用真 provider+真 ticket 模块+真 POD1：wx 边界外无 stub——
+// challenge/unlock 走 wx.cloud stub（返真票据），SOTER stub，wx.request→fetch 真发。
+{
+  const devCloud = stub('devp', `export const currentRoute = () => ({ mode: 'cloud', proxyBaseUrl: 'https://proxy.invalid', cloudEnvId: 'e1' })
+export const loadDevConfig = () => ({ providerName: 'byok', upstreamBaseUrl: 'http://u.invalid', providerApiKey: '', model: 'm', allowedModels: [], sim: { baseUrl: '' }, cloud: { envId: 'e1', proxyUrl: 'https://proxy.invalid', durableUrl: '${BASE}' } })`)
+  const mod = await bundle(
+    `import { ensureDurableTicket, ioStateFor } from '${repo}/services/state/provider'
+import { hasFreshTicket } from '${repo}/services/fx/ticket'
+export { ensureDurableTicket, ioStateFor, hasFreshTicket }`,
+    // ticket.ts 从 './dev' 导入 currentRoute——单 'fx/dev$' 滤不到（真实 dev 被
+    // 打进 bundle → issuer 指纹异源 → hasFreshTicket 假阴）。滤器须双吃。
+    [swap('(\\/dev$|^\\.\\/dev$)', devCloud)],
+  )
+  wx.setStorageSync('dsh:byok-enrollment:v1', { provider: 'byok', upstreamBaseUrl: 'http://u.invalid', model: 'm' })
+  let soterCalls = 0
+  wx.cloud = {
+    init: () => {},
+    callFunction: async ({ name, data }) => name === 'unlock' && data.action === 'challenge'
+      ? { result: { challenge: 'c1' } }
+      : { result: { ticket: TICKET, exp: Math.floor(Date.now() / 1000) + 1800 } },
+  }
+  wx.startSoterAuthentication = (o) => { soterCalls += 1; o.success({ resultJSON: '{}', resultJSONSignature: 'sig' }) }
+  wx.request = (o) => {
+    fetch(o.url, { method: o.method, headers: o.header, body: JSON.stringify(o.data) })
+      .then(async (r) => o.success({ statusCode: r.status, data: await r.json().catch(() => null) }))
+      .catch((e) => (o.fail ?? (() => {}))({ errMsg: String(e) }))
+  }
+
+  check('E10:冷启动 hasFreshTicket=false', mod.hasFreshTicket() === false, '')
+  const cas = mod.ioStateFor()
+  let preErr = ''
+  await cas.get('probe-x').catch((e) => { preErr = String(e) })
+  check('E10:铸票前 durable get→401（死锁面复现）', preErr.includes('401'), `err=${preErr.slice(0, 60)}`)
+
+  await mod.ensureDurableTicket()
+  check('E10:ensureDurableTicket→SOTER+unlock 铸票', soterCalls === 1 && mod.hasFreshTicket() === true, `soter=${soterCalls}`)
+
+  const wkey = `dsh-mini/state/probe/${RUN}-e10`
+  const wr = await cas.putCas(wkey, JSON.stringify({ ok: 1 }), { ifNoneMatch: '*' })
+  const rd = await cas.get(wkey)
+  check('E10:铸票后同 cas 获权（put+get roundtrip）', wr.status === 200 && rd !== null && JSON.parse(rd.body).ok === 1, `wr=${wr.status} rd=${rd !== null}`)
+  await cas.del(wkey).catch(() => {})
+  wx.removeStorageSync('dsh:byok-enrollment:v1')
+}
+
+// ── E11 sweepTick 非终态重臂（审查三轮 N8）─────────────────────────────
+// claim-denied 不再同 dueAt 留行（每 tick 满步重跑=烧 llm）：消费原行 + 新 dueTs
+// 退避重建，attempts 记账。重臂行 30s 后到期——alarm/due 用未来 now 面见其存在。
+{
+  const cas = mkCas('o1')
+  const raSid = `${RUN}-ra`
+  // rival 持有 claim（60s 有效）→ sweep 泵同会话必得 claim-denied。
+  await post('state/put-cas', { key: `claims/${raSid}`, body: JSON.stringify({ holder: 'rival-e11', expires: new Date(Date.now() + 60000).toISOString() }), cond: { ifNoneMatch: '*' } })
+  const due = Date.now() - 1000
+  await post('state/put-cas', { key: `alarms/${due}-${raSid}`, body: JSON.stringify({ sessionId: raSid, kind: 'turn-resume', dueAt: due, fence: 'new' }), cond: { ifNoneMatch: '*' } })
+  const io = mkIo(cas).io
+  const ran = await host.sweepTick({ kernel, io, owner: 'o1', holder: 'sw-e11' }, { batchLimit: 10 })
+  const hit = ran.find((r) => r.sessionId === raSid)
+  const nowDue = (await post('alarm/due', { now: Date.now() })).body.keys.filter((k) => k.includes(raSid))
+  const futureDue = (await post('alarm/due', { now: Date.now() + 120000 })).body.keys.filter((k) => k.includes(raSid))
+  check('E11:claim-denied→原行消费+退避重臂', hit?.outcome === 'claim-denied' && nowDue.length === 0 && futureDue.length === 1, `outcome=${hit?.outcome} now=${nowDue.length} future=${futureDue.length}`)
+  // 重臂行消费验体：attempts=1 记账 + dueAt 在未来。
+  // due-list 线键形如 alarms/{due}-{sid}（或全形 alarms/{oid}/{due}-{sid}）——双形剥壳。
+  const ck = futureDue[0]?.replace(/^alarms\//, '').replace(/^[^/]+\//, '')
+  const cl = ck !== undefined ? await post('alarm/claim', { key: ck, holder: 'e11-verify' }) : { status: 0, body: null }
+  const rec = cl.status === 200 ? JSON.parse(cl.body.body) : null
+  check('E11:重臂行 attempts=1+dueAt 退避未来', rec?.attempts === 1 && typeof rec?.dueAt === 'number' && rec.dueAt > Date.now(), `attempts=${rec?.attempts} dueIn=${rec !== null ? rec.dueAt - Date.now() : 'n/a'}ms`)
 }
 
 const failed = results.filter((r) => !r.ok)

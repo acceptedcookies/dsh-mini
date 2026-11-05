@@ -65,7 +65,15 @@ export function createVfsSync(remote: RemoteVfs) {
   async function pushPath(path: string): Promise<string> {
     const row = vfsStore.getRow(path)
     if (row === undefined || !row.committed) throw new VfsError('path-not-found', `push: ${path} 无已提交行`)
-    const bytes = localObjects.read(row.object_key)
+    let bytes: ArrayBuffer
+    try {
+      bytes = localObjects.read(row.object_key)
+    } catch {
+      // 行在字节失（cache 清理/重装）→ 先从远端对象回源补齐再推——
+      // 远端有行时 push 不该 bytes-missing 死锁（审查三轮 N4）。
+      if (!(await hydrate(path))) throw new VfsError('bytes-missing', `push: ${path} 本地字节缺失且远端无对象`)
+      bytes = localObjects.read(row.object_key)
+    }
     await remote.put(`objects/${row.object_key}`, bytes, { mime: row.mime, ifNoneMatch: true }).catch((e) => {
       // if-none-match 412 = 同 hash 已存（content-addressed 幂等）——非失败；
       // 鸭子类型查 code 不用 instanceof（跨 bundle 打包实例不恒等——审查 B8 实证）。
@@ -154,6 +162,18 @@ export function createVfsSync(remote: RemoteVfs) {
     return true
   }
 
+  /** 自愈面：本地行在而对象字节缺失（cache 清理）→ 全量回源补齐——
+   *  缺口不只在当轮 pulled 集内，pullRows 按 updated_ms 跳过的行同样可能缺字节（审查三轮 N4）。 */
+  async function hydrateMissing(): Promise<string[]> {
+    const healed: string[] = []
+    for (const row of vfsStore.allRows()) {
+      if (row.placement === 'local-scratch' || !row.committed) continue
+      if (localObjects.exists(row.object_key)) continue
+      if (await hydrate(row.virtual_path)) healed.push(row.virtual_path)
+    }
+    return healed
+  }
+
   /** workspace 清单 etag 条件写（多设备挂载并发防丢条目）：读→合并→ifMatch 写，
    *  409 冲突重读重试一次；仍冲突如实抛（对手持有中，调用方下一轮 reconcile 自愈）。 */
   async function putManifestCas(safe: string, mutate: (w: { kind: string; name: string; sessions: string[]; created_ms: number }) => void): Promise<void> {
@@ -161,7 +181,13 @@ export function createVfsSync(remote: RemoteVfs) {
       const cur = await remote.get(wsKey(safe))
       let manifest: { kind: string; name: string; sessions: string[]; created_ms: number }
       if (cur !== null) {
-        try { manifest = JSON.parse(dec(cur.bytes)) as typeof manifest } catch { manifest = { kind: 'workspace', name: safe, sessions: [], created_ms: Date.now() } }
+        try {
+          manifest = JSON.parse(dec(cur.bytes)) as typeof manifest
+        } catch {
+          // 坏清单如实 warn——静默重置 sessions:[] 会在下次写时吞掉对手挂载条目（审查三轮）。
+          console.warn(`[remote-sync] workspace ${safe} 清单坏行——按空清单合并`)
+          manifest = { kind: 'workspace', name: safe, sessions: [], created_ms: Date.now() }
+        }
       } else {
         manifest = { kind: 'workspace', name: safe, sessions: [], created_ms: Date.now() }
       }
@@ -199,7 +225,13 @@ export function createVfsSync(remote: RemoteVfs) {
     })
     // 本地投影与远端清单对齐（含对手条目）——挂载表是投影非真源。
     const cur = await remote.get(wsKey(safe))
-    const sessions = cur !== null ? ((JSON.parse(dec(cur.bytes)) as { sessions?: string[] }).sessions ?? []) : []
+    let sessions: string[] = []
+    try {
+      sessions = cur !== null ? ((JSON.parse(dec(cur.bytes)) as { sessions?: string[] }).sessions ?? []) : []
+    } catch {
+      // 清单读回坏行不炸挂载流程——行已写、投影按空 sessions 落（审查三轮）。
+      console.warn(`[remote-sync] workspace ${safe} 清单读回坏行——投影落空 sessions`)
+    }
     const mount: MountRow = { name: safe, workspace: safe, sessions, created_ms: vfsStore.getMount(safe)?.created_ms ?? Date.now() }
     vfsStore.putMount(mount)
     return mount
@@ -238,7 +270,7 @@ export function createVfsSync(remote: RemoteVfs) {
     return [...names]
   }
 
-  return { syncedMap, pushPath, pushAll, pushRemove, pullRows, hydrate, createWorkspace, mountSession, pullWorkspaces }
+  return { syncedMap, pushPath, pushAll, pushRemove, pullRows, hydrate, hydrateMissing, createWorkspace, mountSession, pullWorkspaces }
 }
 
 export type VfsSync = ReturnType<typeof createVfsSync>

@@ -141,6 +141,7 @@ export interface AlarmRecord {
   kind: string // 'turn-resume' 等
   dueAt: number // epoch ms
   fence: string // 写入时 state etag 或 'new'
+  attempts?: number // 非终态重臂计数（sweepTick 退避记账，封顶防无界烧）
 }
 
 // ── pump 出入参 ───────────────────────────────────────────────────────

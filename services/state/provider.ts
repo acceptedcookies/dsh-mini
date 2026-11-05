@@ -11,7 +11,7 @@ import { localCas } from './local-cas'
 import { createRemoteCas } from './remote-cas'
 import { createRemoteVfs, type RemoteVfs } from '../vfs/remote'
 import { createVfsSync, type VfsSync } from '../vfs/remote-sync'
-import { createTicketProvider } from '../fx/ticket'
+import { createTicketProvider, hasFreshTicket } from '../fx/ticket'
 import { loadDevConfig, currentRoute } from '../fx/dev'
 import { readEnrollment } from '../fx/enrollment'
 import { DSH_MINI_BASE_URL } from '../config'
@@ -66,6 +66,16 @@ export function ioStateFor(): IoState {
     })
   }
   return cachedRemote!
+}
+
+/** 前台铸票面：用户手势上下文（prompt/drive）调用——云 durable 车道无活票据时
+ *  ready() 走 challenge→SOTER→unlock 铸票（enrollment 缺失→「未注入密钥」如实报错）。
+ *  sharedTicket 模块级共享——此处铸成同时覆盖 remoteCas 与 io.llm 双车道（审查三轮 N1）。 */
+export async function ensureDurableTicket(): Promise<void> {
+  if (!remoteDurableEnabled() || hasFreshTicket()) return
+  const t = durableTicketProvider()
+  if (t === null) return
+  await t.provider.ready()
 }
 
 /** 远端 vfs 客户端句柄：cloud 路由且开关开 → RemoteVfs；否则 null（诚实降级）。 */

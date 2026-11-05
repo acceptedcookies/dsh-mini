@@ -18,6 +18,10 @@ export interface SessionPointer {
   last_seq: number
   item_count: number
   updated_ms: number
+  /** 累计永久丢行 seq（overflow 等不可重试面）——丢失回执不静默。 */
+  dropped_seqs?: number[]
+  /** 异设备同 seq 冲突登记（远端行保留）。 */
+  conflict_seqs?: number[]
 }
 
 export function readSessionPointer(sessionId: string): SessionPointer | undefined {
@@ -41,11 +45,17 @@ export interface TranscriptSyncReport {
   pushed: number
   skipped: number
   lastSeq: number
+  /** 永久丢行（>8MB 等不可重试面）——指针记 dropped_seqs 作丢失回执（不静默）。 */
+  dropped: Array<{ seq: number; error: string }>
+  /** 异设备同 seq 内容分歧——远端行保留不覆盖，如实登记（多设备写面）。 */
+  conflicts: Array<{ seq: number }>
 }
 
 /**
  * 增量上行：本地指针水位之后的 ChatItem 逐行推远端；远端行不可变（按 seq 幂等）。
  * remote lane 缺位 → 返回 null（调用方按 null 降级，不伪造上行）。
+ * 行级故障隔离：overflow（>8MB，永不可成功）记 dropped 后水位照过（不永久卡水位）；
+ * 其余错误整体中止保序重试（瞬时故障下轮 settle 自愈，伪静默丢行不可接受）。
  */
 export async function syncTranscript(sessionId: string, items: ChatItem[], meta: { model?: string } = {}): Promise<TranscriptSyncReport | null> {
   const remote = vfsRemoteFor()
@@ -55,10 +65,28 @@ export async function syncTranscript(sessionId: string, items: ChatItem[], meta:
   let pushed = 0
   let skipped = 0
   let lastSeq = watermark
+  const dropped: Array<{ seq: number; error: string }> = []
+  const conflicts: Array<{ seq: number }> = []
   for (const item of items) {
     if (item.seq <= watermark) { skipped += 1; continue }
-    await remote.put(seqKey(sessionId, item.seq), enc(JSON.stringify(item)), { mime: 'application/json' })
-    pushed += 1
+    const body = enc(JSON.stringify(item))
+    try {
+      // ifNoneMatch：同 seq 已有远端行 → 比对内容；一致=同设备幂等重推，
+      // 不一致=异设备 seq 冲突——远端行保留不覆盖并登记（审查三轮 N6）。
+      await remote.put(seqKey(sessionId, item.seq), body, { mime: 'application/json', ifNoneMatch: true })
+      pushed += 1
+    } catch (e) {
+      const code = (e as { code?: string }).code
+      if (code === 'fence-blocked') {
+        const cur = await remote.get(seqKey(sessionId, item.seq))
+        if (cur !== null && dec(cur.bytes) === JSON.stringify(item)) { skipped += 1 }
+        else conflicts.push({ seq: item.seq })
+      } else if (code === 'overflow') {
+        dropped.push({ seq: item.seq, error: (e as Error).message })
+      } else {
+        throw e
+      }
+    }
     lastSeq = item.seq
   }
   if (lastSeq > watermark || ptr === undefined) {
@@ -69,9 +97,11 @@ export async function syncTranscript(sessionId: string, items: ChatItem[], meta:
     writeSessionPointer(sessionId, {
       remote_prefix: `transcripts/${sessionId}/`,
       last_seq: lastSeq, item_count: items.length, updated_ms: Date.now(),
+      ...(dropped.length > 0 ? { dropped_seqs: [...(ptr?.dropped_seqs ?? []), ...dropped.map((d) => d.seq)] } : {}),
+      ...(conflicts.length > 0 ? { conflict_seqs: conflicts.map((c) => c.seq) } : {}),
     })
   }
-  return { pushed, skipped, lastSeq }
+  return { pushed, skipped, lastSeq, dropped, conflicts }
 }
 
 const dec = (b: ArrayBuffer): string => decodeUtf8(new Uint8Array(b))

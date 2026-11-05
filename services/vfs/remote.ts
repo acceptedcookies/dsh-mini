@@ -100,19 +100,21 @@ export function createRemoteVfs(deps: RemoteVfsDeps) {
       return (r.body as { removed: boolean }).removed === true
     },
 
-    /** 前缀列举：prefix 为 `vfs/` 内相对前缀；start_after 续页（服务端 truncated/next_token）。 */
+    /** 前缀列举：prefix 为 `vfs/` 内相对前缀；start_after 续页（服务端 truncated/next_token）。
+     *  无进度即断——服务端恒回同 next_token（畸形面）不无限续页（审查三轮 N10）。 */
     async list(prefix: string, limit = 500, startAfter?: string): Promise<string[]> {
       const keys: string[] = []
       let token = startAfter
-      do {
+      for (;;) {
         const r = await call('/v1/vfs/list', { prefix: `vfs/${prefix}`, limit, start_after: token })
         if (r.status !== 200) return err('vfs/list', r)
         const b = r.body as { keys: string[]; truncated?: boolean; next_token?: string }
         for (const k of b.keys ?? []) {
           if (k.startsWith('vfs/')) keys.push(k.slice('vfs/'.length))
         }
-        token = b.truncated === true ? b.next_token : undefined
-      } while (token !== undefined)
+        if (b.truncated !== true || b.next_token === undefined || b.next_token === token) break
+        token = b.next_token
+      }
       return keys
     },
 

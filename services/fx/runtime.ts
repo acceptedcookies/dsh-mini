@@ -12,7 +12,7 @@ import { createFxRuntime } from './fx-host'
 import { createWxEnv } from './env'
 import { resolveRoute } from './route'
 import { loadDevConfig } from './dev'
-import { createTicketProvider } from './ticket'
+import { createTicketProvider, hasFreshTicket, type TicketProvider } from './ticket'
 import { markdownToHtml, plainText } from '../markdown'
 import { storage } from '../storage'
 import { randomId } from '../../utils/uuid'
@@ -125,6 +125,7 @@ export class FxLocalRuntime {
   private readonly pendingPermissions = new Map<string, PendingPermission>()
   private wasm: WasmRuntime | undefined
   private client: AcpClient | undefined
+  private ticket: TicketProvider | undefined
   private coreStarting: Promise<void> | undefined
   private coreFailed: Error | undefined
   /** 在飞轮次的 dsh session——host-import 工具调用无 sessionId 时的兜底作用域。 */
@@ -271,6 +272,7 @@ export class FxLocalRuntime {
       const cfg = devConfig!
       const route = resolveRoute(cfg)
       const ticket = createTicketProvider(route, cfg)
+      this.ticket = ticket
       // ready() 解析凭证来源：local=dev 直连；sim=注入记录优先/dev 兜底自动注入；cloud=必须用户注入。
       const source = await ticket.ready()
       const fxEnv = { ...cfg.fxEnv }
@@ -366,6 +368,10 @@ export class FxLocalRuntime {
   private async runTurn(dshId: string, blocks: AcpPromptBlock[]): Promise<void> {
     const s = this.require(dshId)
     await this.ensureCore()
+    // 票据过期重铸：core 常驻跨多轮，ensureCore 只在首轮铸票——票据 ~30min TTL
+    // 过期后 env.fetch 的 authHeaders 永久空头上行=每轮 401 死锁（审查三轮 N2）。
+    // runTurn=用户手势上下文，ready() 允许 SOTER；local 车道 ready() 为纯解析零成本。
+    if (this.ticket !== undefined && !hasFreshTicket()) await this.ticket.ready()
     const acpId = await this.ensureAcpSession(dshId)
     const turn: TurnState = { attemptId: randomId('attempt'), text: '', thinking: '', deltaIndex: 0, toolItemByCallId: new Map() }
     this.turns.set(acpId, turn)

@@ -17,7 +17,7 @@ import type {
 import { markdownToHtml, plainText } from '../markdown'
 import { storage } from '../storage'
 import { randomId } from '../../utils/uuid'
-import { ioStateFor } from '../state/provider'
+import { ioStateFor, ensureDurableTicket } from '../state/provider'
 import { hasFreshTicket } from '../fx/ticket'
 import { resolveImageParts } from './images'
 import { syncTranscript, dropTranscript } from './transcript'
@@ -144,8 +144,13 @@ export class KernelMiniRuntime {
         const parts = await resolveImageParts(images)
         const stored = s.items[s.items.length - 1]
         if (stored.kind === 'user_message' && stored.id === messageId) {
-          stored.imageParts = parts
-          this.persist()
+          // 只沉淀 https:/http: 形态——data: 内联是数 MB base64，持久化爆
+          // wx.storage 10MB 配额并喂大 transcript 行（historyMessages 同样只认远端形态）。
+          const durableParts = parts.filter((p) => p.url.startsWith('https://') || p.url.startsWith('http://'))
+          if (durableParts.length > 0) {
+            stored.imageParts = durableParts
+            this.persist()
+          }
         }
         input = {
           role: 'user',
@@ -187,6 +192,16 @@ export class KernelMiniRuntime {
     if (bundle === undefined) {
       this.running.delete(sessionId)
       this.fail(sessionId, 'kernel-unavailable', 'kernel 分包不可加载')
+      return
+    }
+    // 云车道票据前置：authHeaders 已改缓存只读（不再铸票）——claim 是 turn 内首个
+    // remote 调用，必须先 ready() 铸票，否则冷启动/票据过期后每轮 host-error 401
+    // 且永无恢复路径（审查三轮 N1 死锁）。prompt=用户手势上下文允许 SOTER。
+    try {
+      await ensureDurableTicket()
+    } catch (e) {
+      this.running.delete(sessionId)
+      this.fail(sessionId, 'ticket-required', e instanceof Error ? e.message : String(e))
       return
     }
     let assistantText = ''

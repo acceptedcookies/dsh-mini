@@ -10,15 +10,18 @@ import { hasFreshTicket, onTicketMinted } from './services/fx/ticket'
  *  写/删 → fire-and-forget 推送（失败 warn 不阻塞本地写——reconcile 兜底自愈）；
  *  reconcile：远端清单/行下拉（updated_ms 大者赢）→ 本地行推送（指针增量）。 */
 function wireRemoteMirror(): void {
-  const sync = vfsSyncFor()
-  if (sync === null) return
   let inFlight: Promise<void> | undefined
   const doReconcile = async (): Promise<void> => {
+    // 句柄每次重解析——remote-durable 开关/配置翻转即时生效，不吃启动时陈旧快照（审查三轮）。
+    const s = vfsSyncFor()
+    if (s === null) return
     try {
-      await sync.pullWorkspaces()
-      const pulled = await sync.pullRows()
-      for (const p of pulled) await sync.hydrate(p)
-      const rep = await sync.pushAll()
+      await s.pullWorkspaces()
+      const pulled = await s.pullRows()
+      for (const p of pulled) await s.hydrate(p)
+      // 行在字节失（cache 清理）不只在 pulled 集内——全量缺失面自愈（审查三轮 N4）。
+      await s.hydrateMissing()
+      const rep = await s.pushAll()
       if (rep.failed.length > 0) console.warn('[vfs-mirror] reconcile 残留失败:', rep.failed)
     } catch (e) {
       console.warn('[vfs-mirror] reconcile 失败（远端不可达——写路径仍先推）:', e instanceof Error ? e.message : e)
@@ -32,7 +35,9 @@ function wireRemoteMirror(): void {
   }
   setVfsMirrorHook((path, kind) => {
     if (!hasFreshTicket()) return
-    const p = kind === 'write' ? sync.pushPath(path) : sync.pushRemove(path)
+    const s = vfsSyncFor()
+    if (s === null) return
+    const p = kind === 'write' ? s.pushPath(path) : s.pushRemove(path)
     p.then(() => reconcile()).catch((e) => console.warn(`[vfs-mirror] ${kind} ${path} 推送失败（reconcile 兜底）:`, e instanceof Error ? e.message : e))
   })
   onTicketMinted(() => reconcile())

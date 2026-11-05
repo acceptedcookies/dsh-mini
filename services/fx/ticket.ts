@@ -4,6 +4,7 @@
  * bio 门禁与注入面见 ./enrollment.ts（业主裁决：无 bio 禁止 apikey 注入）。
  */
 import type { RouteConfig } from './route'
+import { currentRoute } from './dev'
 import { DSH_MINI_BASE_URL } from '../config'
 import {
   collectBioProof,
@@ -48,18 +49,25 @@ function postJSON(url: string, body: Record<string, unknown>): Promise<Record<st
 const REFRESH_SKEW_MS = 60_000
 
 /** 票据缓存为模块级共享：provider 每请求新建（io.llm/io.fx），实例缓存 = 每请求都重走 bio。
- *  票据 TTL 由 unlock 签发（当前 30min），窗口内复用、过期重验；并发 ensure 去重单飞。 */
-let sharedTicket: { token: string; expMs: number } | undefined
+ *  票据 TTL 由 unlock 签发（当前 30min），窗口内复用、过期重验；并发 ensure 去重单飞。
+ *  iss=签发车道指纹——sim→cloud 翻转不复用异源票据（外域票据送本域=401 噪声+假 hasFreshTicket，审查三轮 N7）。 */
+let sharedTicket: { token: string; expMs: number; iss: string } | undefined
 let inflight: Promise<string> | undefined
 
-function cachedTicket(): string | undefined {
-  return sharedTicket !== undefined && sharedTicket.expMs - REFRESH_SKEW_MS > Date.now() ? sharedTicket.token : undefined
+const issuerOf = (route: RouteConfig): string =>
+  `${route.mode}|${route.simBaseUrl ?? ''}|${route.proxyBaseUrl ?? ''}|${route.cloudEnvId ?? ''}`
+
+function cachedTicket(iss?: string): string | undefined {
+  if (sharedTicket === undefined) return undefined
+  if (iss !== undefined && sharedTicket.iss !== iss) return undefined
+  return sharedTicket.expMs - REFRESH_SKEW_MS > Date.now() ? sharedTicket.token : undefined
 }
 
 /** 有效票据已缓存（不触发 bio）：后台面（launch/tick）用它门控远端操作——
- *  无票据时不得静默发起 SOTER（生物识别须用户手势上下文，审查 B8）。 */
+ *  无票据时不得静默发起 SOTER（生物识别须用户手势上下文，审查 B8）。
+ *  按当前路由 issuer 判定——异源缓存票据不算「有效」（否则门控放行后请求仍 401）。 */
 export function hasFreshTicket(): boolean {
-  return cachedTicket() !== undefined
+  return cachedTicket(issuerOf(currentRoute())) !== undefined
 }
 
 /** 票据铸成监听：后台面（reconcile/镜像跳过的上行）在票据落地后自愈。 */
@@ -107,7 +115,7 @@ class SimTicketProvider implements TicketProvider {
   }
 
   private async ensure(): Promise<string> {
-    const hit = cachedTicket()
+    const hit = cachedTicket(issuerOf(this.route))
     if (hit !== undefined) return hit
     inflight ??= (async () => {
       const challenge = await issueChallenge(this.route, this.cfg)
@@ -117,7 +125,7 @@ class SimTicketProvider implements TicketProvider {
         result_json: proof.result_json,
         result_signature: proof.result_signature,
       })) as { ticket: string; exp: number }
-      sharedTicket = { token: u.ticket, expMs: u.exp * 1000 }
+      sharedTicket = { token: u.ticket, expMs: u.exp * 1000, iss: issuerOf(this.route) }
       fireMinted()
       return u.ticket
     })().finally(() => {
@@ -155,7 +163,7 @@ class CloudTicketProvider implements TicketProvider {
   }
 
   private async ensure(): Promise<string> {
-    const hit = cachedTicket()
+    const hit = cachedTicket(issuerOf(this.route))
     if (hit !== undefined) return hit
     inflight ??= (async () => {
       const challenge = await issueChallenge(this.route, this.cfg)
@@ -167,7 +175,7 @@ class CloudTicketProvider implements TicketProvider {
         result_signature: proof.result_signature,
       })
       if (typeof u.ticket !== 'string') throw new Error(u.error ?? 'unlock 失败')
-      sharedTicket = { token: u.ticket, expMs: u.exp * 1000 }
+      sharedTicket = { token: u.ticket, expMs: u.exp * 1000, iss: issuerOf(this.route) }
       fireMinted()
       return u.ticket
     })().finally(() => {
@@ -182,7 +190,7 @@ class CloudTicketProvider implements TicketProvider {
     if (!hit) return {}
     // 数据面只读缓存票据——不触发 ensure()（铸票=SOTER，须用户手势上下文）；
     // 后台面（镜像/转录/reconcile）无票据时收到空头→401 如实失败，不静默弹生物识别（审查 B8）。
-    const cached = cachedTicket()
+    const cached = cachedTicket(issuerOf(this.route))
     if (cached === undefined) return {}
     return { Authorization: `Bearer ${cached}` }
   }
