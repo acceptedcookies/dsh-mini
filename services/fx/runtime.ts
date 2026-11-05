@@ -209,6 +209,10 @@ export class FxLocalRuntime {
     // 该会话的未决 permission 以 null 收——否则 wasm 侧 request_permission 永挂
     // （cancel() 同构，删除即隐式全拒，审查八轮 D9）。
     this.resolveSessionApprovals(id)
+    // 已删会话的楔死轮同样占链头——同武装取消看守（审查十二轮 D4）。
+    this.armCancelWatchdog(id)
+    if (this.activeDshId === id) this.activeDshId = undefined
+    if (this.acpActive !== undefined && this.acpActive.dshId === id) this.acpActive = undefined
     this.sessions.delete(id)
     this.acpSessions.delete(id)
     this.turnEpoch.delete(id)
@@ -235,7 +239,12 @@ export class FxLocalRuntime {
       this.persist()
     } catch (e) {
       // persist/quota 抛错不得滞留 running——否则该会话此后永不可 prompt（F5-1 同族）。
+      // append 先 push 后 persist：抛错时消息行已在 items 而 append 事件未发——
+      // 回滚该行保持转录/UI 一致（审查十二轮 D8）。
       s.summary.status = 'idle'
+      const idx = s.items.findIndex((i) => i.id === messageId)
+      if (idx !== -1) s.items.splice(idx, 1)
+      s.summary.messageCount = s.items.length
       throw e
     }
     this.emit({ type: 'status', sessionId: id, state: 'running', step: 1 })
@@ -246,6 +255,12 @@ export class FxLocalRuntime {
       // 已删会话的迟到失败不发全局横幅（删除竞态，UI 审查 F5——与 kernel fail 同构）。
       if (this.sessions.get(id) === undefined) {
         console.warn(`[fx-runtime] turn_failed on deleted session ${id}:`, error instanceof Error ? error.message : error)
+        return
+      }
+      // 换代后的迟到失败（cancel+重发/看守强收）——新轮已接管 status，
+      // 旧轮不得覆写 error 或弹幽灵横幅（审查十二轮 D1b）。
+      if (this.turnEpoch.get(id) !== epoch) {
+        console.warn(`[fx-runtime] stale turn_failed suppressed for ${id}:`, error instanceof Error ? error.message : error)
         return
       }
       s.summary.status = 'error'
@@ -264,20 +279,9 @@ export class FxLocalRuntime {
     // 不得被旧轮 status 检查误放行/误吞，审查十一轮 D11-1）。
     this.turnEpoch.set(id, (this.turnEpoch.get(id) ?? 0) + 1)
     this.resolveSessionApprovals(id)
-    // cancel 无应答看守：session/cancel 是 fire-and-forget——wedged 核心不应答时
-    // prompt pending 永不结算、turnChain 头阻塞拖死全会话队列（审查十一轮 D11-3）。
-    // 超时不结算即 restartCore 强收（拒 pending+abort wedged wasm），
-    // 诚实落 turn_failed 而非永恒 running，链头解除、次轮重建新核。
-    if (acpId !== undefined) {
-      setTimeout(() => {
-        if (this.turns.has(acpId)) {
-          console.warn(`[fx-runtime] 会话 ${acpId} 取消未应答——restartCore 强收`)
-          // dispose 仅拒 pending，wedged wasm 存活会让下一轮再楔——restartCore
-          // 全量强收（拒 pending+abort wasm+换代+清 acpSessions），次轮重建新核。
-          this.restartCore()
-        }
-      }, 20_000)
-    }
+    // 取消无应答看守——令牌代校验：空会话 cancel 不武装，已结算轮的令牌不
+    // 会误判新轮（审查十二轮 D2/D5）。
+    this.armCancelWatchdog(id)
     s.summary.status = 'idle'
     this.emit({ type: 'status', sessionId: id, state: 'idle' })
     this.emit({ type: 'error', code: 'cancelled', message: '已停止当前轮次', retryable: false })
@@ -308,6 +312,7 @@ export class FxLocalRuntime {
 
   clear(): void {
     this.sessions.clear()
+    this.turnEpoch.clear()
     this.restartCore()
     storage.clearConversations()
   }
@@ -317,6 +322,7 @@ export class FxLocalRuntime {
     // 世代号递增——ensureCore 在途 IIFE 检出过期后不落地 stale-model 核（审查八轮 D4）。
     this.coreGen += 1
     this.acpSessions.clear()
+    this.acpActive = undefined
     // 未决 permission 以 null 收（与 cancel 同构）——否则 wasm 侧 request_permission
     // 等答复永挂、turn 卡 running；dispose 拒绝 acp pending 使 client.prompt 的
     // await 被拒而非死等（wasm.abort 后响应永不至）。approval.cancel 同步收 UI 卡（审查九轮 D9a）。
@@ -422,13 +428,23 @@ export class FxLocalRuntime {
     }
   }
 
+  /** wasm 侧 libfx 会话为单活动槽：`libfx/new` 销毁旧活动会话（非挂起），
+   *  `session/prompt` 打非活动 id 即 "Session is not active"。acpSessions 多会话
+   *  映射若盲信 known 会把已被销毁的槽当活——交替会话后旧会话永砖（审查十二轮
+   *  D3）。acpActive 记当前真活动槽；换会话=旧槽已死，诚实重建。 */
+  private acpActive: { dshId: string; acpId: string } | undefined
+
   private async ensureAcpSession(dshId: string): Promise<string> {
-    const known = this.acpSessions.get(dshId)
-    if (known !== undefined) return known
+    if (this.acpActive !== undefined && this.acpActive.dshId === dshId) return this.acpActive.acpId
     // 宿主侧铸造 acpId——wasm 若按序铸号，restartCore 后新核可能重发同号，
     // 使 cancel 看守的 turns.has(acpId) 误判健康新轮为悬死旧轮（审查十一轮自审）。
     const acpId = await this.client!.newSession(randomId('acp'))
+    // 本次 new 已销毁旧活动会话——其映射是死引用，诚实清除。
+    if (this.acpActive !== undefined && this.acpSessions.get(this.acpActive.dshId) === this.acpActive.acpId) {
+      this.acpSessions.delete(this.acpActive.dshId)
+    }
     this.acpSessions.set(dshId, acpId)
+    this.acpActive = { dshId, acpId }
     return acpId
   }
 
@@ -479,10 +495,32 @@ export class FxLocalRuntime {
    *  审查十一轮 D11-1）。 */
   private readonly turnEpoch = new Map<string, number>()
 
+  /** 在飞轮次令牌（dshId→token）——cancel/remove 的 20s 无结算看守以令牌校验轮代。
+   *  turns map 只有 acpId 槽位：ensureCore/ready/newSession 阶段楔死无登记（盲），
+   *  且同槽复用无法区分轮代（误杀健康新轮）；令牌自 runTurnInner 入口即存、
+   *  双终局清（审查十二轮 D2/D5）。 */
+  private readonly inFlightTurns = new Map<string, unknown>()
+
+  /** 取消无应答看守：session/cancel fire-and-forget——任何阶段楔死 20s 未结算
+   *  即 restartCore 全量强收（拒 pending+abort wedged wasm+换代+清 acpSessions），
+   *  turnChain 链头解除、次轮重建新核（审查十一轮 D11-3/十二轮 D4）。 */
+  private armCancelWatchdog(id: string): void {
+    const victim = this.inFlightTurns.get(id)
+    if (victim === undefined) return
+    setTimeout(() => {
+      if (this.inFlightTurns.get(id) === victim) {
+        console.warn(`[fx-runtime] 会话 ${id} 轮次取消未结算——restartCore 强收`)
+        this.restartCore()
+      }
+    }, 20_000)
+  }
+
   private runTurn(dshId: string, blocks: AcpPromptBlock[], epoch: number): Promise<void> {
     const run = this.turnChain.then(() => {
       const s = this.sessions.get(dshId)
-      if (s === undefined || s.summary.status !== 'running' || this.turnEpoch.get(dshId) !== epoch) return
+      // epoch 为唯一权威闸门：cancel/remove/重发都换代或删会话；status 检查既冗余
+      // 又会把旧轮的迟到状态覆写转化为新轮静默吞没（审查十二轮 D1）。
+      if (s === undefined || this.turnEpoch.get(dshId) !== epoch) return
       return this.runTurnInner(dshId, blocks, epoch)
     })
     this.turnChain = run.catch(() => { /* 单轮失败不断链 */ })
@@ -491,45 +529,58 @@ export class FxLocalRuntime {
 
   private async runTurnInner(dshId: string, blocks: AcpPromptBlock[], epoch: number): Promise<void> {
     const s = this.require(dshId)
-    await this.ensureCore()
-    // 票据过期重铸：core 常驻跨多轮，ensureCore 只在首轮铸票——票据 ~30min TTL
-    // 过期后 env.fetch 的 authHeaders 永久空头上行=每轮 401 死锁（审查三轮 N2）。
-    // runTurn=用户手势上下文，ready() 允许 SOTER；local 车道 ready() 为纯解析零成本。
-    if (this.ticket !== undefined && !hasFreshTicket()) await this.ticket.ready()
-    // ready() 重铸可达 challenge/SOTER 秒级——窗内 restartCore 清 client 后
-    // 直进 ensureAcpSession 会撞 client!.newSession TypeError（审查十一轮 D11-2）。
-    if (this.client === undefined) throw new Error('fx core 已重启')
-    const acpId = await this.ensureAcpSession(dshId)
-    // 出队后至 prompt 注册间的全部 await（ensureCore/ready/ensureAcpSession）窗口内
-    // cancel+重发换代——若只查 status 会见到新轮的 running 而复活旧轮（D11-1 同族）。
-    if (this.turnEpoch.get(dshId) !== epoch) return
-    const turn: TurnState = { attemptId: randomId('attempt'), text: '', thinking: '', deltaIndex: 0, toolItemByCallId: new Map() }
-    this.turns.set(acpId, turn)
-    // wasm host-import 通道（fx_host_tool_call）不带 sessionId——单活动会话下以在飞轮次兜底。
-    this.activeDshId = dshId
+    // 令牌自入口即存——ensureCore/ready/newSession 任一阶段楔死皆在看守视野内。
+    const token: unknown = {}
+    this.inFlightTurns.set(dshId, token)
     try {
-      await this.client!.prompt(acpId, blocks)
+      await this.ensureCore()
+      if (this.turnEpoch.get(dshId) !== epoch) return
+      // 票据过期重铸：core 常驻跨多轮，ensureCore 只在首轮铸票——票据 ~30min TTL
+      // 过期后 env.fetch 的 authHeaders 永久空头上行=每轮 401 死锁（审查三轮 N2）。
+      // runTurn=用户手势上下文，ready() 允许 SOTER；local 车道 ready() 为纯解析零成本。
+      if (this.ticket !== undefined && !hasFreshTicket()) await this.ticket.ready()
+      // ready() 重铸可达 challenge/SOTER 秒级——窗内 restartCore 清 client 后
+      // 直进 ensureAcpSession 会撞 client!.newSession TypeError（审查十一轮 D11-2）。
+      if (this.client === undefined) throw new Error('fx core 已重启')
+      const acpId = await this.ensureAcpSession(dshId)
+      // 出队后至 prompt 注册间的全部 await（ensureCore/ready/ensureAcpSession）窗口内
+      // cancel+重发换代——旧轮不得借新轮 running 复活（审查十一轮自审+D12）。
+      if (this.turnEpoch.get(dshId) !== epoch) return
+      const turn: TurnState = { attemptId: randomId('attempt'), text: '', thinking: '', deltaIndex: 0, toolItemByCallId: new Map() }
+      this.turns.set(acpId, turn)
+      // wasm host-import 通道（fx_host_tool_call）不带 sessionId——单活动会话下以在飞轮次兜底。
+      this.activeDshId = dshId
+      try {
+        await this.client!.prompt(acpId, blocks)
+      } finally {
+        this.turns.delete(acpId)
+        this.activeDshId = undefined
+        // 轮失败/中止在 request_permission 悬于未答时——轮终即该请求永不可答，
+        // 连 UI 卡以 null+cancel 收（审查十一轮 D11-4）。
+        this.resolveSessionApprovals(dshId)
+      }
+      const item: ChatItem = {
+        kind: 'assistant_message',
+        id: randomId('msg'),
+        seq: this.nextSeq(s),
+        text: turn.text,
+        html: markdownToHtml(turn.text),
+        thinking: turn.thinking || undefined,
+      }
+      this.append(dshId, item)
+      // 迟到尾写 epoch 守卫：cancel 后 wasm 以 stopReason:'cancelled' resolve 本 turn——
+      // 若用户已重发（新轮 running），无条件落 idle 会踩掉新轮状态、使其在 dequeue
+      // 被误吞（审查十二轮 D1a）。转录行保留=部分输出如实，仅状态面换代接管。
+      if (this.turnEpoch.get(dshId) === epoch) {
+        s.summary.status = 'idle'
+        s.summary.updatedAt = Date.now()
+        this.emit({ type: 'status', sessionId: dshId, state: 'idle' })
+        this.persist()
+      }
+      this.emit({ type: 'assistant.settle', sessionId: dshId, seq: item.seq, messageId: item.id })
     } finally {
-      this.turns.delete(acpId)
-      this.activeDshId = undefined
-      // 轮失败/中止在 request_permission 悬于未答时——轮终即该请求永不可答，
-      // 连 UI 卡以 null+cancel 收（审查十一轮 D11-4）。
-      this.resolveSessionApprovals(dshId)
+      if (this.inFlightTurns.get(dshId) === token) this.inFlightTurns.delete(dshId)
     }
-    const item: ChatItem = {
-      kind: 'assistant_message',
-      id: randomId('msg'),
-      seq: this.nextSeq(s),
-      text: turn.text,
-      html: markdownToHtml(turn.text),
-      thinking: turn.thinking || undefined,
-    }
-    this.append(dshId, item)
-    s.summary.status = 'idle'
-    s.summary.updatedAt = Date.now()
-    this.emit({ type: 'assistant.settle', sessionId: dshId, seq: item.seq, messageId: item.id })
-    this.emit({ type: 'status', sessionId: dshId, state: 'idle' })
-    this.persist()
   }
 
   private onUpdate(acpId: string, update: AcpUpdate): void {
