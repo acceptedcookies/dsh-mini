@@ -19,6 +19,7 @@ import { storage } from '../storage'
 import { randomId } from '../../utils/uuid'
 import { ioStateFor } from '../state/provider'
 import { resolveImageParts } from './images'
+import { syncTranscript } from './transcript'
 import { kernelUsable, loadKernelAsync } from './kernel-loader'
 import { runPump } from './pump'
 import { createIoTool } from './io/tool'
@@ -163,6 +164,8 @@ export class KernelMiniRuntime {
       return
     }
     let assistantText = ''
+    let deltaIndex = 0
+    const attemptId = randomId('attempt')
     const io: Io = {
       // durable lane：cloud 路由→remoteCas（POD1），local/sim→localCas（provider.ts 裁决）
       state: ioStateFor(),
@@ -170,7 +173,13 @@ export class KernelMiniRuntime {
         // 跨轮历史 prepend（worker runtime-mainline 同构）：kernel turn.messages
         // 只装当前 turn，历史由宿主从 UI 转录本临时前置、不回写 kernel buffer。
         const out = await createIoLlm()([...historyMessages(s), ...messages])
-        if (typeof out.text === 'string' && out.text.length > 0) assistantText += out.text
+        if (typeof out.text === 'string' && out.text.length > 0) {
+          assistantText += out.text
+          // assistant.delta：io.llm 非流式 → delta 粒度=llm_call 步（诚实粒度，
+          // 非 token 流）；index 严格递增供 UI/观测做时序断言。
+          deltaIndex += 1
+          this.emit({ type: 'assistant.delta', sessionId, attemptId, index: deltaIndex, text: out.text })
+        }
         return out
       },
       tool: async (name, args) => {
@@ -225,6 +234,19 @@ export class KernelMiniRuntime {
     this.append(sessionId, item)
     this.emit({ type: 'assistant.settle', sessionId, seq: item.seq, messageId: item.id })
     this.idle(sessionId)
+    void this.syncTranscriptNow(sessionId)
+  }
+
+  /** G5：转录上行（remote lane 在时）；上行失败不拖累会话——warn 登记。 */
+  async syncTranscriptNow(sessionId: string): Promise<unknown> {
+    const s = this.sessions.get(sessionId)
+    if (s === undefined) return null
+    try {
+      return await syncTranscript(sessionId, s.items, { model: storage.getModel() })
+    } catch (e) {
+      console.warn(`[transcript] sync ${sessionId} 失败（会话不受影响）:`, e instanceof Error ? e.message : e)
+      return null
+    }
   }
 
   private idle(sessionId: string): void {
