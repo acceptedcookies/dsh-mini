@@ -141,6 +141,12 @@ const { classifyError, errorBus, reportText, reportSilent } = await bundle(
   check('M20:host-error 无命中→回自身 runtime taxon', c20.code === 'host-error' && c20.category === 'runtime', `code=${c20.code}`)
   const c21 = classifyError({ code: 'session-busy', message: 'io.llm upstream 500: x' })
   check('M21:已知码保 code 仍抽 message status 入诊断', c21.code === 'session-busy' && c21.diagnostics.status === 500, `code=${c21.code} status=${c21.diagnostics.status}`)
+  // MN03-R5：包装码 SPECIFIC 只测 message 不测 code——pump-error 壳码自匹配
+  // 其 SPECIFIC 行不再吞 message 内的真上游身份。
+  const c22 = classifyError({ code: 'pump-error', message: 'io.llm upstream 502: bad gateway' })
+  check('M22:pump-error 壳码不自匹配→message 内 502 让位', c22.code === 'upstream-502' && c22.diagnostics.status === 502, `code=${c22.code}`)
+  const c23 = classifyError({ code: 'pump-error', message: 'pump 步 7 超限放弃' })
+  check('M23:pump-error 无命中→回自身 taxon（不跌 unknown）', c23.code === 'pump-error' && c23.category === 'runtime', `code=${c23.code}`)
 }
 
 // ── bus：surface 路由 + dedupe + cap + 队列 ─────────────────────────

@@ -377,7 +377,10 @@ export class FxLocalRuntime {
       if (this.coreGen !== gen) throw new Error('fx core 已重启')
       const fxEnv = { ...cfg.fxEnv }
       // wasm provider 定义以生效源重建：cloudish 时 base_url 改写为数据面代理（wasm 无感，见 rules/topology-local.md §4）
-      const baseUrl = route.proxyBaseUrl !== undefined ? `${route.proxyBaseUrl}/v1` : source.upstreamBaseUrl
+      // proxyBaseUrl 带 /vN 尾时不再补 /v1——io.llm chatUrl 同款归一（MN03-R5 minor）。
+      const baseUrl = route.proxyBaseUrl !== undefined
+        ? (() => { const b = route.proxyBaseUrl.replace(/\/+$/, ''); return /\/v\d+$/i.test(b) ? b : `${b}/v1` })()
+        : source.upstreamBaseUrl
       fxEnv.FX_PROVIDER = source.provider
       fxEnv.FX_MODEL = source.model
       fxEnv.FX_CONFIGURED_PROVIDERS = JSON.stringify({

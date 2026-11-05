@@ -61,13 +61,6 @@ const connect = () => automator.connect({ wsEndpoint });
 const safeEval = async (fn, arg) => {
   try { return await mini.evaluate(fn, arg); } catch { return undefined; }
 };
-const reconnect = async () => {
-  for (let i = 0; i < 60; i++) {
-    try { mini = await connect(); return true; } catch { await sleep(2000); }
-  }
-  return false;
-};
-
 async function launchAndConnect() {
   if (wsEndpoint !== null) return connect();
   const { spawn } = await import("node:child_process");
@@ -249,7 +242,8 @@ try {
     const { last } = await waitFor((s) => s.current?.sessionId === sid && s.current.status !== "running", 120000);
     const cur = last?.current ?? { items: [], status: "?" };
     const notice = cur.items.find((i) => i.kind === "notice" && i.text.includes("已请求停止"));
-    const cancelledReports = await safeEval(() => getApp().globalData.__errorBus.recent(30).filter((r) => r.code === "cancelled").length) ?? 0;
+    // ?? -1：eval 断线失败给 -1 而非 0——「零 cancelled」leg 不真空通过（R5 nit）。
+    const cancelledReports = await safeEval(() => getApp().globalData.__errorBus.recent(30).filter((r) => r.code === "cancelled").length) ?? -1;
     check("K6:cancel→停止注记 + idle，cancelled 不落错误面",
       cur.status === "idle" && notice !== undefined && cancelledReports === 0,
       `status=${cur.status} notice=${notice !== undefined} cancelledReports=${cancelledReports}`);
@@ -259,6 +253,8 @@ try {
   {
     await safeEval(() => { getApp().globalData.__errorBus.clear(); });
     // deepseek-flash 在白名单（过 activeModel 闸）但不在 magpie 目录→真 404（curl 实测）。
+    // 留底原模型——断言中断也恢复原值而非 removeStorage（丢用户原选，R5 minor）。
+    const savedModel = await safeEval(() => wx.getStorageSync("dsh:model:v2") ?? null);
     await safeEval(() => { wx.setStorageSync("dsh:model:v2", "deepseek-flash"); return true; });
     await safeEval(() => { getApp().globalData.__sessionStore.prompt("Say hi").then(() => true).catch(() => false); return true; });
     const { last } = await waitTurn(sid, 120000);
@@ -273,7 +269,11 @@ try {
     check("K7:上游 4xx→status error + bus/页面错误面渲染（4xx=modal）",
       last?.current?.status === "error" && modalHit === true && uiHit === true,
       `status=${last?.current?.status} bus=${JSON.stringify(bus)} uiModal=${uiModal?.code ?? ""} uiToasts=${JSON.stringify((uiToasts ?? []).map((t) => t.code))}`);
-    await safeEval(() => { wx.removeStorageSync("dsh:model:v2"); return true; });
+    await safeEval((m) => {
+      if (m === null || m === undefined || m === "") wx.removeStorageSync("dsh:model:v2");
+      else wx.setStorageSync("dsh:model:v2", m);
+      return true;
+    }, savedModel);
     await safeEval(() => { const m = getApp().globalData.__errorBus.state().modal; if (m) getApp().globalData.__errorBus.dismiss(m.id, "modal"); return true; });
   }
 
@@ -299,15 +299,20 @@ try {
       const asst = cur.items.find((i) => i.kind === "assistant_message" && i.text.trim().length > 0);
       check("F2:fx wasm ACP 真轮——magpie 应答入转录", cur.status !== "running" && cur.status !== "error" && asst !== undefined,
         `status=${cur.status} items=${cur.items.map((i) => i.kind).join(",")} asst=${JSON.stringify(asst?.text ?? "").slice(0, 120)}`);
-      // F3: 工具轮（best-effort——模型裁量；如实记录 items 形态）
+      // F3: 工具轮——增量断言（不累计 F2 转录）+ status 不放行 error（R5 minor）。
+      const before3 = cur.items.length;
       await safeEval(() => { getApp().globalData.__sessionStore.prompt("Use the get_weather tool for city Paris, then tell me the result.").then(() => true).catch(() => false); return true; });
       const end3 = await waitTurn(fsid, 240000);
-      const items3 = end3.last?.current?.items ?? [];
-      const toolItems = items3.filter((i) => i.kind === "tool_call" || i.kind === "tool_result");
-      const asst3 = items3.filter((i) => i.kind === "assistant_message" && i.text.trim().length > 0).length;
+      const delta3 = (end3.last?.current?.items ?? []).slice(before3);
+      const toolItems = delta3.filter((i) => i.kind === "tool_call" || i.kind === "tool_result");
+      const asst3 = delta3.filter((i) => i.kind === "assistant_message" && i.text.trim().length > 0).length;
+      const s3 = end3.last?.current?.status;
       check("F3:fx 工具轮完成（tool_call 或文本应答——模型裁量如实记）",
-        end3.last?.current?.status !== "running" && (toolItems.length > 0 || asst3 > 0),
-        `status=${end3.last?.current?.status} tools=${toolItems.map((i) => `${i.kind}:${i.tool}:${i.status}`).join("|")} asst=${asst3}`);
+        s3 !== "running" && s3 !== "error" && (toolItems.length > 0 || asst3 > 0),
+        `status=${s3} tools=${toolItems.map((i) => `${i.kind}:${i.tool}:${i.status}`).join("|")} asst=${asst3}`);
+    } else {
+      check("F2:fx wasm ACP 真轮——magpie 应答入转录", false, "skipped: F1 未翻 fx 车道");
+      check("F3:fx 工具轮完成（tool_call 或文本应答——模型裁量如实记）", false, "skipped: F1 未翻 fx 车道");
     }
   }
 } finally {

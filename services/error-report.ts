@@ -186,13 +186,16 @@ const WRAPPER_CODES = new Set(['host-error', 'turn_failed', 'pump-error'])
 
 function taxonFor(code: string, message: string, objStatus?: number): { code: string; taxon: Taxon; status?: number } {
   const known = TAXONOMY[code]
+  const isWrapper = WRAPPER_CODES.has(code)
   // 序：已知 taxonomy 码 → domain 锚定 → http status（≥400 才抢分类）→ 自由文本。
   // 已知码短路也补 status 抽取——诊断面如实记 message 内嵌的上游状态（MN03-B9）。
-  if (known !== undefined && !WRAPPER_CODES.has(code)) {
+  if (known !== undefined && !isWrapper) {
     return { code, taxon: known, status: objStatus ?? httpStatusOf(message) }
   }
+  // 包装码在 SPECIFIC 循环只测 message 不测 code——壳码若自匹配某 SPECIFIC 行
+  // （如 pump-error），让位会被自身短路吞掉（MN03-R5 nit）。
   for (const row of SPECIFIC_TABLE) {
-    if (row.pattern.test(code) || row.pattern.test(message)) {
+    if ((!isWrapper && row.pattern.test(code)) || row.pattern.test(message)) {
       return { code: row.code, taxon: TAXONOMY[row.code] ?? TAXONOMY['unknown-error'], status: objStatus ?? httpStatusOf(message) }
     }
   }

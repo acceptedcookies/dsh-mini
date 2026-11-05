@@ -35,9 +35,9 @@
 
   <view class="traj-timeline">
     <view class="traj-timeline-labels">
-      <text>输入</text>
-      <text>模型</text>
-      <text>工具</text>
+      <text class="tl-label tl-1">输入</text>
+      <text class="tl-label tl-2">模型</text>
+      <text class="tl-label tl-3">工具</text>
     </view>
     <view class="traj-timeline-track">
       <view

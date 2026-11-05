@@ -37,18 +37,16 @@ interface StoredSession {
   items: ChatItem[]
 }
 
-/** app.json dsh.fxLegacy knob——运行时 require app.json 读不到自定义顶层键
- *  （DevTools schema 剥非标准键，实证 MN03-B9）；唯一可达通道=dev-config 镜像
- *  （scripts/fx-dev-config.mjs 由 app.json 生成，route 旋钮同机制）。app.json
- *  require 读留作兜底（真机/异构建工具链下可能可达）。 */
+/** app.json dsh.fxLegacy knob——route.ts 同款双通道：app.json require 优先
+ *  （异构建工具链下真源可达），DevTools schema 剥自定义键后落 dev-config
+ *  镜像兜底（scripts/fx-dev-config.mjs 由 app.json 生成——MN03-B9 实证
+ *  DevTools 运行时 app.json 顶层自定义键不可达）。 */
 function fxLegacyKnob(): boolean {
-  if (loadDevConfig()?.fxLegacy === true) return true
   try {
     const appJson = require('../../app.json') as { dsh?: { fxLegacy?: boolean } }
-    return appJson?.dsh?.fxLegacy === true
-  } catch {
-    return false
-  }
+    if (appJson?.dsh?.fxLegacy !== undefined) return appJson.dsh.fxLegacy === true
+  } catch { /* DevTools 剥键后 require 不到 dsh——落生成物镜像 */ }
+  return loadDevConfig()?.fxLegacy === true
 }
 
 /** 跨轮历史：转录本中 user/assistant 行，截尾去本轮 input（已入 turn.messages），限量 20 条。
