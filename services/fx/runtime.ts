@@ -425,7 +425,9 @@ export class FxLocalRuntime {
   private async ensureAcpSession(dshId: string): Promise<string> {
     const known = this.acpSessions.get(dshId)
     if (known !== undefined) return known
-    const acpId = await this.client!.newSession()
+    // 宿主侧铸造 acpId——wasm 若按序铸号，restartCore 后新核可能重发同号，
+    // 使 cancel 看守的 turns.has(acpId) 误判健康新轮为悬死旧轮（审查十一轮自审）。
+    const acpId = await this.client!.newSession(randomId('acp'))
     this.acpSessions.set(dshId, acpId)
     return acpId
   }
