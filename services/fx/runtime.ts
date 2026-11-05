@@ -260,12 +260,15 @@ export class FxLocalRuntime {
     this.resolveSessionApprovals(id)
     // cancel 无应答看守：session/cancel 是 fire-and-forget——wedged 核心不应答时
     // prompt pending 永不结算、turnChain 头阻塞拖死全会话队列（审查十一轮 D11-3）。
-    // 超时不结算即 dispose 强拒在飞 pending，诚实落 turn_failed 而非永恒 running。
+    // 超时不结算即 restartCore 强收（拒 pending+abort wedged wasm），
+    // 诚实落 turn_failed 而非永恒 running，链头解除、次轮重建新核。
     if (acpId !== undefined) {
       setTimeout(() => {
         if (this.turns.has(acpId)) {
-          console.warn(`[fx-runtime] 会话 ${acpId} 取消未应答——强制结算在飞 pending`)
-          this.client?.dispose('会话取消后核心未应答——已强制结算该轮')
+          console.warn(`[fx-runtime] 会话 ${acpId} 取消未应答——restartCore 强收`)
+          // dispose 仅拒 pending，wedged wasm 存活会让下一轮再楔——restartCore
+          // 全量强收（拒 pending+abort wasm+换代+清 acpSessions），次轮重建新核。
+          this.restartCore()
         }
       }, 20_000)
     }
@@ -472,13 +475,13 @@ export class FxLocalRuntime {
     const run = this.turnChain.then(() => {
       const s = this.sessions.get(dshId)
       if (s === undefined || s.summary.status !== 'running' || this.turnEpoch.get(dshId) !== epoch) return
-      return this.runTurnInner(dshId, blocks)
+      return this.runTurnInner(dshId, blocks, epoch)
     })
     this.turnChain = run.catch(() => { /* 单轮失败不断链 */ })
     return run
   }
 
-  private async runTurnInner(dshId: string, blocks: AcpPromptBlock[]): Promise<void> {
+  private async runTurnInner(dshId: string, blocks: AcpPromptBlock[], epoch: number): Promise<void> {
     const s = this.require(dshId)
     await this.ensureCore()
     // 票据过期重铸：core 常驻跨多轮，ensureCore 只在首轮铸票——票据 ~30min TTL
@@ -489,6 +492,9 @@ export class FxLocalRuntime {
     // 直进 ensureAcpSession 会撞 client!.newSession TypeError（审查十一轮 D11-2）。
     if (this.client === undefined) throw new Error('fx core 已重启')
     const acpId = await this.ensureAcpSession(dshId)
+    // 出队后至 prompt 注册间的全部 await（ensureCore/ready/ensureAcpSession）窗口内
+    // cancel+重发换代——若只查 status 会见到新轮的 running 而复活旧轮（D11-1 同族）。
+    if (this.turnEpoch.get(dshId) !== epoch) return
     const turn: TurnState = { attemptId: randomId('attempt'), text: '', thinking: '', deltaIndex: 0, toolItemByCallId: new Map() }
     this.turns.set(acpId, turn)
     // wasm host-import 通道（fx_host_tool_call）不带 sessionId——单活动会话下以在飞轮次兜底。
