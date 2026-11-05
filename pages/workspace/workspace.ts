@@ -4,7 +4,7 @@ import { nanoRuntime } from '../../services/nano/runtime'
 import { fxRuntime } from '../../services/fx/runtime'
 import { fetchTodos, fetchWorkspaceFiles } from '../../services/nano/http'
 import { pickImage } from '../../services/upload'
-import { APP_VERSION, DEFAULT_MODEL, MODELS, type ModelOption } from '../../services/config'
+import { APP_VERSION, DEFAULT_MODEL, defaultModelFor, modelsForEngine, type ModelOption } from '../../services/config'
 import { applyNavigationBar, getTheme, type Theme } from '../../services/theme'
 import { storage } from '../../services/storage'
 import { DEFAULT_PERMISSION, PERMISSIONS, permissionOf, type PermissionOption } from '../../services/permissions'
@@ -16,7 +16,7 @@ import { hasFreshTicket, onTicketMinted } from '../../services/fx/ticket'
 import { nanoMiniCatchUp } from '../../services/nano-mini-host/tick'
 import { firstCommand } from '../../services/commands'
 import {
-  engineBadge, engineLabel, magpieAvailable, pendingEngine, routeDefaultEngine, setPendingEngine,
+  engineBadge, engineForSession, engineLabel, magpieAvailable, pendingEngine, routeDefaultEngine, setPendingEngine,
 } from '../../services/session-engine'
 import { formatRelative } from '../../utils/time'
 import { toolView, type ToolView } from '../../utils/tool-view'
@@ -159,6 +159,25 @@ function buildEngineOptions(): EngineOption[] {
   return options
 }
 
+/** hero chip 显示名：与抽屉选项 label 同真源（本地引擎 / 本地引擎 · magpie）。 */
+function chipEngineLabel(): string {
+  return buildEngineOptions().find((o) => o.checked)?.label ?? '本地引擎'
+}
+
+/** 当前生效引擎：会话已开→会话戳记；hero 态（未建会话）→pending 选择。 */
+function activeEngine(currentId: string): SessionEngine {
+  return currentId.length > 0 ? engineForSession(currentId) : pendingEngine()
+}
+
+/** 引擎面模型投影（业主 MN04）：模型列表与生效模型都只认当前引擎白名单；
+ *  全局选择跨引擎时如实落到引擎默认——不覆写用户偏好（切回原引擎恢复）。 */
+function modelView(engine: SessionEngine): { model: string; modelLabel: string; models: ModelOption[] } {
+  const models = modelsForEngine(engine)
+  const picked = storage.getModel()
+  const active = (picked !== undefined ? models.find((m) => m.id === picked) : undefined) ?? models[0]
+  return { model: active?.id ?? defaultModelFor(engine), modelLabel: active?.label ?? '', models }
+}
+
 let unsubscribe: (() => void) | undefined
 let unsubscribeErr: (() => void) | undefined
 /** 铸票后隐藏解锁横幅（onTicketMinted 无 unsubscribe——模块级绑定一次，由
@@ -192,10 +211,12 @@ Page({
     dockedPlaceholder: DOCKED_PLACEHOLDER,
     scrollTarget: '',
     model: DEFAULT_MODEL,
-    modelLabel: MODELS[0]?.label ?? DEFAULT_MODEL,
-    models: MODELS as ModelOption[],
+    modelLabel: '',
+    models: [] as ModelOption[],
     modelPickerVisible: false,
     modelPickerStyle: '',
+    /** hero chip 显示当前新会话引擎（本地引擎 / 本地引擎 · magpie）。 */
+    engineChipLabel: '本地引擎',
     approval: null as ApprovalRequest | null,
     question: null as QuestionRequest | null,
     rows: [] as SessionRow[],
@@ -244,6 +265,7 @@ Page({
     dialogDescription: '',
     dialogValue: '',
     dialogEditable: false,
+    dialogMultiline: false,
     dialogTone: 'default',
     dialogDanger: false,
     dialogConfirmText: '确定',
@@ -277,8 +299,7 @@ Page({
   onLoad() {
     const theme = getTheme()
     applyNavigationBar(theme)
-    const model = storage.getModel() ?? DEFAULT_MODEL
-    const modelLabel = MODELS.find((item) => item.id === model)?.label ?? MODELS[0]?.label ?? model
+    const mv = modelView(activeEngine(''))
     const metrics = getWindowMetrics()
     const isWide = isWideLayout(metrics.width)
     const permission = permissionOf(storage.getPermission())
@@ -289,8 +310,8 @@ Page({
       ...layoutData(metrics),
       ...placeholderData(isWide, planMode),
       isWide,
-      model,
-      modelLabel,
+      ...mv,
+      engineChipLabel: chipEngineLabel(),
       permission: permission.id,
       permissionLabel: permission.label,
       planMode,
@@ -387,21 +408,23 @@ Page({
     }
     const runtimeLabel = sessionStore.runtimeLabel()
     const nanoConnected = nanoRuntime.isAvailable()
-    const model = storage.getModel() ?? this.data.model
-    const modelLabel = MODELS.find((item) => item.id === model)?.label ?? model
+    const mv = modelView(activeEngine(this.data.currentId))
+    const chipLabel = chipEngineLabel()
     const permission = permissionOf(storage.getPermission())
     const goal = storage.getGoal() ?? ''
     if (
-      model !== this.data.model
-      || modelLabel !== this.data.modelLabel
+      mv.model !== this.data.model
+      || mv.modelLabel !== this.data.modelLabel
+      || mv.models.length !== this.data.models.length
+      || chipLabel !== this.data.engineChipLabel
       || runtimeLabel !== this.data.runtimeLabel
       || permission.id !== this.data.permission
       || goal !== this.data.goal
       || (storage.getPlanMode() === true) !== this.data.planMode
     ) {
       this.setData({
-        model,
-        modelLabel,
+        ...mv,
+        engineChipLabel: chipLabel,
         runtimeLabel,
         nanoConnected,
         permission: permission.id,
@@ -499,6 +522,9 @@ Page({
       currentId,
       runtimeLabel: sessionStore.runtimeLabel(),
       title: summary?.title ?? '新会话',
+      // 会话引擎戳记变化时模型面跟着换车道（hero 态认 pending 选择）；
+      // chip 名同步按 pending 真源刷新（指针失效后旧 magpie 名不幽灵存活）。
+      ...(sessionChanged ? { ...modelView(activeEngine(currentId)), engineChipLabel: chipEngineLabel() } : {}),
       rows,
       atTail,
       scrollTarget,
@@ -724,6 +750,7 @@ Page({
       dialogDescription: '目标用于长期任务。输入新的目标，或留空清除当前目标。',
       dialogValue: this.data.goal,
       dialogEditable: true,
+      dialogMultiline: true,
       dialogTone: 'default',
       dialogDanger: false,
       dialogConfirmText: '保存目标',
@@ -810,6 +837,7 @@ Page({
       dialogDescription: '自动审查是实验性权限：由策略自动判定工具调用是否放行，可能执行你未逐条确认的操作。',
       dialogValue: '',
       dialogEditable: false,
+      dialogMultiline: false,
       dialogTone: 'warning',
       dialogDanger: true,
       dialogConfirmText: '启用',
@@ -1000,7 +1028,8 @@ Page({
 
   openModelPicker() {
     wx.hideKeyboard()
-    this.setData({ commandMenuVisible: false, menuVisible: false })
+    // 打开即按当前会话引擎刷新白名单——跨引擎的全局选择不回显（业主 MN04）。
+    this.setData({ commandMenuVisible: false, menuVisible: false, ...modelView(activeEngine(this.data.currentId)) })
     setTimeout(() => this.placeModelPicker(), 60)
   },
 
@@ -1042,7 +1071,7 @@ Page({
 
   onModelSelect(event: WechatMiniprogram.CustomEvent<{ id: string }>) {
     const model = event.detail.id
-    const modelLabel = MODELS.find((item) => item.id === model)?.label ?? model
+    const modelLabel = modelsForEngine(activeEngine(this.data.currentId)).find((item) => item.id === model)?.label ?? model
     storage.setModel(model)
     this.setData({ model, modelLabel, modelPickerVisible: false })
     // fx 车道生效模型在 core 启动时注入 env——不重启则 chip 显示与生效模型
@@ -1081,7 +1110,8 @@ Page({
     const option = this.data.engineOptions.find((o) => o.id === id)
     if (option === undefined || option.disabled === true) return
     setPendingEngine(id)
-    this.setData({ engineDrawerVisible: false })
+    // hero 态下引擎即生效面：chip 名与模型白名单同步换车道。
+    this.setData({ engineDrawerVisible: false, engineChipLabel: chipEngineLabel(), ...modelView(id) })
     this.showToast(`新会话将使用${engineLabel(id)}`, 'success')
   },
 
@@ -1170,6 +1200,7 @@ Page({
       dialogDescription: '',
       dialogValue: current?.title ?? '',
       dialogEditable: true,
+      dialogMultiline: false,
       dialogTone: 'default',
       dialogDanger: false,
       dialogConfirmText: '重命名',
@@ -1186,6 +1217,7 @@ Page({
       dialogDescription: '删除后无法恢复，确定继续吗？',
       dialogValue: '',
       dialogEditable: false,
+      dialogMultiline: false,
       dialogTone: 'warning',
       dialogDanger: true,
       dialogConfirmText: '删除',

@@ -37,6 +37,7 @@
           value="{{query}}"
           placeholder="搜索会话"
           placeholder-class="search-placeholder"
+          adjust-position="{{false}}"
           bindinput="onSearch"
         />
       </view>
@@ -153,7 +154,7 @@
           <view class="hero-body">
             <view id="workspace-menu-button" class="workspace-chip" bindtap="openWorkspaceMenu">
               <dsh-icon name="folder-open-outline" theme="{{theme}}" size="{{16}}" />
-              <text class="workspace-chip-label">{{workspaceName}}</text>
+              <text class="workspace-chip-label">{{engineChipLabel}}</text>
               <dsh-icon name="chevron-down-outline" theme="{{theme}}" size="{{12}}" />
             </view>
             <approval-sheet
@@ -412,6 +413,7 @@
     title="{{dialogTitle}}"
     description="{{dialogDescription}}"
     editable="{{dialogEditable}}"
+    multiline="{{dialogMultiline}}"
     value="{{dialogValue}}"
     placeholder="{{dialogPlaceholder}}"
     cancel-text="取消"

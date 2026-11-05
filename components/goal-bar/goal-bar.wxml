@@ -16,15 +16,17 @@
   </view>
 
   <view wx:else class="goal-bar goal-edit-bar">
-    <input
-      class="goal-input"
+    <textarea
+      class="goal-input goal-input-area"
       value="{{draft}}"
       focus
+      auto-height
+      maxlength="-1"
+      adjust-position="{{false}}"
+      show-confirm-bar="{{false}}"
       placeholder="描述目标"
       placeholder-class="goal-placeholder"
-      confirm-type="done"
       bindinput="onInput"
-      bindconfirm="save"
     />
     <view class="goal-actions">
       <view class="goal-icon" bindtap="save">

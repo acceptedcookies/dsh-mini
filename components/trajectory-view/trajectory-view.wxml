@@ -27,6 +27,7 @@
           placeholder="搜索"
           placeholder-class="traj-search-placeholder"
           confirm-type="search"
+          adjust-position="{{false}}"
           bindinput="onSearch"
         />
       </view>

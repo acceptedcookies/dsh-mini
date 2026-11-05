@@ -26,6 +26,10 @@ Component({
     render: false,
     closing: false,
     exitTimer: 0 as ReturnType<typeof setTimeout> | 0,
+    /** 原生键盘高度：textarea adjust-position=false（不顶页），由层内
+     *  padding-bottom 把卡片抬到键盘上沿（业主 MN04 统一键盘策略）。 */
+    kb: 0,
+    kbHandler: undefined as ((res: { height: number }) => void) | undefined,
   },
 
   observers: {
@@ -50,9 +54,22 @@ Component({
   },
 
   lifetimes: {
+    attached() {
+      const handler = (result: { height: number }) => {
+        const kb = Math.max(0, Math.round(result.height))
+        if (kb !== this.data.kb) this.setData({ kb })
+      }
+      this.setData({ kbHandler: handler })
+      wx.onKeyboardHeightChange(handler)
+    },
     detached() {
       const timer = this.data.exitTimer as ReturnType<typeof setTimeout> | 0
       if (timer !== 0) clearTimeout(timer)
+      const handler = this.data.kbHandler
+      if (handler !== undefined) {
+        wx.offKeyboardHeightChange(handler)
+        this.setData({ kbHandler: undefined })
+      }
     },
   },
 

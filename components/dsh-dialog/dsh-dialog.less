@@ -146,6 +146,17 @@
   line-height: var(--dsw-lh-36);
 }
 
+/* 多行编辑面（目标等长文）：自增高 + 上限滚动；字号较正文降两级——
+   预期承载长段落（业主 MN04：14px body → 12px caption）。 */
+.dialog-textarea {
+  height: auto;
+  min-height: 72px;
+  max-height: 140px;
+  padding: var(--dsw-space-8) var(--dsw-space-10);
+  font-size: var(--dsw-text-caption);
+  line-height: var(--dsw-lh-18);
+}
+
 .dialog-placeholder {
   color: var(--dsw-alias-label-tertiary);
 }

@@ -1,4 +1,4 @@
-<view wx:if="{{render}}" class="dialog-layer theme-{{theme}} {{closing ? 'dialog-closing' : ''}}" catchtouchmove="noop">
+<view wx:if="{{render}}" class="dialog-layer theme-{{theme}} {{closing ? 'dialog-closing' : ''}}" style="{{kb > 0 ? 'padding-bottom: calc(' + kb + 'px + 16px)' : ''}}" catchtouchmove="noop">
   <view class="dialog-mask" bindtap="cancel"></view>
   <view class="dialog-card dialog-{{tone}}" catchtap="noop">
     <view class="dialog-header">
@@ -15,15 +15,29 @@
 
     <view class="dialog-body">
       <input
-        wx:if="{{editable}}"
+        wx:if="{{editable && !multiline}}"
         class="dialog-input"
         value="{{draft}}"
         focus="{{visible && editable}}"
         placeholder="{{placeholder}}"
         placeholder-class="dialog-placeholder"
         confirm-type="done"
+        adjust-position="{{false}}"
         bindinput="onInput"
         bindconfirm="confirm"
+      />
+      <textarea
+        wx:elif="{{editable && multiline}}"
+        class="dialog-input dialog-textarea"
+        value="{{draft}}"
+        focus="{{visible && editable}}"
+        placeholder="{{placeholder}}"
+        placeholder-class="dialog-placeholder"
+        auto-height
+        maxlength="-1"
+        show-confirm-bar="{{false}}"
+        adjust-position="{{false}}"
+        bindinput="onInput"
       />
       <slot></slot>
     </view>

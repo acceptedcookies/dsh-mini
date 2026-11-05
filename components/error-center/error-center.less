@@ -216,6 +216,10 @@
 .ec-modal-msg {
   flex: none;
   max-height: 160px;
+  /* scroll-view 宽显式钉满卡宽 + border-box——padding 参与盒内布局，
+     文本右缘留出卡内槽距（同 MN04 溢出根因修复）。 */
+  width: 100%;
+  box-sizing: border-box;
   padding: 0 var(--dsw-panel-x);
 }
 
@@ -236,6 +240,9 @@
 
 .ec-modal-diag {
   margin: 0 var(--dsw-panel-x);
+  /* scroll-view 的 width:auto 不吃右 margin（真机实证盒子右出 24px）——
+     显式宽度把盒子钉在卡内槽距里（MN04 time 溢出根因）。 */
+  width: calc(100% - var(--dsw-panel-x) - var(--dsw-panel-x));
   max-height: 240px;
   padding: var(--dsw-space-10) var(--dsw-space-12);
   border-radius: var(--dsw-radius-md);
@@ -264,7 +271,10 @@
   color: var(--dsw-alias-label-primary);
   font-size: var(--dsw-text-caption);
   line-height: var(--dsw-lh-18);
+  /* 长诊断值（时间戳/URL/JSON）必须在卡片内换行——双保险：enhanced
+     scroll-view 已撤（其内容宽不受视口约束），overflow-wrap 兜异形宿主。 */
   word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 .ec-diag-detail {

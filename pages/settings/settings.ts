@@ -1,4 +1,5 @@
-import { APP_ID, APP_VERSION, DEFAULT_MODEL, MODELS, type ModelOption } from '../../services/config'
+import { APP_ID, APP_VERSION, DEFAULT_MODEL, MODELS, modelsForEngine } from '../../services/config'
+import { pendingEngine } from '../../services/session-engine'
 import { sessionStore } from '../../services/session-store'
 import { storage } from '../../services/storage'
 import { DEFAULT_PERMISSION, PERMISSIONS, permissionOf, type PermissionOption } from '../../services/permissions'
@@ -67,7 +68,7 @@ Page({
     sessionCount: 0,
     model: DEFAULT_MODEL,
     modelLabel: MODELS[0]?.label ?? DEFAULT_MODEL,
-    models: MODELS as ModelOption[],
+    models: modelsForEngine(pendingEngine()),
     providers: [{ id: 'magpie', name: 'magpie', description: 'OpenAI 兼容端点 · 信封加密托管' }],
     plugins: [
       { name: 'dsh-client-ui-chat', description: 'Chat / Markdown / Tool cards' },
@@ -124,7 +125,9 @@ Page({
     applyNavigationBar(theme, 'layer-2')
     const storedTheme = storage.getTheme()
     const permission = permissionOf(storage.getPermission())
-    const model = storage.getModel() ?? DEFAULT_MODEL
+    const lane = modelsForEngine(pendingEngine())
+    const picked = storage.getModel()
+    const model = picked !== undefined && lane.some((m) => m.id === picked) ? picked : (lane[0]?.id ?? DEFAULT_MODEL)
     const metrics = getWindowMetrics()
     this.setData({
       activeId: isSection(section) ? section : 'general',
@@ -138,7 +141,8 @@ Page({
       themeMode: storedTheme ?? 'system',
       sessionCount: sessionStore.getState().sessions.length,
       model,
-      modelLabel: MODELS.find((item) => item.id === model)?.label ?? model,
+      modelLabel: lane.find((item) => item.id === model)?.label ?? model,
+      models: lane,
       nanoConnected: nanoRuntime.isAvailable(),
       nanoUser: getStoredUser()?.display_name ?? '',
       nanoInitial: initialOf(getStoredUser()?.display_name),
@@ -229,7 +233,8 @@ Page({
 
   selectModel(event: WechatMiniprogram.TouchEvent) {
     const model = String(event.currentTarget.dataset.id ?? '')
-    const option = MODELS.find((item) => item.id === model)
+    // 新会话引擎面白名单：BYOK 车道不显示/不接受 magpie 模型 id（业主 MN04）。
+    const option = modelsForEngine(pendingEngine()).find((item) => item.id === model)
     if (option === undefined) return
     storage.setModel(option.id)
     this.setData({ model: option.id, modelLabel: option.label, injectModelLabel: option.label })
@@ -251,7 +256,9 @@ Page({
     const bio = injectable
       ? await bioStatus(route)
       : { ok: false, supported: false, enrolled: false, reason: '本地直连模式不经云端注入' }
-    const activeModel = storage.getModel() ?? DEFAULT_MODEL
+    const byokLane = modelsForEngine(pendingEngine())
+    const stored = storage.getModel()
+    const activeModel = stored !== undefined && byokLane.some((m) => m.id === stored) ? stored : (byokLane[0]?.id ?? DEFAULT_MODEL)
     this.setData({
       fxRoute: route.mode,
       routeLabel: routeErr !== undefined
@@ -264,7 +271,7 @@ Page({
       enrolledBaseUrl: rec?.upstreamBaseUrl ?? '',
       enrolledAt: rec !== undefined ? new Date(rec.enrolledAt).toLocaleString() : '',
       enrollModel: rec?.model ?? activeModel,
-      injectModelLabel: MODELS.find((m) => m.id === activeModel)?.label ?? activeModel,
+      injectModelLabel: byokLane.find((m) => m.id === activeModel)?.label ?? activeModel,
       // 云端车道不预填 loopback 上游（真机上 127.0.0.1 无意义）——留空强制手填真实供应商地址
       baseUrl:
         this.data.baseUrl !== ''

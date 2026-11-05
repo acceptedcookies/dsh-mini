@@ -14,7 +14,7 @@ Component({
       this.setData({ editing: true, draft: this.properties.goal })
     },
 
-    onInput(event: WechatMiniprogram.Input) {
+    onInput(event: WechatMiniprogram.TextareaInput) {
       this.setData({ draft: event.detail.value })
     },
 

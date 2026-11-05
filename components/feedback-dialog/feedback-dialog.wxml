@@ -1,4 +1,4 @@
-<view wx:if="{{render}}" class="feedback-layer theme-{{theme}} {{closing ? 'feedback-closing' : ''}}" catchtouchmove="noop">
+<view wx:if="{{render}}" class="feedback-layer theme-{{theme}} {{closing ? 'feedback-closing' : ''}}" style="{{kb > 0 ? 'padding-bottom: calc(' + kb + 'px + 16px)' : ''}}" catchtouchmove="noop">
   <view class="feedback-mask" bindtap="cancel"></view>
   <view class="feedback-card" catchtap="noop">
     <view class="feedback-header">
@@ -26,6 +26,7 @@
       auto-height
       maxlength="-1"
       cursor-spacing="24"
+      adjust-position="{{false}}"
       show-confirm-bar="{{false}}"
       bindinput="onInput"
     />

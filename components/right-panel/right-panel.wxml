@@ -70,7 +70,7 @@
     <block wx:elif="{{active === 'browser'}}">
       <view class="browser-bar">
         <dsh-icon name="globe-outline" theme="{{theme}}" size="{{14}}" />
-        <input class="browser-input" placeholder="输入 URL" placeholder-class="rp-placeholder" />
+        <input class="browser-input" placeholder="输入 URL" placeholder-class="rp-placeholder" adjust-position="{{false}}" />
       </view>
       <view class="rp-empty">
         <text class="rp-empty-title">浏览器面板</text>

@@ -20,13 +20,20 @@ import type { SessionEngine } from '../types/protocol'
 const PENDING_KEY = 'dsh:mini:engine:v1'
 
 /** magpie 选项可见闸：dev-config 烘入指针 flag（仓库根 `.dev-magpie` →
- *  fx-dev-config.mjs）且非 release 包——双闸保证打包后真机只见 BYOK。 */
+ *  fx-dev-config.mjs）且非 release 包且宿主是开发者工具——三闸保证真机
+ *  （调试包同理）只见 BYOK：真机上 127.0.0.1 指向手机自身，本机 magpie
+ *  网关不存在，选项出现必然误导（业主 MN04）。 */
 export function magpieAvailable(): boolean {
   if (loadDevConfig()?.magpieDev !== true) return false
   try {
-    return wx.getAccountInfoSync().miniProgram.envVersion !== 'release'
+    if (wx.getAccountInfoSync().miniProgram.envVersion === 'release') return false
   } catch {
-    return true // envVersion 读不到的 dev 环境不误杀
+    /* envVersion 读不到的 dev 环境不误杀 */
+  }
+  try {
+    return wx.getDeviceInfo().platform === 'devtools'
+  } catch {
+    return true // 平台不可知（老基础库/Node harness）时不误杀
   }
 }
 

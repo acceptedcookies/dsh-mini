@@ -32,12 +32,12 @@
         </view>
       </view>
 
-      <scroll-view scroll-y class="ec-modal-msg" enhanced show-scrollbar="{{false}}">
+      <scroll-view scroll-y class="ec-modal-msg" show-scrollbar="{{false}}">
         <text class="ec-modal-msg-text" selectable>{{modal.message}}</text>
       </scroll-view>
       <text wx:if="{{modal.hint}}" class="ec-modal-hint">{{modal.hint}}</text>
 
-      <scroll-view scroll-y class="ec-modal-diag" enhanced show-scrollbar="{{false}}">
+      <scroll-view scroll-y class="ec-modal-diag" show-scrollbar="{{false}}">
         <view wx:for="{{modalRows}}" wx:key="k" class="ec-diag-row">
           <text class="ec-diag-k">{{item.k}}</text>
           <text class="ec-diag-v" selectable>{{item.v}}</text>

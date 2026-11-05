@@ -10,7 +10,7 @@ import { loadDevConfig, currentRoute } from '../../fx/dev'
 import { routeDefaultEngine } from '../../session-engine'
 import type { SessionEngine } from '../../../types/protocol'
 import { readEnrollment, activeModel } from '../../fx/enrollment'
-import { MODELS, DEFAULT_MODEL } from '../../config'
+import { defaultModelFor, modelsForEngine } from '../../config'
 import { isContainerUrl, callContainer, parseContainerUrl } from '../../fx/container'
 import { storage } from '../../storage'
 import type { LlmOutput, LlmToolCall } from '../types'
@@ -132,11 +132,16 @@ export function createIoLlm(deps: IoLlmDeps = {}): (messages: unknown[]) => Prom
     // 此前顺序颠倒导致设置页选模型静默失效（审查 B8）。cfg 缺席（生产云车道）时：
     // 设置页白名单内显式选择仍优先；无有效选择才回退 enrollment.model（BYOK 车道登记值）。
     const picked = storage.getModel()
+    // 引擎面白名单（MN04）：BYOK 车道只收 BYOK id，magpie 会话只收 workbuddy id——
+    // 跨引擎的全局选择在错误车道上必然被上游白名单拒绝，这里就地归一。
+    const lane = modelsForEngine(engine)
     const model = cfg !== undefined
       ? activeModel(cfg)
-      : picked !== undefined && MODELS.some((m) => m.id === picked)
+      : picked !== undefined && lane.some((m) => m.id === picked)
         ? picked
-        : enrollment?.model ?? DEFAULT_MODEL
+        : enrollment?.model !== undefined && lane.some((m) => m.id === enrollment.model)
+          ? enrollment.model
+          : defaultModelFor(engine)
 
     // upstreamBaseUrl 形态两侧不一致：dev-config 生成物自带 /v1 尾，enroll 记录
     // 与裸 baseUrl 不带——统一归一（/vN 尾不再拼 v1），否则 /v1/v1/... 真 404

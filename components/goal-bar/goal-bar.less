@@ -69,17 +69,31 @@
 }
 
 .goal-edit-bar {
-  align-items: center;
+  align-items: flex-start;
+  height: auto;
+  min-height: 36px;
+  padding-top: var(--dsw-space-6);
+  padding-bottom: var(--dsw-space-6);
+}
+
+/* 多行目标编辑面：目标预期是长段落——自增高上限滚动，字号较 label 降两级
+   （业主 MN04：13px label → 11px micro）。 */
+.goal-input-area {
+  height: auto;
+  min-height: 20px;
+  max-height: 96px;
+  padding: 0 var(--dsw-space-4);
+  font-size: var(--dsw-text-micro);
+  line-height: var(--dsw-lh-16);
 }
 
 .goal-input {
   flex: 1;
   min-width: 0;
-  height: 28px;
   padding: 0 var(--dsw-space-4);
   color: var(--dsw-alias-label-primary);
-  font-size: var(--dsw-text-label);
-  line-height: var(--dsw-lh-20);
+  font-size: var(--dsw-text-micro);
+  line-height: var(--dsw-lh-16);
 }
 
 .goal-placeholder {

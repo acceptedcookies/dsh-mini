@@ -43,6 +43,7 @@
         auto-height
         maxlength="-1"
         cursor-spacing="24"
+        adjust-position="{{false}}"
         show-confirm-bar="{{false}}"
         bindinput="onCustom"
       />
