@@ -17,19 +17,7 @@
       </view>
     </view>
 
-    <!-- workspace 头 + 搜索不随会话列表滚动——永远钉在顶图层（业主 MN05）。 -->
-    <view class="workspace-head">
-      <view class="workspace-title">
-        <dsh-icon name="folder-open-outline" theme="{{theme}}" size="{{14}}" />
-        <text class="workspace-title-text">{{workspaceName}}</text>
-      </view>
-      <view class="workspace-actions">
-        <view id="workspace-menu-button-sidebar" class="sidebar-icon" bindtap="openWorkspaceMenu">
-          <dsh-icon name="plus-outline" theme="{{theme}}" size="{{16}}" />
-        </view>
-      </view>
-    </view>
-
+    <!-- 搜索不随会话列表滚动——永远钉在顶图层（业主 MN05）。 -->
     <view class="sidebar-search">
       <dsh-icon class="search-icon" name="search-outline" theme="{{theme}}" size="{{14}}" />
       <input
@@ -42,33 +30,39 @@
       />
     </view>
 
-    <!-- 会话列表独立滚动容器：溢出内部滚动，头/搜索/设置永不离开。 -->
-    <scroll-view class="sidebar-scroll" scroll-y show-scrollbar="{{false}}">
-      <view class="session-list">
-        <view
-          wx:for="{{rows}}"
-          wx:key="id"
-          class="session-row {{item.id === currentId ? 'session-selected' : ''}}"
-          data-id="{{item.id}}"
-          bindtap="openSession"
-        >
-          <view class="row-state row-state-{{item.status}}"></view>
-          <text class="row-title">{{item.title}}</text>
-          <view class="row-side">
-            <view
-              id="session-more-{{item.id}}"
-              class="row-more"
-              data-id="{{item.id}}"
-              catchtap="onSessionMenu"
-            >
-              <dsh-icon name="ellipsis-outline" theme="{{theme}}" size="{{15}}" />
+    <!-- 会话列表独立滚动容器：溢出内部滚动；底部渐变层让临近设置区的文字淡出。 -->
+    <view class="sidebar-list-wrap">
+      <scroll-view class="sidebar-scroll" scroll-y show-scrollbar="{{false}}">
+        <view class="session-list">
+          <view
+            wx:for="{{rows}}"
+            wx:key="id"
+            class="session-row {{item.id === currentId ? 'session-selected' : ''}}"
+            data-id="{{item.id}}"
+            bindtap="openSession"
+          >
+            <view class="row-state row-state-{{item.status}}"></view>
+            <text class="row-title">{{item.title}}</text>
+            <view class="row-side">
+              <view class="row-top">
+                <text class="row-time">{{item.timeLabel}}</text>
+                <view
+                  id="session-more-{{item.id}}"
+                  class="row-more"
+                  data-id="{{item.id}}"
+                  catchtap="onSessionMenu"
+                >
+                  <dsh-icon name="ellipsis-outline" theme="{{theme}}" size="{{15}}" />
+                </view>
+              </view>
+              <text class="row-status row-status-{{item.syncState}}">{{item.statusLine}}</text>
             </view>
-            <text class="row-status row-status-{{item.syncState}}">{{item.statusLine}}</text>
           </view>
+          <view wx:if="{{!rows.length}}" class="sidebar-empty">{{query ? '没有匹配的会话' : '还没有会话'}}</view>
         </view>
-        <view wx:if="{{!rows.length}}" class="sidebar-empty">{{query ? '没有匹配的会话' : '还没有会话'}}</view>
-      </view>
-    </scroll-view>
+      </scroll-view>
+      <view class="list-fade"></view>
+    </view>
 
     <view class="sidebar-foot">
       <view class="foot-row" bindtap="openSettings">

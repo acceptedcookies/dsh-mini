@@ -78,7 +78,12 @@ export function engineLabel(engine: SessionEngine): string {
   return engine === 'cloud' ? '云端引擎' : `本地引擎 · ${engine}`
 }
 
-/** 会话行紧凑徽标：本地·nano-agent / 本地·magpie / 云端。 */
+/** 引擎短名（业主 MN05）：nano-agent 简写 nano。 */
+export function engineBadgeShort(engine: SessionEngine): string {
+  return engine === 'cloud' ? '云端' : engine === 'nano-agent' ? 'nano' : engine
+}
+
+/** 会话行紧凑徽标：本地·nano / 本地·magpie / 云端。 */
 export function engineBadge(engine: SessionEngine): string {
-  return engine === 'cloud' ? '云端' : `本地·${engine}`
+  return engine === 'cloud' ? '云端' : `本地·${engineBadgeShort(engine)}`
 }
