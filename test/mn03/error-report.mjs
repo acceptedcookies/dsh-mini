@@ -259,6 +259,18 @@ const { classifyError, errorBus, reportText, reportSilent } = await bundle(
   check('B9:reportText 含 code/op/lane/session/status/ISO ts', text.includes('code: upstream-503') && text.includes('op: prompt') && text.includes('lane: kernel') && text.includes('sessionId: s9') && text.includes('status: 503') && /\d{4}-\d{2}-\d{2}T/.test(text))
 }
 
+// ── HTML 响应体净化（W3 真机 503 nginx 实录形状）────────────────────
+{
+  const html = 'io.llm upstream 503: "<html>\\r\\n<head><title>503 Service Temporarily Unavailable</title></head>\\r\\n<body>\\r\\n<center><h1>503 Service Temporarily Unavailable</h1></center>\\r\\n<hr><center>nginx/1.17.8</center>\\r\\n</body>\\r\\n</html>"'
+  const r = classifyError(new Error(html), { op: 'prompt', lane: 'kernel' })
+  check('H1:HTML body→code/status 抽取不变', r.code === 'upstream-503' && r.diagnostics.status === 503, r.code)
+  check('H2:展示面剥壳取 <title> 摘要', r.message === 'io.llm upstream 503: 503 Service Temporarily Unavailable', r.message.slice(0, 80))
+  check('H3:原始体移交 diagnostics.detail', typeof r.diagnostics.detail === 'string' && r.diagnostics.detail.includes('nginx/1.17.8'))
+  check('H4:复制全文 detail 段带原始 HTML', reportText(r).includes('detail:') && reportText(r).includes('<html>'))
+  const plain = classifyError(new Error('io.llm upstream 404: {"error":"model not found"}'), { op: 'prompt' })
+  check('H5:JSON body 不误判为 HTML', plain.message === 'io.llm upstream 404: {"error":"model not found"}' && plain.diagnostics.detail === undefined)
+}
+
 // ── diagnostics bundle schema（G2 真源）─────────────────────────────
 // 注意：与 error-report 须同 bundle 实例外——各自 bundle 是两个 errorBus 单例。
 {

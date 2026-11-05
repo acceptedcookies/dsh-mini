@@ -181,6 +181,26 @@ function httpStatusOf(message: string): number | undefined {
   return undefined
 }
 
+/** HTML 响应体净化（nginx/CF 错误页嵌进 message 的形状 '… upstream 503: "<html>\r\n…"'）：
+ *  展示面剥标签、优先取 <title> 摘要；原始体移交 diagnostics.detail——
+ *  modal 滚动区与复制全文仍带全量，正文不再被 HTML 撑爆（W3 真机 503 实录）。 */
+function sanitizeDisplay(message: string): { display: string; raw?: string } {
+  const htmlAt = message.search(/<(?:html|head|body|title|div|center|h[1-6]|p|pre|table|span)\b/i)
+  if (htmlAt === -1) return { display: message }
+  const prefix = message.slice(0, htmlAt).replace(/["'\s]+$/, '')
+  const tail = message.slice(htmlAt)
+  const title = /<title>([^<]+)<\/title>/i.exec(tail)?.[1]
+  const stripped = tail
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\\[rnt]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 160)
+  const summary = (title?.trim() ?? '').length > 0 ? title!.trim() : stripped
+  const display = summary.length > 0 ? `${prefix} ${summary}` : prefix
+  return { display: display.slice(0, 400), raw: message }
+}
+
 /** 包装码（pump/host 兜底层）——其 message 内的真上游/域错误身份优先于壳码
  *  （MN03-B9 实证：'host-error: io.llm upstream 404' 若停在壳码，'运行错误'
  *  通用弹窗吞掉上游 404 语义；让位后呈 upstream-404 专属面）。 */
@@ -259,6 +279,7 @@ export function classifyError(input: unknown, ctx: ErrorDiagnostics = {}): Error
     message = String(input)
   }
   const { code: finalCode, taxon, status } = taxonFor(code, message, objStatus)
+  const cleaned = sanitizeDisplay(message)
   return {
     id: randomId('err'),
     code: finalCode,
@@ -266,12 +287,15 @@ export function classifyError(input: unknown, ctx: ErrorDiagnostics = {}): Error
     severity: taxon.severity,
     surface: taxon.surface,
     title: taxon.title,
-    message: message.length > 0 ? message : taxon.title,
+    message: cleaned.display.length > 0 ? cleaned.display : taxon.title,
     hint: taxon.hint,
     diagnostics: {
       ...ctx,
       ...(status !== undefined ? { status } : {}),
       retryable: retryable ?? taxon.retryable,
+      ...(cleaned.raw !== undefined
+        ? { detail: [ctx.detail, cleaned.raw].filter((s): s is string => typeof s === 'string' && s.length > 0).join('\n\n') }
+        : {}),
       ...(stack !== undefined ? { stack } : {}),
     },
     ts: Date.now(),
