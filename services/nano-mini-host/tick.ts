@@ -5,7 +5,7 @@
  * 本地车道 owner='local'，alarm 替身键区经 localCas。
  */
 
-import { localCas } from '../state/local-cas'
+import { ioStateFor } from '../state/provider'
 import { loadKernel } from './kernel-loader'
 import { sweepTick, type PumpCtx } from './pump'
 import { createIoTool } from './io/tool'
@@ -19,7 +19,7 @@ const HOLDER = 'mp-foreground'
 let timer: ReturnType<typeof setInterval> | undefined
 
 function ioFor(sessionId: string): Io {
-  return { llm: createIoLlm(), tool: createIoTool(sessionId), state: localCas }
+  return { llm: createIoLlm(), tool: createIoTool(sessionId), state: ioStateFor() }
 }
 
 export async function nanoMiniCatchUp(): Promise<string[]> {

@@ -163,6 +163,15 @@ export const vfs = {
     const under = vfsStore.rowsUnder(resolved.absolute)
     const isFixedRoot = FIXED_ROOTS.some((r) => r.path === resolved.absolute)
     if (under.length > 0 || isFixedRoot) return { path: resolved.absolute, exists: true, kind: 'dir' }
+    // /mnt 挂载注册表：/mnt/{name} 存在当挂载行在册；/mnt/{name}/{sid} 存在当 session 已挂
+    if (resolved.lane === 'mount' && resolved.laneKey !== undefined) {
+      const mount = vfsStore.getMount(resolved.laneKey)
+      if (mount === undefined) return { path: resolved.absolute, exists: false, kind: 'none' }
+      const third = resolved.absolute.split('/')[3]
+      if (third === undefined || mount.sessions.includes(third)) {
+        return { path: resolved.absolute, exists: true, kind: 'dir' }
+      }
+    }
     return { path: resolved.absolute, exists: false, kind: 'none' }
   },
 
@@ -173,9 +182,20 @@ export const vfs = {
     let entries: VfsListEntry[] = []
     if (resolved.absolute === '/') {
       entries = FIXED_ROOTS.map((r): VfsListEntry => ({ name: r.name, path: r.path, kind: 'dir' }))
-    } else if (resolved.lane === 'mount' || resolved.lane === 'backup') {
-      // 挂载名/副本名注册表：首版为空（rules/filesystem.md §5 占位留缝）
-      if (resolved.laneKey !== undefined) throw new VfsError('path-not-found', `${resolved.absolute} 无挂载`)
+    } else if (resolved.lane === 'mount') {
+      // 挂载注册表：/mnt 列 workspace 挂载名；/mnt/{ws} 列已挂 session（remote-sync 投影）
+      if (resolved.laneKey === undefined) {
+        entries = vfsStore.allMounts()
+          .map((m): VfsListEntry => ({ name: m.name, path: `/mnt/${m.name}`, kind: 'dir' }))
+          .sort((a, b) => (a.name < b.name ? -1 : 1))
+      } else {
+        const mount = vfsStore.getMount(resolved.laneKey)
+        if (mount === undefined) throw new VfsError('path-not-found', `${resolved.absolute} 无挂载`)
+        entries = mount.sessions.map((sid): VfsListEntry => ({ name: sid, path: `/mnt/${mount.name}/${sid}`, kind: 'dir' }))
+      }
+    } else if (resolved.lane === 'backup') {
+      // 副本名注册表：首版为空（rules/filesystem.md §5 占位留缝）
+      if (resolved.laneKey !== undefined) throw new VfsError('path-not-found', `${resolved.absolute} 无副本`)
     } else {
       const prefix = `${resolved.absolute}/`
       const seen = new Map<string, VfsListEntry>()

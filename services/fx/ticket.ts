@@ -26,7 +26,7 @@ interface TicketSource {
   model: string
   allowedModels?: string[]
   sim: { baseUrl: string }
-  cloud: { envId: string; proxyUrl: string }
+  cloud: { envId: string; proxyUrl: string; durableUrl?: string }
 }
 
 function postJSON(url: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -115,12 +115,18 @@ class SimTicketProvider implements TicketProvider {
 
 /** 真云：wx.cloud.callFunction + SOTER（真机 R 车道面）。与 sim 同构，仅传输与证明实现不同。 */
 class CloudTicketProvider implements TicketProvider {
+  private readonly durableBase: string | undefined
+
   constructor(
     private readonly proxyBase: string,
     private readonly envId: string | undefined,
     private readonly route: RouteConfig,
     private readonly cfg: TicketSource,
-  ) {}
+  ) {
+    // durable 收窄面（POD1 fss3）：同 unlock 票据、同 scope——命中 durableBase 亦注入。
+    const d = cfg.cloud.durableUrl
+    this.durableBase = d !== undefined && d.length > 0 ? d.replace(/\/$/, '') : undefined
+  }
 
   async ready(): Promise<CredentialSource> {
     const source = resolveSource(this.route, this.cfg)
@@ -150,7 +156,9 @@ class CloudTicketProvider implements TicketProvider {
   }
 
   async authHeaders(url: string): Promise<Record<string, string>> {
-    if (!url.startsWith(this.proxyBase)) return {}
+    const hit = url.startsWith(this.proxyBase)
+      || (this.durableBase !== undefined && url.startsWith(this.durableBase))
+    if (!hit) return {}
     return { Authorization: `Bearer ${await this.ensure()}` }
   }
 }

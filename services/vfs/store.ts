@@ -38,6 +38,14 @@ export interface VfsManifestEntry {
   mime?: string
 }
 
+/** /mnt 挂载行：workspace 名 + 已挂载的 session laneKey 列表（远端 vfs/workspaces/* 投影）。 */
+export interface MountRow {
+  name: string
+  workspace: string
+  sessions: string[]
+  created_ms: number
+}
+
 /** S3 后端占位配置（合约面，未启用——见 rules/filesystem.md §4）。 */
 export interface S3BackendConfig {
   endpoint: string
@@ -52,6 +60,7 @@ export interface S3BackendConfig {
 const ROWS_KEY = 'dsh:vfs:v1:rows'
 const MANIFESTS_KEY = 'dsh:vfs:v1:manifests'
 const S3CFG_KEY = 'dsh:vfs:v1:s3'
+const MOUNTS_KEY = 'dsh:vfs:v1:mounts'
 /** storage 全量预算 10MB 与全应用共享；VFS 行面自留 6MB 闸。 */
 const ROWS_BUDGET = 6 * 1024 * 1024
 const MANIFEST_BUDGET = 2 * 1024 * 1024
@@ -123,5 +132,26 @@ export const vfsStore = {
   },
   clearS3Config(): void {
     wx.removeStorageSync(S3CFG_KEY)
+  },
+
+  /** /mnt 挂载注册表：行小直接整 map 写（挂载数有限，预算共享行面闸内）。 */
+  putMount(m: MountRow): void {
+    const map = readMap<MountRow>(MOUNTS_KEY)
+    map[m.name] = m
+    writeMap(MOUNTS_KEY, map, MANIFEST_BUDGET)
+  },
+  getMount(name: string): MountRow | undefined {
+    return readMap<MountRow>(MOUNTS_KEY)[name]
+  },
+  allMounts(): MountRow[] {
+    return Object.values(readMap<MountRow>(MOUNTS_KEY))
+  },
+  removeMount(name: string): MountRow | undefined {
+    const map = readMap<MountRow>(MOUNTS_KEY)
+    const row = map[name]
+    if (row === undefined) return undefined
+    delete map[name]
+    writeMap(MOUNTS_KEY, map, MANIFEST_BUDGET)
+    return row
   },
 }

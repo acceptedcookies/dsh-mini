@@ -17,7 +17,7 @@ import type {
 import { markdownToHtml, plainText } from '../markdown'
 import { storage } from '../storage'
 import { randomId } from '../../utils/uuid'
-import { localCas } from '../state/local-cas'
+import { ioStateFor } from '../state/provider'
 import { kernelUsable, loadKernelAsync } from './kernel-loader'
 import { runPump } from './pump'
 import { createIoTool } from './io/tool'
@@ -148,7 +148,8 @@ export class KernelMiniRuntime {
     }
     let assistantText = ''
     const io: Io = {
-      state: localCas,
+      // durable lane：cloud 路由→remoteCas（POD1），local/sim→localCas（provider.ts 裁决）
+      state: ioStateFor(),
       llm: async (messages) => {
         // 跨轮历史 prepend（worker runtime-mainline 同构）：kernel turn.messages
         // 只装当前 turn，历史由宿主从 UI 转录本临时前置、不回写 kernel buffer。

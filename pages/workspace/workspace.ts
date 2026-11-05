@@ -1,4 +1,5 @@
 import { sessionStore } from '../../services/session-store'
+import { vfsStore } from '../../services/vfs/store'
 import { nanoRuntime } from '../../services/nano/runtime'
 import { fetchTodos, fetchWorkspaceFiles } from '../../services/nano/http'
 import { pickImage } from '../../services/upload'
@@ -815,7 +816,16 @@ Page({
   async refreshRightPanel() {
     const sessionId = this.data.currentId
     const tab = this.data.rightTab
-    if (!this.data.nanoConnected || sessionId.length === 0 || (tab !== 'files' && tab !== 'plan')) {
+    if (tab !== 'files' && tab !== 'plan') {
+      this.setData({ rightLoading: false, rightError: '' })
+      return
+    }
+    // local-runtime 车道：files tab 直接渲染本地五根 VFS（含 /mnt 挂载注册表）
+    if (tab === 'files' && !this.data.nanoConnected) {
+      this.setData({ rightLoading: false, rightError: '', rightFiles: localVfsEntries() })
+      return
+    }
+    if (!this.data.nanoConnected || sessionId.length === 0) {
       this.setData({ rightLoading: false, rightError: '' })
       return
     }
@@ -1111,6 +1121,24 @@ Page({
     sessionStore.dismissError()
   },
 })
+
+/** local-runtime 车道的 files tab：五根 + /mnt 挂载 + 本地 VFS 行（按路径序）。 */
+function localVfsEntries(): Array<{ path: string; size: string; mime: string }> {
+  const entries: Array<{ path: string; size: string; mime: string }> = [
+    { path: '/root', size: '', mime: 'dir' },
+    { path: '/data', size: '', mime: 'dir' },
+    { path: '/mnt', size: '', mime: 'dir' },
+    { path: '/tmp', size: '', mime: 'dir' },
+    { path: '/backup', size: '', mime: 'dir' },
+  ]
+  for (const m of vfsStore.allMounts().sort((a, b) => (a.name < b.name ? -1 : 1))) {
+    entries.push({ path: `/mnt/${m.name}`, size: `${m.sessions.length} session`, mime: 'mount' })
+  }
+  for (const row of vfsStore.allRows().sort((a, b) => (a.virtual_path < b.virtual_path ? -1 : 1))) {
+    entries.push({ path: row.virtual_path, size: formatSize(row.size_bytes), mime: row.mime ?? '' })
+  }
+  return entries
+}
 
 function formatSize(bytes: number | undefined): string {
   if (bytes === undefined || !Number.isFinite(bytes)) return ''
