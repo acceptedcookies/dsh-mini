@@ -17,31 +17,33 @@
       </view>
     </view>
 
-    <scroll-view class="sidebar-scroll" scroll-y enhanced show-scrollbar="{{false}}">
-      <view class="workspace-head">
-        <view class="workspace-title">
-          <dsh-icon name="folder-open-outline" theme="{{theme}}" size="{{14}}" />
-          <text class="workspace-title-text">{{workspaceName}}</text>
-        </view>
-        <view class="workspace-actions">
-          <view id="workspace-menu-button-sidebar" class="sidebar-icon" bindtap="openWorkspaceMenu">
-            <dsh-icon name="plus-outline" theme="{{theme}}" size="{{16}}" />
-          </view>
+    <!-- workspace 头 + 搜索不随会话列表滚动——永远钉在顶图层（业主 MN05）。 -->
+    <view class="workspace-head">
+      <view class="workspace-title">
+        <dsh-icon name="folder-open-outline" theme="{{theme}}" size="{{14}}" />
+        <text class="workspace-title-text">{{workspaceName}}</text>
+      </view>
+      <view class="workspace-actions">
+        <view id="workspace-menu-button-sidebar" class="sidebar-icon" bindtap="openWorkspaceMenu">
+          <dsh-icon name="plus-outline" theme="{{theme}}" size="{{16}}" />
         </view>
       </view>
+    </view>
 
-      <view class="sidebar-search">
-        <dsh-icon class="search-icon" name="search-outline" theme="{{theme}}" size="{{14}}" />
-        <input
-          class="search-input"
-          value="{{query}}"
-          placeholder="搜索会话"
-          placeholder-class="search-placeholder"
-          adjust-position="{{false}}"
-          bindinput="onSearch"
-        />
-      </view>
+    <view class="sidebar-search">
+      <dsh-icon class="search-icon" name="search-outline" theme="{{theme}}" size="{{14}}" />
+      <input
+        class="search-input"
+        value="{{query}}"
+        placeholder="搜索会话"
+        placeholder-class="search-placeholder"
+        adjust-position="{{false}}"
+        bindinput="onSearch"
+      />
+    </view>
 
+    <!-- 会话列表独立滚动容器：溢出内部滚动，头/搜索/设置永不离开。 -->
+    <scroll-view class="sidebar-scroll" scroll-y show-scrollbar="{{false}}">
       <view class="session-list">
         <view
           wx:for="{{rows}}"
@@ -52,17 +54,16 @@
         >
           <view class="row-state row-state-{{item.status}}"></view>
           <text class="row-title">{{item.title}}</text>
-          <text class="row-sync row-sync-{{item.syncState}}">{{item.syncLabel}}</text>
-          <text class="row-engine">{{item.engineBadge}}</text>
-          <text wx:if="{{item.id !== currentId}}" class="row-time">{{item.timeLabel}}</text>
-          <view
-            wx:if="{{item.id === currentId}}"
-            id="session-more-{{item.id}}"
-            class="row-more"
-            data-id="{{item.id}}"
-            catchtap="onSessionMenu"
-          >
-            <dsh-icon name="ellipsis-outline" theme="{{theme}}" size="{{16}}" />
+          <view class="row-side">
+            <view
+              id="session-more-{{item.id}}"
+              class="row-more"
+              data-id="{{item.id}}"
+              catchtap="onSessionMenu"
+            >
+              <dsh-icon name="ellipsis-outline" theme="{{theme}}" size="{{15}}" />
+            </view>
+            <text class="row-status row-status-{{item.syncState}}">{{item.statusLine}}</text>
           </view>
         </view>
         <view wx:if="{{!rows.length}}" class="sidebar-empty">{{query ? '没有匹配的会话' : '还没有会话'}}</view>

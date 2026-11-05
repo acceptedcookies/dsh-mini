@@ -16,7 +16,7 @@ import { hasFreshTicket, onTicketMinted } from '../../services/fx/ticket'
 import { nanoMiniCatchUp } from '../../services/nano-mini-host/tick'
 import { firstCommand } from '../../services/commands'
 import {
-  engineBadge, engineForSession, engineLabel, magpieAvailable, pendingEngine, routeDefaultEngine, setPendingEngine,
+  engineForSession, engineLabel, magpieAvailable, pendingEngine, setPendingEngine,
 } from '../../services/session-engine'
 import { formatRelative } from '../../utils/time'
 import { toolView, type ToolView } from '../../utils/tool-view'
@@ -38,8 +38,9 @@ interface SessionRow extends SessionSummary {
   /** local=仅本地 | synced=转录水位覆盖最新 | pending=有远端行但本地更新未上行。 */
   syncState: 'local' | 'synced' | 'pending'
   syncLabel: string
-  /** 引擎戳记徽标（本地·nano-agent / 本地·magpie / 云端）。 */
-  engineBadge: string
+  /** 状态行合一（业主 MN05）：「本地 · 5分钟前」——同步态+时间。
+   *  右列仅 ~1/3 宽，引擎徽标并入会截断掉时间，故去重后只留本真状态。 */
+  statusLine: string
 }
 
 /* Tool rows carry their dsh presentation projection (utils/tool-view). */
@@ -1398,8 +1399,14 @@ function filterRows(sessions: SessionSummary[], query: string): SessionRow[] {
       const ptr = syncMap.get(session.id)
       const syncState = ptr === undefined ? 'local' : ptr.updated_ms >= session.updatedAt ? 'synced' : 'pending'
       const syncLabel = syncState === 'local' ? '本地' : syncState === 'synced' ? '已同步' : '待同步'
-      const engine = session.engine ?? routeDefaultEngine()
-      return { ...session, timeLabel: formatRelative(session.updatedAt), syncState, syncLabel, engineBadge: engineBadge(engine) }
+      const timeLabel = formatRelative(session.updatedAt)
+      return {
+        ...session,
+        timeLabel,
+        syncState,
+        syncLabel,
+        statusLine: `${syncLabel} · ${timeLabel}`,
+      }
     })
 }
 

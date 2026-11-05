@@ -15,7 +15,8 @@
   z-index: 80;
   top: 0;
   left: 0;
-  width: min(280px, calc(100vw - 72px));
+  /* 业主 MN05：抽屉占视口 4/5（仅窄屏 overlay 形态出现；宽屏为内联列）。 */
+  width: 80vw;
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -219,17 +220,21 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
+/* 会话行（业主 MN05）：上下两行——左 2/3 标题两行换行省略，右 1/3 上控件
+ *  下状态；行距 2px 隔离防误触；列表在独立容器内滚动。 */
 .session-list {
   padding: 0;
 }
 
 .session-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--dsw-space-6);
-  height: 32px;
-  padding: 0 var(--dsw-space-8) 0 var(--dsw-inset-x);
+  margin-top: 2px;
+  min-height: 48px;
+  padding: var(--dsw-space-4) var(--dsw-space-8) var(--dsw-space-4) var(--dsw-inset-x);
   border-radius: var(--dsw-radius-sm);
+  box-sizing: border-box;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -242,6 +247,7 @@
   flex: none;
   width: 6px;
   height: 6px;
+  margin-top: 11px;
   border-radius: var(--dsw-radius-circle);
   background: var(--dsw-alias-state-idle-primary, #d4d4d4);
 }
@@ -254,54 +260,56 @@
   background: var(--dsw-alias-state-error-primary);
 }
 
+/* 标题占左 2/3：两行换行，超出省略。 */
 .row-title {
-  flex: 1;
+  flex: 2;
   min-width: 0;
+  padding-top: 4px;
   font-size: var(--dsw-text-body);
   line-height: var(--dsw-lh-20);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-break: break-all;
 }
 
-.row-time {
-  flex: none;
-  color: var(--dsw-alias-label-tertiary);
-  font-size: var(--dsw-text-mini);
-  line-height: var(--dsw-lh-16);
+/* 右 1/3：上=控制钮，下=状态行。 */
+.row-side {
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
 }
 
-/* 会话同步态徽标（BL-4）：本地=三级灰；已同步=成功绿；待同步=警示色。 */
-.row-sync {
-  flex: none;
-  margin: 0 8rpx;
-  font-size: var(--dsw-text-mini);
-  line-height: var(--dsw-lh-16);
-  color: var(--dsw-alias-label-tertiary);
-}
-
-.row-sync-synced {
-  color: var(--dsw-alias-positive-primary, #1a9e6b);
-}
-
-.row-sync-pending {
-  color: var(--dsw-alias-warning-primary, #d97f00);
-}
-
-/* 引擎戳记徽标（MN03）：本地·nano-agent / 本地·magpie / 云端——四级弱灰，
- *  比同步态低一档信息层级，不抢行标题。 */
-.row-engine {
-  flex: none;
-  margin-right: 8rpx;
+/* 状态行合一：文本=引擎徽标·时间，颜色=同步态（本地灰/已同步绿/待同步橙）。 */
+.row-status {
+  max-width: 100%;
+  padding-bottom: 2px;
   color: var(--dsw-alias-label-caption);
   font-size: var(--dsw-text-mini);
   line-height: var(--dsw-lh-16);
+  text-align: right;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.row-status-synced {
+  color: var(--dsw-alias-positive-primary, #1a9e6b);
+}
+
+.row-status-pending {
+  color: var(--dsw-alias-warning-primary, #d97f00);
 }
 
 .row-more {
   flex: none;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -831,10 +839,6 @@
 }
 
 @media (max-width: 767px) {
-  .sidebar {
-    width: min(280px, calc(100vw - 64px));
-  }
-
   .logo-row {
     height: 56px;
   }
@@ -853,10 +857,6 @@
   }
 
   .search-input {
-    height: 30px;
-  }
-
-  .session-row {
     height: 30px;
   }
 
