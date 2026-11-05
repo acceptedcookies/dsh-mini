@@ -62,6 +62,17 @@ export function hasFreshTicket(): boolean {
   return cachedTicket() !== undefined
 }
 
+/** 票据铸成监听：后台面（reconcile/镜像跳过的上行）在票据落地后自愈。 */
+const mintListeners = new Set<() => void>()
+export function onTicketMinted(fn: () => void): void {
+  mintListeners.add(fn)
+}
+const fireMinted = (): void => {
+  for (const fn of mintListeners) {
+    try { fn() } catch (e) { console.warn('[ticket] minted listener failed:', e) }
+  }
+}
+
 interface WxCloud {
   init(opts: { env?: string }): void
   callFunction(o: { name: string; data: Record<string, unknown> }): Promise<{ result: unknown }>
@@ -107,6 +118,7 @@ class SimTicketProvider implements TicketProvider {
         result_signature: proof.result_signature,
       })) as { ticket: string; exp: number }
       sharedTicket = { token: u.ticket, expMs: u.exp * 1000 }
+      fireMinted()
       return u.ticket
     })().finally(() => {
       inflight = undefined
@@ -156,6 +168,7 @@ class CloudTicketProvider implements TicketProvider {
       })
       if (typeof u.ticket !== 'string') throw new Error(u.error ?? 'unlock 失败')
       sharedTicket = { token: u.ticket, expMs: u.exp * 1000 }
+      fireMinted()
       return u.ticket
     })().finally(() => {
       inflight = undefined
@@ -167,7 +180,11 @@ class CloudTicketProvider implements TicketProvider {
     const hit = url.startsWith(this.proxyBase)
       || (this.durableBase !== undefined && url.startsWith(this.durableBase))
     if (!hit) return {}
-    return { Authorization: `Bearer ${await this.ensure()}` }
+    // 数据面只读缓存票据——不触发 ensure()（铸票=SOTER，须用户手势上下文）；
+    // 后台面（镜像/转录/reconcile）无票据时收到空头→401 如实失败，不静默弹生物识别（审查 B8）。
+    const cached = cachedTicket()
+    if (cached === undefined) return {}
+    return { Authorization: `Bearer ${cached}` }
   }
 }
 

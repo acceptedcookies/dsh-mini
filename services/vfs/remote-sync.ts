@@ -16,6 +16,7 @@
 import { vfsStore, type MountRow, type VfsRow } from './store'
 import { localObjects } from './objects'
 import { VfsError } from './paths'
+import { sha256Hex } from './sha256'
 import { encodeUtf8, decodeUtf8 } from '../fx/utf8'
 import type { RemoteVfs } from './remote'
 
@@ -143,6 +144,12 @@ export function createVfsSync(remote: RemoteVfs) {
     if (localObjects.exists(row.object_key)) return true
     const r = await remote.get(`objects/${row.object_key}`)
     if (r === null) return false
+    // 内容寻址面自验：远端字节与 object_key 不符不得写 cache——
+    // 否则坏字节永久驻留正确键下，vfs.read 恒 hash-mismatch（审查 B8）。
+    if (sha256Hex(new Uint8Array(r.bytes)) !== row.object_key) {
+      console.warn(`[remote-sync] hydrate 字节 hash 与 object_key 不符 ${path}`)
+      return false
+    }
     localObjects.write(row.object_key, r.bytes)
     return true
   }
@@ -159,9 +166,12 @@ export function createVfsSync(remote: RemoteVfs) {
         manifest = { kind: 'workspace', name: safe, sessions: [], created_ms: Date.now() }
       }
       mutate(manifest)
+      // cur===null 时必须 ifNoneMatch 而非无条件写——双设备并发建同 workspace
+      // 都读到 null 都直写会丢条目（正是本 CAS 环要防的竞态，审查 B8）。
       const r = await remote.put(wsKey(safe), enc(JSON.stringify(manifest)), {
         mime: 'application/json',
         ifMatch: cur?.etag,
+        ifNoneMatch: cur === null,
       }).then(() => true).catch((e) => {
         if ((e as { code?: string }).code === 'fence-blocked') return false
         throw e
@@ -214,12 +224,14 @@ export function createVfsSync(remote: RemoteVfs) {
         }
         continue
       }
-      // sessions/{sid}.json 挂载行：清单丢条目时的自愈源
+      // sessions/{sid}.json 挂载行：清单丢条目时的自愈源；
+      // 清单整失时行自带 {workspace,session_id}——据此重建挂载而非孤儿化（审查 B8）。
       const sm = key.match(/^workspaces\/([^/]+)\/sessions\/([^/]+)\.json$/)
       if (sm !== null) {
-        const mount = vfsStore.getMount(sm[1])
-        if (mount !== undefined && !mount.sessions.includes(sm[2])) {
+        const mount = vfsStore.getMount(sm[1]) ?? { name: sm[1], workspace: sm[1], sessions: [], created_ms: Date.now() }
+        if (!mount.sessions.includes(sm[2])) {
           vfsStore.putMount({ ...mount, sessions: [...mount.sessions, sm[2]] })
+          names.add(sm[1])
         }
       }
     }

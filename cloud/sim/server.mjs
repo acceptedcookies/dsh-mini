@@ -212,8 +212,9 @@ const server = createServer(async (req, res) => {
       const parseKey = (key) => {
         if (typeof key !== "string") return null;
         const m = key.match(/^(state|claims|alarms)\/(.+)$/);
-        // rest 段拒 `..`/`//`/前导 `/`——与 worker 同纪律防穿越
-        if (m === null || /(^|\/)\.\.(\/|$)|\/\/|^\/|dsh-mini/.test(m[2])) return null;
+        // rest 段拒 `..`/`//`/前导 `/`——与 worker 同纪律防穿越；
+        // 'dsh-mini' 按段锚定——子串拒会误伤合法文件名（审查 B8）
+        if (m === null || /(^|\/)\.\.(\/|$)|\/\/|^\/|(^|\/)dsh-mini(\/|$)/.test(m[2])) return null;
         return `dsh-mini/${m[1]}/${openid}/${m[2]}`;
       };
       const casGet = (k) => db.cas[k] ?? null;

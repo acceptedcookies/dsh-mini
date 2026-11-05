@@ -88,7 +88,8 @@ function ticketPayload(req, scope = "byok-proxy") {
 /** vfs 线键 `vfs/{rest}` → 全键 `dsh-mini/vfs/{openid}/{rest}`；同 worker rest 校验。 */
 const vfsFull = (key, openid) => {
   const m = typeof key === "string" && key.match(/^vfs\/(.+)$/);
-  if (m === null || /(^|\/)\.\.(\/|$)|\/\/|^\/|dsh-mini/.test(m[1])) return null;
+  // 'dsh-mini' 按段锚定拒：合法文件名如 dsh-mini-notes.txt 不该误伤（审查 B8）。
+  if (m === null || /(^|\/)\.\.(\/|$)|\/\/|^\/|(^|\/)dsh-mini(\/|$)/.test(m[1])) return null;
   return `dsh-mini/vfs/${openid}/${m[1]}`;
 };
 
@@ -240,7 +241,11 @@ const apiServer = createServer(async (req, res) => {
 
     // 管理面：ADMIN_TOKEN 闸（铸票/统计——测试与排障用，不进生产合同）。
     if (path.startsWith("/dev/")) {
-      if (ADMIN_TOKEN === "" || req.headers["x-admin-token"] !== ADMIN_TOKEN) return json(res, 403, { error: "admin token required" });
+      // 时序安全比较：!== 前缀泄露 token 长度/前缀（管理面虽小，oracle 不白送）。
+      const tok = String(req.headers["x-admin-token"] ?? "");
+      const adminOk = ADMIN_TOKEN !== "" && tok.length === ADMIN_TOKEN.length
+        && timingSafeEqual(Buffer.from(tok), Buffer.from(ADMIN_TOKEN));
+      if (!adminOk) return json(res, 403, { error: "admin token required" });
       if (req.method === "POST" && path === "/dev/ticket") {
         let j;
         try { j = JSON.parse((await readBody(req, 4096)).toString("utf8") || "{}"); } catch { return json(res, 400, { error: "bad json" }); }
@@ -325,7 +330,7 @@ const apiServer = createServer(async (req, res) => {
       }
       if (ep === "list") {
         const m = typeof j.prefix === "string" && j.prefix.match(/^vfs\/(.*)$/);
-        if (m === null || /(^|\/)\.\.(\/|$)|\/\/|^\/|dsh-mini/.test(m[1])) return json(res, 400, { error: "bad prefix shape" });
+        if (m === null || /(^|\/)\.\.(\/|$)|\/\/|^\/|(^|\/)dsh-mini(\/|$)/.test(m[1])) return json(res, 400, { error: "bad prefix shape" });
         const limit = Math.min(Number(j.limit ?? 500), 1000);
         const startAfter = typeof j.start_after === "string" ? `dsh-mini/vfs/${openid}/${j.start_after.replace(/^vfs\//, "")}` : undefined;
         const objs = store.list(`dsh-mini/vfs/${openid}/${m[1]}`, limit + 1, startAfter);
@@ -351,6 +356,8 @@ const apiServer = createServer(async (req, res) => {
 
     return json(res, 404, { error: `no route ${path}` });
   } catch (e) {
+    // 超限 body 是客户端错误（413）不是内部故障——500 会误报后端不健康。
+    if (e?.message === "body-too-large") return json(res, 413, { error: "body too large" });
     log(`error ${path}:`, e.message);
     return json(res, 500, { error: String(e.message ?? e).slice(0, 200) });
   }

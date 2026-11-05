@@ -89,26 +89,29 @@ export function createStore(root) {
       try { unlinkSync(metaPath(key)); } catch { /* absent */ }
       return { status: had ? 200 : 404 };
     },
-    /** 前缀列举：解码路径段还原 key；startAfter 游标续页；返回 {key,size,etag,updated_ms}。 */
+    /** 前缀列举：全量解码→prefix/startAfter 过滤→**按解码 key 排序**→切片。
+     *  此前按编码目录名排序而游标按解码 key 比较：非 ASCII 段编码后以 '%' 起
+     *  排在字母前，解码后却排最后——续页时永久丢键（审查 B8 实证：混 CJK 目录）。 */
     list(prefix = "", maxKeys = 1000, startAfter = undefined) {
-      const out = [];
+      const keys = [];
       const walk = (dir, parts) => {
-        if (out.length >= maxKeys) return;
         let ents;
         try { ents = readdirSync(dir, { withFileTypes: true }); } catch { return; }
-        ents.sort((a, b) => (a.name < b.name ? -1 : 1));
         for (const e of ents) {
-          if (out.length >= maxKeys) return;
           if (e.isDirectory()) { walk(join(dir, e.name), [...parts, e.name]); continue; }
-          const key = [...parts, e.name].map(decodeURIComponent).join("/");
-          if (!key.startsWith(prefix)) continue;
-          if (startAfter !== undefined && key <= startAfter) continue;
-          const meta = readMeta(key);
-          if (meta === null) continue;
-          out.push({ key, size: meta.size, etag: meta.etag, updated_ms: meta.updated_ms });
+          keys.push([...parts, e.name].map(decodeURIComponent).join("/"));
         }
       };
       walk(objRoot, []);
+      const matched = keys
+        .filter((k) => k.startsWith(prefix) && (startAfter === undefined || k > startAfter))
+        .sort();
+      const out = [];
+      for (const key of matched.slice(0, maxKeys)) {
+        const meta = readMeta(key);
+        if (meta === null) continue;
+        out.push({ key, size: meta.size, etag: meta.etag, updated_ms: meta.updated_ms });
+      }
       return out;
     },
     /** 全键统计（诊断面）。 */

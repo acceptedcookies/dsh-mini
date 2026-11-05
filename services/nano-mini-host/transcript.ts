@@ -7,6 +7,7 @@
  * 指针是消费回执不是真源——远端行是真源，指针只记上行水位。
  */
 import { vfsRemoteFor } from '../state/provider'
+import { hasFreshTicket } from '../fx/ticket'
 import { encodeUtf8, decodeUtf8 } from '../fx/utf8'
 import type { ChatItem } from '../../types/protocol'
 
@@ -103,6 +104,8 @@ export async function pullTranscript(sessionId: string): Promise<{ items: ChatIt
  *  行删失败 warn 不阻塞本地删除——行是 owner 私域，残留仅占用不计语义）。 */
 export async function dropTranscript(sessionId: string): Promise<void> {
   wx.removeStorageSync(`${PTR_PREFIX}${sessionId}`)
+  // 无活票据不碰远端（铸票=SOTER 须手势上下文）——远端行残留按 best-effort 登记语义。
+  if (!hasFreshTicket()) return
   const remote = vfsRemoteFor()
   if (remote === null) return
   try {

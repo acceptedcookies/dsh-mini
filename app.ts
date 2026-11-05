@@ -4,16 +4,16 @@ import { vfs, vfsReadView, vfsStore } from './services/vfs/api'
 import { setVfsMirrorHook } from './services/vfs/vfs'
 import { nanoMiniCatchUp, nanoMiniStartTick, nanoMiniStopTick } from './services/nano-mini-host/tick'
 import { vfsRemoteFor, vfsSyncFor, ioStateFor } from './services/state/provider'
-import { hasFreshTicket } from './services/fx/ticket'
+import { hasFreshTicket, onTicketMinted } from './services/fx/ticket'
 
 /** cloud 车道 VFS 远端镜像接线（MN02 G1 durable lane 活线）：
- *  写/删 → fire-and-forget 推送（失败 warn 不阻塞本地写——启动 reconcile 兜底自愈）；
- *  启动 reconcile：远端清单/行下拉（updated_ms 大者赢）→ 本地行推送（指针增量）。 */
+ *  写/删 → fire-and-forget 推送（失败 warn 不阻塞本地写——reconcile 兜底自愈）；
+ *  reconcile：远端清单/行下拉（updated_ms 大者赢）→ 本地行推送（指针增量）。 */
 function wireRemoteMirror(): void {
   const sync = vfsSyncFor()
   if (sync === null) return
-  let reconciled = false
-  const reconcile = async (): Promise<void> => {
+  let inFlight: Promise<void> | undefined
+  const doReconcile = async (): Promise<void> => {
     try {
       await sync.pullWorkspaces()
       const pulled = await sync.pullRows()
@@ -24,18 +24,19 @@ function wireRemoteMirror(): void {
       console.warn('[vfs-mirror] reconcile 失败（远端不可达——写路径仍先推）:', e instanceof Error ? e.message : e)
     }
   }
-  // 后台 reconcile 仅在票据已活时跑——否则静默触发 SOTER 非手势弹窗（审查 B8）；
-  // 首次推送成功（=票据已铸）即自举一次 reconcile 兜底历史分歧。
-  const armedReconcile = (): void => {
-    if (reconciled) return
-    reconciled = true
-    void reconcile()
+  // 后台面铁律：无活票据不碰远端——铸票=SOTER 须用户手势上下文（审查 B8）。
+  // 票据铸成（onTicketMinted）即 reconcile 兜底全部跳过/失败的上行；in-flight 单飞防重入。
+  const reconcile = (): void => {
+    if (!hasFreshTicket() || inFlight !== undefined) return
+    inFlight = doReconcile().finally(() => { inFlight = undefined })
   }
   setVfsMirrorHook((path, kind) => {
+    if (!hasFreshTicket()) return
     const p = kind === 'write' ? sync.pushPath(path) : sync.pushRemove(path)
-    p.then(() => armedReconcile()).catch((e) => console.warn(`[vfs-mirror] ${kind} ${path} 推送失败（reconcile 兜底）:`, e instanceof Error ? e.message : e))
+    p.then(() => reconcile()).catch((e) => console.warn(`[vfs-mirror] ${kind} ${path} 推送失败（reconcile 兜底）:`, e instanceof Error ? e.message : e))
   })
-  if (hasFreshTicket()) armedReconcile()
+  onTicketMinted(() => reconcile())
+  reconcile()
 }
 
 App<IAppOption>({

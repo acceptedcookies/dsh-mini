@@ -76,7 +76,9 @@ export async function writeAlarm(ctx: PumpCtx, sessionId: string, etag: string |
 }
 
 export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions & { cancelRequested?: () => boolean } = {}): Promise<PumpResult> {
-  const claimTtl = opts.claimTtlMs ?? 30000
+  // 默认 TTL 须 > 单步最坏时长（io.llm timeout=60s）——心跳只在步边界续约，
+  // 步中过期会让对手接管并双跑 side-effect step（N4 不变量违例，审查 B8）。
+  const claimTtl = opts.claimTtlMs ?? 90000
   const cl = await claim(ctx, sessionId, claimTtl)
   if (cl.status !== 200) return { outcome: 'claim-denied', trace: [], rival: cl.holder }
   // claim 心跳：长 turn（>ttl）不续约会被对手接管 → 每步检查、过期前 30% 续约；
@@ -220,7 +222,10 @@ export async function sweepTick(
       // 先跑后删（at-least-once）：runPump 异常时 alarm 行仍在，下 tick 重试；
       // 重入重复 fire 由 session claim 挡（工具不会双跑——N4 幂等面）。
       const r = await runPump({ ...ctx, io }, rec.sessionId)
-      await ctx.io.state.del(key)
+      // 仅终态消费 alarm：completed/suspended 的 resume 职责已尽；
+      // claim-denied/fenced/step-exhausted/killed 留行——对手若永不完结，
+      // 删掉 resume 触发即永久失活（at-most-once liveness 缺口，审查 B8）。
+      if (r.outcome === 'completed' || r.outcome === 'suspended') await ctx.io.state.del(key)
       ran.push({ sessionId: rec.sessionId, outcome: r.outcome })
     } catch (e) {
       // 毒化行不终止整批：留 alarm 等下 tick（天然退避=周期）；

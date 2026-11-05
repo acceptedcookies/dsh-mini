@@ -150,8 +150,9 @@ export default {
     /** 线键 `{kind}/{rest}` → 全键 `dsh-mini/{kind}/{openid}/{rest}`；openid 注入。 */
     const full = (key) => {
       const m = typeof key === "string" && key.match(/^(state|claims|alarms)\/(.+)$/);
-      // rest 段拒 `..`/`//`/前导 `/`——对会做路径归一化的后端防穿越（审查 P2）
-      if (m === null || /(^|\/)\.\.(\/|$)|\/\/|^\/|dsh-mini/.test(m[2])) return null;
+      // rest 段拒 `..`/`//`/前导 `/`——对会做路径归一化的后端防穿越（审查 P2）；
+      // 'dsh-mini' 按段锚定——子串拒会误伤合法文件名（审查 B8）
+      if (m === null || /(^|\/)\.\.(\/|$)|\/\/|^\/|(^|\/)dsh-mini(\/|$)/.test(m[2])) return null;
       return `dsh-mini/${m[1]}/${openid}/${m[2]}`;
     };
     const ep = url.pathname.slice("/v1/".length);
@@ -183,7 +184,9 @@ export default {
             }
           } catch { /* 坏行可覆盖 */ }
         }
-        const rec = { holder: j.holder, expires: new Date(Date.now() + (j.ttlMs ?? 30000)).toISOString() };
+        // ttlMs 钳制 [0,1h]：无界值是 self-DoS 面（oid 虽服务端注入，键区仍共享）。
+        const ttlMs = Math.min(Math.max(Number(j.ttlMs ?? 30000) || 0, 0), 3600000);
+        const rec = { holder: j.holder, expires: new Date(Date.now() + ttlMs).toISOString() };
         const r = await casPut(env, k, JSON.stringify(rec), cur !== null ? { ifMatch: cur.etag } : { ifNoneMatch: "*" });
         if (r.backendError === true) return json({ error: `backend ${r.status}` }, r.status);
         return r.status === 200 ? json({ holder: j.holder }) : json({ error: "claim-held" }, 412);

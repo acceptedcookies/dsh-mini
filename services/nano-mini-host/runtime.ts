@@ -18,6 +18,7 @@ import { markdownToHtml, plainText } from '../markdown'
 import { storage } from '../storage'
 import { randomId } from '../../utils/uuid'
 import { ioStateFor } from '../state/provider'
+import { hasFreshTicket } from '../fx/ticket'
 import { resolveImageParts } from './images'
 import { syncTranscript, dropTranscript } from './transcript'
 import { kernelUsable, loadKernelAsync } from './kernel-loader'
@@ -177,7 +178,9 @@ export class KernelMiniRuntime {
 
   /** kernel pump 驱动一轮 turn；io 回调内投影 UI 事件。 */
   private async drive(sessionId: string, input: unknown): Promise<void> {
-    const s = this.require(sessionId)
+    // require 在 try 外会漏 unhandled rejection——会话已在 pump 落地前删除属正常竞态（审查 B8）。
+    const s = this.sessions.get(sessionId)
+    if (s === undefined) return
     this.running.add(sessionId)
     // 真机：kernel 纯资源分包经 preloadRule 异步下载——轮询等可用（最长 20s）
     const bundle = await loadKernelAsync()
@@ -262,10 +265,11 @@ export class KernelMiniRuntime {
     void this.syncTranscriptNow(sessionId)
   }
 
-  /** G5：转录上行（remote lane 在时）；上行失败不拖累会话——warn 登记。 */
+  /** G5：转录上行（remote lane 在时）；上行失败不拖累会话——warn 登记。
+   *  无活票据跳过（铸票=SOTER 须用户手势；水位指针未动，下次 settle 重推）。 */
   async syncTranscriptNow(sessionId: string): Promise<unknown> {
     const s = this.sessions.get(sessionId)
-    if (s === undefined) return null
+    if (s === undefined || !hasFreshTicket()) return null
     try {
       return await syncTranscript(sessionId, s.items, { model: storage.getModel() })
     } catch (e) {

@@ -230,6 +230,30 @@ export const vfsRemoteFor = () => remote
   const p2 = await post('vfs/list', { prefix: pref, limit: 2, start_after: p1.body.next_token })
   check('E8:vfs/list 续页（truncated+next_token）', p1.body.truncated === true && p1.body.keys.length === 2 && p2.body.keys.length === 1 && p2.body.truncated === false, `p1=${p1.body.keys?.length} p2=${p2.body.keys?.length}`)
 
+  // CJK 续页：目录项编码序（% 前）≠解码序（CJK 殿后）——混排+limit=1 逐页，
+  // 旧实现按编码序走、游标按解码比 → 永久丢键（审查 B8 实证后修 store.list）。
+  const cjkP = `vfs/rows/data/${mir}-cjk/`
+  for (const n of ['a.txt', '中.txt', 'b.txt']) await post('vfs/put', { key: `${cjkP}${n}`, bytes_b64: Buffer.from('x').toString('base64') })
+  const seen = []
+  let tok
+  for (let i = 0; i < 6; i++) {
+    const pg = await post('vfs/list', { prefix: cjkP, limit: 1, start_after: tok })
+    seen.push(...(pg.body.keys ?? []))
+    tok = pg.body.truncated === true ? pg.body.next_token : undefined
+    if (tok === undefined) break
+  }
+  const want = [`${cjkP}a.txt`, `${cjkP}b.txt`, `${cjkP}中.txt`]
+  check('E8:vfs/list CJK 续页解码序不丢键', JSON.stringify(seen) === JSON.stringify(want), JSON.stringify(seen))
+
+  // manifest 创建竞态：双 sync 并发挂同新 workspace——ifNoneMatch 使负者重读
+  // 合并（旧码 cur=null 无条件写 → 一写覆盖丢条目，审查 B8）。
+  const sync2 = mkSync(rv)
+  const raceWs = `${RUN}-race`
+  await Promise.all([sync.mountSession(raceWs, 'sess-x'), sync2.mountSession(raceWs, 'sess-y')])
+  const rm = await post('vfs/get', { key: `vfs/workspaces/${raceWs}.json` })
+  const rmani = JSON.parse(Buffer.from(rm.body.body_b64, 'base64').toString())
+  check('E8:manifest 创建竞态双 sid 双活', rmani.sessions.includes('sess-x') && rmani.sessions.includes('sess-y'), JSON.stringify(rmani.sessions))
+
   // claim 心跳：claimTtlMs=300 + 慢 tool（500ms）→ turn 内续约，fenced 不出现
   const cas = mkCas('o1')
   let slow = 0
