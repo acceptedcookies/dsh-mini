@@ -20,7 +20,18 @@ import { nanoMiniCatchUp, nanoMiniStartTick, nanoMiniStopTick } from '${repo}/se
 import { localCas } from '${repo}/services/state/local-cas'
 export { nanoMiniCatchUp, nanoMiniStartTick, nanoMiniStopTick, localCas }
 `)
-const out = await esbuild.build({ entryPoints: [entry], bundle: true, format: 'cjs', write: false, platform: 'node', target: 'node18', logLevel: 'silent' })
+// 本测是 local-tick 面：仓内 dev-config.ts（route=cloud）会被真打包 → 换 fx/dev 为 local stub。
+// （依赖注入面替换，源码不动——同 vision-dual 的 dep-swap 模式）
+const devStub = join(mkdtempSync(join(tmpdir(), 'mn01-devstub-')), 'dev.ts')
+writeFileSync(devStub, `
+export const currentRoute = () => ({ mode: 'local' })
+export const loadDevConfig = () => undefined
+`)
+const devSwap = {
+  name: 'dev-swap',
+  setup(b) { b.onResolve({ filter: /fx\/dev$/ }, () => ({ path: devStub })) },
+}
+const out = await esbuild.build({ entryPoints: [entry], bundle: true, format: 'cjs', write: false, platform: 'node', target: 'node18', logLevel: 'silent', plugins: [devSwap] })
 const mod = { exports: {} }
 new Function('module', 'exports', 'require', out.outputFiles[0].text)(mod, mod.exports, require)
 const { nanoMiniCatchUp, nanoMiniStartTick, nanoMiniStopTick, localCas } = mod.exports

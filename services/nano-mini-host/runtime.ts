@@ -18,6 +18,7 @@ import { markdownToHtml, plainText } from '../markdown'
 import { storage } from '../storage'
 import { randomId } from '../../utils/uuid'
 import { ioStateFor } from '../state/provider'
+import { resolveImageParts } from './images'
 import { kernelUsable, loadKernelAsync } from './kernel-loader'
 import { runPump } from './pump'
 import { createIoTool } from './io/tool'
@@ -118,7 +119,22 @@ export class KernelMiniRuntime {
     s.summary.status = 'running'
     this.emit({ type: 'status', sessionId: id, state: 'running', step: 1 })
     this.persist()
-    void this.drive(id, { role: 'user', content: text })
+    // G4：images → kernel image_url parts（cloud=publish→https，local/sim=data: 内联）。
+    // 解析失败（远端 lane 缺位/文件读不出）如实上报——不丢图静默跑文本。
+    let input: unknown = { role: 'user', content: text }
+    if (images.length > 0) {
+      try {
+        const parts = await resolveImageParts(images)
+        input = {
+          role: 'user',
+          content: [...parts, ...(text.trim().length > 0 ? [{ kind: 'text', text }] : [])],
+        }
+      } catch (e) {
+        this.fail(id, 'image-resolve-failed', e instanceof Error ? e.message : String(e))
+        return { messageId }
+      }
+    }
+    void this.drive(id, input)
     return { messageId }
   }
 

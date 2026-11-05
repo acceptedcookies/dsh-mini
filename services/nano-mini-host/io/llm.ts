@@ -14,7 +14,7 @@ import type { LlmOutput, LlmToolCall } from '../types'
 
 interface ChatMessage {
   role: string
-  content?: string | null
+  content?: string | null | Array<Record<string, unknown>>
   tool_calls?: Array<{ id: string; type: string; function: { name: string; arguments: string } }>
   [key: string]: unknown
 }
@@ -38,9 +38,14 @@ function normalizeMessages(messages: unknown[]): ChatMessage[] {
     }
     if (Array.isArray(row.content)) {
       const texts: string[] = []
+      const images: Array<Record<string, unknown>> = []
       const toolCalls: NonNullable<ChatMessage['tool_calls']> = []
       for (const part of row.content as Array<Record<string, unknown>>) {
         if (part?.kind === 'text' && typeof part.text === 'string') texts.push(part.text)
+        else if (part?.kind === 'image_url' && typeof part.url === 'string') {
+          // kernel part → OpenAI image_url 块（G4）：images 先 text 后（fx 约定）
+          images.push({ type: 'image_url', image_url: { url: part.url } })
+        }
         else if (part?.kind === 'tool_call') {
           toolCalls.push({
             id: String(part.id ?? ''),
@@ -50,6 +55,9 @@ function normalizeMessages(messages: unknown[]): ChatMessage[] {
         }
       }
       const msg: ChatMessage = { role, content: texts.join('\n') || null }
+      if (images.length > 0) {
+        msg.content = [...images, ...texts.map((t) => ({ type: 'text', text: t }))]
+      }
       if (toolCalls.length > 0) msg.tool_calls = toolCalls
       out.push(msg)
       continue
@@ -147,7 +155,7 @@ export function createIoLlm(deps: IoLlmDeps = {}): (messages: unknown[]) => Prom
     if (res.status !== 200) {
       throw new Error(`io.llm upstream ${res.status}: ${JSON.stringify(res.body).slice(0, 300)}`)
     }
-    const body = res.body as { choices?: Array<{ message?: ChatMessage }>; usage?: LlmOutput['usage'] }
+    const body = res.body as { choices?: Array<{ message?: { content?: string | null; tool_calls?: ChatMessage['tool_calls'] } }>; usage?: LlmOutput['usage'] }
     const msg = body.choices?.[0]?.message
     const toolCalls: LlmToolCall[] = (msg?.tool_calls ?? []).map((tc) => ({
       id: tc.id,
