@@ -21,6 +21,8 @@
     "navigationBarTextStyle": "black",
     "navigationBarBackgroundColor": "#ffffff",
     "backgroundColor": "#f7f7f8",
+    "backgroundColorTop": "#f7f7f8",
+    "backgroundColorBottom": "#f7f7f8",
     "backgroundTextStyle": "dark"
   },
   "style": "v2",

@@ -1,7 +1,6 @@
 {
   "navigationStyle": "custom",
   "disableScroll": true,
-  "backgroundColor": "#f7f7f8",
   "usingComponents": {
     "chat-bubble": "/components/chat-bubble/chat-bubble",
     "trajectory-view": "/components/trajectory-view/trajectory-view",
