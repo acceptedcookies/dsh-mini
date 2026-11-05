@@ -7,5 +7,8 @@ interface IAppOption {
     __vfsRemoteFor?: unknown
     __vfsSyncFor?: unknown
     __ioStateFor?: unknown
+    /** durable 铸票面测试钩子（E10 语义直达——IDE 探针用）。 */
+    __hasFreshTicket?: unknown
+    __ensureDurableTicket?: unknown
   }
 }

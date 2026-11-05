@@ -3,7 +3,7 @@ import { getTheme, watchSystemTheme } from './services/theme'
 import { vfs, vfsReadView, vfsStore } from './services/vfs/api'
 import { setVfsMirrorHook } from './services/vfs/vfs'
 import { nanoMiniCatchUp, nanoMiniStartTick, nanoMiniStopTick } from './services/nano-mini-host/tick'
-import { vfsRemoteFor, vfsSyncFor, ioStateFor } from './services/state/provider'
+import { vfsRemoteFor, vfsSyncFor, ioStateFor, ensureDurableTicket } from './services/state/provider'
 import { hasFreshTicket, onTicketMinted } from './services/fx/ticket'
 
 /** cloud 车道 VFS 远端镜像接线（MN02 G1 durable lane 活线）：
@@ -53,6 +53,10 @@ App<IAppOption>({
     __vfsRemoteFor: vfsRemoteFor as unknown,
     __vfsSyncFor: vfsSyncFor as unknown,
     __ioStateFor: ioStateFor as unknown,
+    /** durable 铸票面测试钩子：authHeaders 缓存只读后，远端句柄 401 时须
+     *  显式铸票（SOTER=真机面，DevTools 可模拟 TouchID）——E10 语义直达。 */
+    __hasFreshTicket: hasFreshTicket as unknown,
+    __ensureDurableTicket: ensureDurableTicket as unknown,
   },
   onLaunch() {
     watchSystemTheme((theme) => {

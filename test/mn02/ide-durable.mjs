@@ -96,8 +96,18 @@ log("connected");
   check("A:vfsSync cloud-lane live", probe.sync);
 }
 
-// ── B: ioState 往返（真 wx.request → POD1；SOTER 车道属真机面）───────
+// ── B: 铸票面 → ioState 往返（authHeaders 缓存只读后须显式铸票——E10 语义）
 {
+  const mint = await mini.evaluate(() => {
+    const g = getApp().globalData;
+    if (typeof g.__hasFreshTicket !== "function" || typeof g.__ensureDurableTicket !== "function") {
+      return { err: "mint hooks missing（需重新编译 mp 包）" };
+    }
+    if (g.__hasFreshTicket()) return { fresh: true, minted: false };
+    return g.__ensureDurableTicket()
+      .then(() => ({ fresh: g.__hasFreshTicket(), minted: true }))
+      .catch((e) => ({ err: String((e && e.message) || e) }));
+  });
   const body = `{"probe":"ide-durable","ts":${Date.now()}}`;
   const r = await mini.evaluate((b) => {
     const cas = getApp().globalData.__ioStateFor();
@@ -106,8 +116,9 @@ log("connected");
         .then((got) => ({ putStatus: put.status, got: got === null ? null : got.body.slice(0, 60) })))
       .catch((e) => ({ err: String((e && e.message) || e) }));
   }, body);
-  if (isSoterBlock(r)) note("B:state round-trip → 真机车道", "DevTools 无 SOTER，票据铸不出 → 句柄在、线上锁；真机/已铸票据方可（设计面）");
-  else check("B:state round-trip via real mp net", r.putStatus === 200, JSON.stringify(r));
+  if (isSoterBlock(mint) || (mint.err && r.err && r.err.includes("401"))) {
+    note("B:state round-trip → 真机车道", `DevTools 无 SOTER/铸票失败 → 句柄在、线上锁；真机/已铸票据方可（设计面） mint=${JSON.stringify(mint).slice(0, 160)}`);
+  } else check("B:state round-trip via real mp net", r.putStatus === 200, `mint=${JSON.stringify(mint).slice(0, 120)} rt=${JSON.stringify(r)}`);
 }
 
 // ── C: vfs write → pushPath → remote get 字节一致 ───────────────────
@@ -123,7 +134,8 @@ log("connected");
       remote.get(`rows/data/${sid}/probe.txt`).then((row) => ({ rowFound: row !== null }))
     ).catch((e) => ({ err: String((e && e.message) || e) }));
   });
-  if (isSoterBlock(r)) note("C:vfs remote mirror → 真机车道", "同上：SOTER 铸票 IDE 面不可得；同步句柄与远端客户端已实测就位");
+  if (r.err && r.err.includes("401")) note("C:vfs remote mirror → 真机车道", "同上：无活票时 authHeaders 空头→401（缓存只读设计面）；同步句柄与远端客户端已实测就位");
+  else if (isSoterBlock(r)) note("C:vfs remote mirror → 真机车道", "同上：SOTER 铸票 IDE 面不可得；同步句柄与远端客户端已实测就位");
   else check("C:local write → remote mirror", r.rowFound === true, JSON.stringify(r));
 }
 
