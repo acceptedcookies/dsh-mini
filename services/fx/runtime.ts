@@ -211,6 +211,7 @@ export class FxLocalRuntime {
     this.resolveSessionApprovals(id)
     this.sessions.delete(id)
     this.acpSessions.delete(id)
+    this.turnEpoch.delete(id)
     this.persist()
   }
 
@@ -233,7 +234,9 @@ export class FxLocalRuntime {
     if (s.summary.title === '新会话' && text.trim().length > 0) s.summary.title = text.trim().slice(0, 28)
     this.persist()
 
-    void this.runTurn(id, blocks).catch((error) => {
+    const epoch = (this.turnEpoch.get(id) ?? 0) + 1
+    this.turnEpoch.set(id, epoch)
+    void this.runTurn(id, blocks, epoch).catch((error) => {
       // 已删会话的迟到失败不发全局横幅（删除竞态，UI 审查 F5——与 kernel fail 同构）。
       if (this.sessions.get(id) === undefined) {
         console.warn(`[fx-runtime] turn_failed on deleted session ${id}:`, error instanceof Error ? error.message : error)
@@ -251,7 +254,21 @@ export class FxLocalRuntime {
     const s = this.require(id)
     const acpId = this.acpSessions.get(id)
     if (acpId !== undefined && this.client) this.client.cancel(acpId)
+    // 世代递增使排队中旧轮在 dequeue 时失效（cancel 后重发的 prompt 是新一轮，
+    // 不得被旧轮 status 检查误放行/误吞，审查十一轮 D11-1）。
+    this.turnEpoch.set(id, (this.turnEpoch.get(id) ?? 0) + 1)
     this.resolveSessionApprovals(id)
+    // cancel 无应答看守：session/cancel 是 fire-and-forget——wedged 核心不应答时
+    // prompt pending 永不结算、turnChain 头阻塞拖死全会话队列（审查十一轮 D11-3）。
+    // 超时不结算即 dispose 强拒在飞 pending，诚实落 turn_failed 而非永恒 running。
+    if (acpId !== undefined) {
+      setTimeout(() => {
+        if (this.turns.has(acpId)) {
+          console.warn(`[fx-runtime] 会话 ${acpId} 取消未应答——强制结算在飞 pending`)
+          this.client?.dispose('会话取消后核心未应答——已强制结算该轮')
+        }
+      }, 20_000)
+    }
     s.summary.status = 'idle'
     this.emit({ type: 'status', sessionId: id, state: 'idle' })
     this.emit({ type: 'error', code: 'cancelled', message: '已停止当前轮次', retryable: false })
@@ -446,11 +463,15 @@ export class FxLocalRuntime {
    *  A 的文件工具读写进 B 的 /data/{sid}。串行排队是「单活动会话」注释语义
    *  的诚实执行；队列内取消/删除由入口处 status 检查兜底。 */
   private turnChain: Promise<void> = Promise.resolve()
+  /** 按会话的轮次世代——cancel 使排队中旧轮失效（status 共享槽会被下一轮
+   *  prompt 重置为 running，单查 status 会让已取消轮复活+新轮被静默丢弃，
+   *  审查十一轮 D11-1）。 */
+  private readonly turnEpoch = new Map<string, number>()
 
-  private runTurn(dshId: string, blocks: AcpPromptBlock[]): Promise<void> {
+  private runTurn(dshId: string, blocks: AcpPromptBlock[], epoch: number): Promise<void> {
     const run = this.turnChain.then(() => {
       const s = this.sessions.get(dshId)
-      if (s === undefined || s.summary.status !== 'running') return
+      if (s === undefined || s.summary.status !== 'running' || this.turnEpoch.get(dshId) !== epoch) return
       return this.runTurnInner(dshId, blocks)
     })
     this.turnChain = run.catch(() => { /* 单轮失败不断链 */ })
@@ -464,6 +485,9 @@ export class FxLocalRuntime {
     // 过期后 env.fetch 的 authHeaders 永久空头上行=每轮 401 死锁（审查三轮 N2）。
     // runTurn=用户手势上下文，ready() 允许 SOTER；local 车道 ready() 为纯解析零成本。
     if (this.ticket !== undefined && !hasFreshTicket()) await this.ticket.ready()
+    // ready() 重铸可达 challenge/SOTER 秒级——窗内 restartCore 清 client 后
+    // 直进 ensureAcpSession 会撞 client!.newSession TypeError（审查十一轮 D11-2）。
+    if (this.client === undefined) throw new Error('fx core 已重启')
     const acpId = await this.ensureAcpSession(dshId)
     const turn: TurnState = { attemptId: randomId('attempt'), text: '', thinking: '', deltaIndex: 0, toolItemByCallId: new Map() }
     this.turns.set(acpId, turn)
@@ -474,6 +498,9 @@ export class FxLocalRuntime {
     } finally {
       this.turns.delete(acpId)
       this.activeDshId = undefined
+      // 轮失败/中止在 request_permission 悬于未答时——轮终即该请求永不可答，
+      // 连 UI 卡以 null+cancel 收（审查十一轮 D11-4）。
+      this.resolveSessionApprovals(dshId)
     }
     const item: ChatItem = {
       kind: 'assistant_message',
