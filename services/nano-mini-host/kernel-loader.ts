@@ -61,6 +61,12 @@ export async function loadKernelAsync(timeoutMs = 25000): Promise<KernelBundle |
       tried = true
       return probe
     }
+    // 引导页 require 硬失败（产物缺失/JSC 不兼容）——继续轮询无意义，早退可观察
+    const loadErr = (globalThis as Record<string, unknown>).__dshKernelError
+    if (loadErr !== undefined) {
+      console.warn('[kernel-loader] 引导页 require 失败:', loadErr)
+      return undefined
+    }
     if (Date.now() >= deadline) return undefined
     if (!navigated && typeof nav?.navigateTo === 'function') {
       navigated = true
@@ -88,4 +94,5 @@ export function kernelUsable(): boolean {
 export function kernelLoaderReset(): void {
   cached = undefined
   tried = false
+  delete (globalThis as Record<string, unknown>).__dshKernelError
 }

@@ -1,6 +1,7 @@
 import { sessionStore } from '../../services/session-store'
 import { vfsStore } from '../../services/vfs/store'
 import { nanoRuntime } from '../../services/nano/runtime'
+import { fxRuntime } from '../../services/fx/runtime'
 import { fetchTodos, fetchWorkspaceFiles } from '../../services/nano/http'
 import { pickImage } from '../../services/upload'
 import { APP_VERSION, DEFAULT_MODEL, MODELS, type ModelOption } from '../../services/config'
@@ -904,6 +905,9 @@ Page({
     const modelLabel = MODELS.find((item) => item.id === model)?.label ?? model
     storage.setModel(model)
     this.setData({ model, modelLabel, modelPickerVisible: false })
+    // fx 车道生效模型在 core 启动时注入 env——不重启则 chip 显示与生效模型
+    // 静默不一致（与设置页 selectModel 同构，UI 审查 F9；未启动时为空操作）。
+    fxRuntime.restartCore()
   },
 
   onApprovalRespond(event: WechatMiniprogram.CustomEvent<{ approvalId: string; outcome: ApprovalOutcome }>) {
@@ -1099,7 +1103,7 @@ Page({
       const title = String(event.detail.value ?? '').trim()
       if (title.length === 0 || id.length === 0) return
       if (this.data.currentId === id) void sessionStore.rename(title)
-      else void sessionStore.open(id).then(() => sessionStore.rename(title))
+      else void sessionStore.renameById(id, title)
     }
     if (action === 'delete' && id.length > 0) void sessionStore.remove(id)
     this.closeDialog()

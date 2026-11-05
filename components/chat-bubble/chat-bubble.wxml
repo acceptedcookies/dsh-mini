@@ -13,7 +13,20 @@
             </view>
           </view>
         </view>
-        <view wx:if="{{item.images && item.images.length}}" class="images">
+        <!-- imageParts=durable artifact URL（跨启动有效）优先；images=chooseMedia
+             临时路径跨启动即死，仅作无 durable 形态时的回退（UI 审查 F7）。 -->
+        <view wx:if="{{item.imageParts && item.imageParts.length}}" class="images">
+          <image
+            wx:for="{{item.imageParts}}"
+            wx:key="index"
+            class="image"
+            src="{{item.url}}"
+            mode="aspectFill"
+            data-url="{{item.url}}"
+            bindtap="onPreview"
+          />
+        </view>
+        <view wx:elif="{{item.images && item.images.length}}" class="images">
           <image
             wx:for="{{item.images}}"
             wx:key="id"

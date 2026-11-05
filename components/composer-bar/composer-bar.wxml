@@ -48,7 +48,7 @@
       </view>
       <view
         wx:else
-        class="composer-send {{(!value || sending) ? 'composer-send-disabled' : ''}}"
+        class="composer-send {{(sending || (!value && images.length === 0)) ? 'composer-send-disabled' : ''}}"
         bindtap="onSend"
       >
         <view wx:if="{{sending}}" class="composer-spinner"></view>

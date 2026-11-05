@@ -73,6 +73,18 @@ export class KernelMiniRuntime {
     if (saved !== undefined) {
       for (const s of saved) {
         if (s.summary.status === 'running') s.summary.status = 'idle'
+        // 进程中断轮残留 running 工具卡——重启归一 error 并落中断注记，
+        // 不转永转的幽灵卡（UI 审查 F6）。
+        let interrupted = false
+        for (const item of s.items) {
+          if (item.kind === 'tool_call' && item.status === 'running') {
+            item.status = 'error'
+            interrupted = true
+          }
+        }
+        if (interrupted) {
+          s.items.push({ kind: 'notice', id: randomId('notice'), seq: ++s.cursor, ts: Date.now(), level: 'warn', text: '（上一轮在工具执行中被中断）' })
+        }
         this.sessions.set(s.summary.id, s)
       }
     }
@@ -117,6 +129,9 @@ export class KernelMiniRuntime {
   }
 
   remove(id: string): void {
+    // 在飞轮次先撤——删除不取消会让 pump 继续烧 llm 直至 require 抛错，
+    // 随后 fail 向当前界面发 'host-error: 会话不存在' 幽灵横幅（UI 审查 F5）。
+    this.cancelled.add(id)
     this.sessions.delete(id)
     this.persist()
     // 远端转录行+本地指针随会话删除清理（best-effort，不阻塞本地删——审查 B8）。
@@ -330,10 +345,13 @@ export class KernelMiniRuntime {
 
   private fail(sessionId: string, code: string, message: string, retryable = true): void {
     const s = this.sessions.get(sessionId)
-    if (s !== undefined) {
-      s.summary.status = 'error'
-      try { this.persist() } catch (e) { console.warn('[runtime] fail persist 失败:', e instanceof Error ? e.message : e) }
+    if (s === undefined) {
+      // 已删会话的迟到失败不发全局横幅——删除竞态噪声不上用户当前界面（UI 审查 F5）。
+      console.warn(`[runtime] fail(${code}) on deleted session ${sessionId}: ${message}`)
+      return
     }
+    s.summary.status = 'error'
+    try { this.persist() } catch (e) { console.warn('[runtime] fail persist 失败:', e instanceof Error ? e.message : e) }
     this.emit({ type: 'status', sessionId, state: 'error' })
     this.emit({ type: 'error', code, message, retryable })
   }

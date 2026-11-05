@@ -204,7 +204,9 @@ Page({
 
   async refreshByok() {
     const cfg = loadDevConfig()
-    const route = cfg !== undefined ? safeRoute(cfg) : { mode: 'local' as RouteMode }
+    // 缺席也过 resolveRoute（app.json 旋钮真源在其内），解析错误经 err 如实显示（UI 审查 F10）
+    const route = safeRoute(cfg)
+    const routeErr = route.err
     const injectable = route.mode !== 'local'
     const rec = readEnrollment()
     const bio = injectable
@@ -213,7 +215,9 @@ Page({
     const activeModel = storage.getModel() ?? DEFAULT_MODEL
     this.setData({
       fxRoute: route.mode,
-      routeLabel: route.mode === 'cloud' ? '微信云端' : route.mode === 'cloud-sim' ? '模拟云端' : '本地直连',
+      routeLabel: routeErr !== undefined
+        ? `本地直连 · 路由解析失败：${routeErr.slice(0, 60)}`
+        : route.mode === 'cloud' ? '微信云端' : route.mode === 'cloud-sim' ? '模拟云端' : '本地直连',
       bioOk: bio.ok,
       bioText: bio.ok ? '生物识别可用 · 注入与解锁需本人验证' : (bio.reason ?? '生物识别不可用'),
       enrolled: rec !== undefined,
@@ -468,11 +472,11 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : '请求失败'
 }
 
-function safeRoute(cfg: Parameters<typeof resolveRoute>[0]): { mode: RouteMode } {
+function safeRoute(cfg: Parameters<typeof resolveRoute>[0] | undefined): { mode: RouteMode; err?: string } {
   try {
-    return resolveRoute(cfg)
-  } catch {
-    return { mode: 'local' }
+    return { mode: resolveRoute(cfg ?? {}).mode }
+  } catch (e) {
+    return { mode: 'local', err: e instanceof Error ? e.message : String(e) }
   }
 }
 

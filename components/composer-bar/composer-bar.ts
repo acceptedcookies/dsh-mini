@@ -19,7 +19,8 @@ Component({
       })
     },
     onSend() {
-      if (this.data.sending || this.data.value.trim().length === 0) return
+      // 纯图可发（下层 prompt/images 全链路支持）——空文本+无图才拦（UI 审查 F2）。
+      if (this.data.sending || (this.data.value.trim().length === 0 && this.data.images.length === 0)) return
       this.triggerEvent('send')
     },
     onStop() {

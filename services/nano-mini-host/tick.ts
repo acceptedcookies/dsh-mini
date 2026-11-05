@@ -43,8 +43,10 @@ async function doCatchUp(): Promise<string[]> {
   if (bundle === undefined) return []
   const ctx: PumpCtx = { kernel: bundle.kernel, io: ioFor(''), owner: 'local', holder: HOLDER }
   const ran = await sweepTick(ctx, { batchLimit: 10 }, ioFor)
-  // fenced/claim-denied/step-exhausted 算 ran 但恢复未成——pending 不得误清（审查 B5）
-  const settled = ran.length > 0 && ran.every((r) => r.outcome === 'completed' || r.outcome === 'suspended')
+  // fenced/claim-denied/step-exhausted 算 ran 但恢复未成——pending 不得误清（审查 B5）；
+  // ran=[] 无 due 行=无事可恢复，vacuous-true 清标记——否则首次 onHide 后
+  // PENDING 永真，每个 tick 白跑一次 sweep（UI 审查 F12）。
+  const settled = ran.every((r) => r.outcome === 'completed' || r.outcome === 'suspended')
   if (settled) wx.setStorageSync(PENDING_KEY, false)
   return ran.map((r) => `${r.sessionId}:${r.outcome}`)
 }

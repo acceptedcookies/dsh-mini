@@ -35,12 +35,26 @@ export function loadDevConfig(): DevConfig | undefined {
   return cached
 }
 
+let routeErr: Error | undefined
+
 export function currentRoute(): RouteConfig {
   const cfg = loadDevConfig()
-  if (cfg === undefined) return { mode: 'local' }
   try {
-    return resolveRoute(cfg)
-  } catch {
+    // cfg 缺席也走 resolveRoute——app.json 旋钮真源在 resolveRoute 内读取，
+    // 提前 local 兜底会让 cloud 旋钮在配置缺失时静默失效（UI 审查 F10）。
+    const r = resolveRoute(cfg ?? {})
+    routeErr = undefined
+    return r
+  } catch (e) {
+    // 兜底仍 local 但错误在案——设置页经 lastRouteError 如实显示，
+    // 不再把「cloud 配置坏」静默呈现成「本地直连」（UI 审查 F10）。
+    routeErr = e instanceof Error ? e : new Error(String(e))
+    console.warn('[dev] 路由解析失败按 local 兜底:', routeErr.message)
     return { mode: 'local' }
   }
+}
+
+/** 最近一次路由解析错误（无错/未解析→undefined）——设置页如实显示用。 */
+export function lastRouteError(): Error | undefined {
+  return routeErr
 }

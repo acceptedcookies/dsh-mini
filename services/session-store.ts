@@ -124,13 +124,19 @@ class SessionStore {
     this.setState({ sessions: await this.runtime.list(), loadingSessions: false })
   }
 
+  private openSeq = 0
+
   async open(sessionId: string): Promise<void> {
+    const req = ++this.openSeq
     this.setState({ loadingSession: true, error: undefined, approvals: [], questions: [], streaming: undefined })
     try {
       const snapshot = await this.runtime.open(sessionId)
+      // 连点 A→B 时慢快照后至——陈旧快照与 lastSessionId 均不落（UI 审查 F4）。
+      if (req !== this.openSeq) return
       storage.setLastSessionId(sessionId)
       this.setState({ current: snapshot, loadingSession: false })
     } catch (error) {
+      if (req !== this.openSeq) return
       this.setState({ loadingSession: false, error: messageOf(error) })
     }
   }
@@ -180,6 +186,17 @@ class SessionStore {
     if (current === undefined || title.trim().length === 0) return
     try {
       await this.runtime.rename(current.sessionId, title.trim())
+      await this.syncSessions()
+    } catch (error) {
+      this.setState({ error: messageOf(error) })
+    }
+  }
+
+  /** 按 id 重命名（不强开目标会话——侧栏操作不得偷换上下文，UI 审查 F13）。 */
+  async renameById(sessionId: string, title: string): Promise<void> {
+    if (title.trim().length === 0) return
+    try {
+      await this.runtime.rename(sessionId, title.trim())
       await this.syncSessions()
     } catch (error) {
       this.setState({ error: messageOf(error) })
@@ -305,6 +322,9 @@ class SessionStore {
         break
       }
       case 'error': {
+        // 用户主动 stop 在 fx/local 车道落成 error 事件——不是故障，过滤掉
+        // 红色横幅（kernel 车道本就不发；UI 审查 F14）。
+        if (event.code === 'cancelled') break
         this.setState({ error: event.message })
         break
       }
@@ -341,6 +361,11 @@ class SessionStore {
       sessions: this.state.sessions.map((session) => session.id === sessionId
         ? {
             ...session,
+            // 派生标题的存储侧投影：runtime 改 summary.title 但不发 summary 事件——
+            // 首条 user_message 落地时同步推导（与 runtime 同规则，UI 审查 F3）。
+            title: session.title === '新会话' && item.kind === 'user_message' && item.text.trim().length > 0
+              ? item.text.trim().slice(0, 28)
+              : session.title,
             lastMessage: text.slice(0, 80),
             messageCount: session.id === this.state.current?.sessionId
               ? this.state.current.items.length

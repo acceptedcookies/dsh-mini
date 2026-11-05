@@ -137,6 +137,17 @@ export class FxLocalRuntime {
       for (const s of saved) {
         // wasm 会话是进程内对象：重启后 running 状态不可恢复，归一为 idle
         if (s.summary.status === 'running') s.summary.status = 'idle'
+        // 中断轮残留 running 工具卡归一 error+注记（与 kernel runtime 同构，UI 审查 F6）。
+        let interrupted = false
+        for (const item of s.items) {
+          if (item.kind === 'tool_call' && item.status === 'running') {
+            item.status = 'error'
+            interrupted = true
+          }
+        }
+        if (interrupted) {
+          s.items.push({ kind: 'notice', id: randomId('notice'), seq: ++s.cursor, ts: Date.now(), level: 'warn', text: '（上一轮在工具执行中被中断）' })
+        }
         this.sessions.set(s.summary.id, s)
       }
     }
@@ -185,6 +196,10 @@ export class FxLocalRuntime {
   }
 
   remove(id: string): void {
+    // 在飞轮次先撤——删除不取消会让 acp turn 继续烧 llm，随后 require 抛错+
+    // error emit 成幽灵横幅（与 kernel remove 同构，UI 审查 F5）。
+    const acpId = this.acpSessions.get(id)
+    if (acpId !== undefined && this.client !== undefined) this.client.cancel(acpId)
     this.sessions.delete(id)
     this.acpSessions.delete(id)
     this.persist()
@@ -197,8 +212,9 @@ export class FxLocalRuntime {
     try {
       blocks = this.buildPromptBlocks(text, images)
     } catch (e) {
-      this.emit({ type: 'error', code: 'image_error', message: e instanceof Error ? e.message : '图片读取失败', retryable: false })
-      return { messageId: '' }
+      // 抛出交给 store catch 上浮并恢复草稿——原 emit+空 messageId 被 store
+      // 当成功吞掉用户输入（无转录行无横幅纯丢稿，UI 审查 F8）。
+      throw e
     }
     s.summary.status = 'running'
     s.summary.updatedAt = Date.now()
@@ -209,6 +225,11 @@ export class FxLocalRuntime {
     this.persist()
 
     void this.runTurn(id, blocks).catch((error) => {
+      // 已删会话的迟到失败不发全局横幅（删除竞态，UI 审查 F5——与 kernel fail 同构）。
+      if (this.sessions.get(id) === undefined) {
+        console.warn(`[fx-runtime] turn_failed on deleted session ${id}:`, error instanceof Error ? error.message : error)
+        return
+      }
       s.summary.status = 'error'
       this.emit({ type: 'error', code: 'turn_failed', message: error instanceof Error ? error.message : 'turn 执行失败', retryable: true })
       this.emit({ type: 'status', sessionId: id, state: 'error' })
