@@ -65,6 +65,8 @@ class SessionStore {
   async init(): Promise<void> {
     if (this.initialized) return
     this.initialized = true
+    // 在途 open 属于前一绑定——序号换代防其落入新 runtime 状态（审查八轮 D7）。
+    this.openSeq += 1
     try {
       await this.bindRuntime()
     } catch (error) {
@@ -79,6 +81,8 @@ class SessionStore {
   }
 
   async reinitialize(): Promise<void> {
+    // 在途 open 属于前一绑定——序号换代防其落入新 runtime 状态（审查八轮 D7）。
+    this.openSeq += 1
     this.unsubscribeRuntime?.()
     this.unsubscribeRuntime = undefined
     this.setState({
@@ -133,6 +137,11 @@ class SessionStore {
       const snapshot = await this.runtime.open(sessionId)
       // 连点 A→B 时慢快照后至——陈旧快照与 lastSessionId 均不落（UI 审查 F4）。
       if (req !== this.openSeq) return
+      // await 窗内会话被删——快照不落为 current（nano 车道 loadHistory 异步可达，审查八轮 D8）。
+      if (!this.state.sessions.some((session) => session.id === sessionId)) {
+        this.setState({ loadingSession: false })
+        return
+      }
       storage.setLastSessionId(sessionId)
       this.setState({ current: snapshot, loadingSession: false })
     } catch (error) {
@@ -154,20 +163,24 @@ class SessionStore {
   }
 
   async prompt(text: string, images: ImageRef[] = []): Promise<boolean> {
-    if (this.state.current === undefined) {
-      const id = await this.create()
-      if (id === undefined) return false
-    }
-    const current = this.state.current
-    if (current === undefined || (text.trim().length === 0 && images.length === 0)) return false
+    // sending 单飞——setState→组件回写有传播窗，连点会并发 prompt；冷启动双击
+    // 还会穿 create() 产双会话（审查八轮 D3）。检查+置位须先于任何 await。
+    if (this.state.sending || (text.trim().length === 0 && images.length === 0)) return false
     this.setState({ sending: true, error: undefined })
     try {
+      if (this.state.current === undefined) {
+        const id = await this.create()
+        if (id === undefined) return false
+      }
+      const current = this.state.current
+      if (current === undefined) return false
       await this.runtime.prompt(current.sessionId, text, images)
-      this.setState({ sending: false })
       return true
     } catch (error) {
-      this.setState({ sending: false, error: messageOf(error) })
+      this.setState({ error: messageOf(error) })
       return false
+    } finally {
+      this.setState({ sending: false })
     }
   }
 

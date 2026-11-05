@@ -137,6 +137,10 @@ export class LocalRuntime {
   }
 
   remove(id: string): void {
+    // 在飞 timer 持 session 引用——删除前置 idle 使 timer 的 status 检查早退，
+    // 不再触达 askForToolApproval/streamAssistant 的 require 抛错（审查八轮 D5）。
+    const session = this.sessions.get(id)
+    if (session !== undefined && session.summary.status === 'running') session.summary.status = 'idle'
     this.sessions.delete(id)
     this.persist()
   }

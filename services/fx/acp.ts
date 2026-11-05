@@ -57,6 +57,8 @@ export interface AcpClient {
   newSession(requestedId?: string): Promise<string>
   prompt(sessionId: string, blocks: AcpPromptBlock[]): Promise<{ stopReason?: string }>
   cancel(sessionId: string): void
+  /** 拒绝全部 pending 请求——wasm abort/重启后 await 不死等（审查八轮 D4）。 */
+  dispose(reason?: string): void
 }
 
 export function createAcpClient(runtime: FxRuntime, options: AcpClientOptions): AcpClient {
@@ -161,6 +163,11 @@ export function createAcpClient(runtime: FxRuntime, options: AcpClientOptions): 
     },
     cancel(sessionId: string) {
       send({ jsonrpc: '2.0', method: 'session/cancel', params: { sessionId } })
+    },
+    dispose(reason = 'acp client disposed') {
+      const err = new Error(reason)
+      for (const w of pending.values()) w.reject(err)
+      pending.clear()
     },
   }
 }

@@ -270,7 +270,16 @@ export class KernelMiniRuntime {
           detail: JSON.stringify(args ?? {}).slice(0, 200),
         }
         this.append(sessionId, toolItem)
-        const res = await createIoTool(sessionId)(name, args)
+        // 工具卡必须终态化——running 残留会被构造面中断归一错判（全部历史卡
+        // 变 error+幽灵注记，审查八轮 D1）；fx 车道经 tool_call_update 同构。
+        let res: Awaited<ReturnType<ReturnType<typeof createIoTool>>>
+        try {
+          res = await createIoTool(sessionId)(name, args)
+        } catch (e) {
+          this.replace(sessionId, { ...toolItem, status: 'error', detail: e instanceof Error ? e.message : String(e) })
+          throw e
+        }
+        this.replace(sessionId, { ...toolItem, status: res.kind === 'error' ? 'error' : 'ok' })
         this.append(sessionId, {
           kind: 'tool_result', id: randomId('result'), seq: this.nextSeq(s),
           tool: name, status: res.kind === 'error' ? 'error' : 'ok',
@@ -381,6 +390,19 @@ export class KernelMiniRuntime {
 
   private persist(): void {
     storage.setSessions([...this.sessions.values()])
+  }
+
+  private replace(sessionId: string, item: ChatItem): void {
+    const s = this.require(sessionId)
+    const index = s.items.findIndex((c) => c.id === item.id)
+    const previous = index === -1 ? undefined : s.items[index]
+    const stamped: ChatItem = item.ts === undefined
+      ? ({ ...item, ts: previous?.ts ?? Date.now() } as ChatItem)
+      : item
+    if (index !== -1) s.items[index] = stamped
+    s.summary.updatedAt = Date.now()
+    this.persist()
+    this.emit({ type: 'item.replace', sessionId, seq: stamped.seq, item: stamped })
   }
 
   private emit(event: LocalEvent): void {

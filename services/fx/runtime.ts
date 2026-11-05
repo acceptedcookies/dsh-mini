@@ -128,6 +128,10 @@ export class FxLocalRuntime {
   private ticket: TicketProvider | undefined
   private coreStarting: Promise<void> | undefined
   private coreFailed: Error | undefined
+  /** 世代号：restartCore 递增，ensureCore 在途结果过期不落地（审查八轮 D4）。 */
+  private coreGen = 0
+  /** ensureCore 在途 wasm 实例——restartCore 可及以便 abort（此前实例逃逸不可达）。 */
+  private startingWasm: WasmRuntime | undefined
   /** 在飞轮次的 dsh session——host-import 工具调用无 sessionId 时的兜底作用域。 */
   private activeDshId: string | undefined
 
@@ -200,6 +204,14 @@ export class FxLocalRuntime {
     // error emit 成幽灵横幅（与 kernel remove 同构，UI 审查 F5）。
     const acpId = this.acpSessions.get(id)
     if (acpId !== undefined && this.client !== undefined) this.client.cancel(acpId)
+    // 该会话的未决 permission 以 null 收——否则 wasm 侧 request_permission 永挂
+    // （cancel() 同构，删除即隐式全拒，审查八轮 D9）。
+    for (const p of this.pendingPermissions.values()) {
+      if (p.sessionId === id) {
+        p.resolve(null)
+        this.pendingPermissions.delete(p.approvalId)
+      }
+    }
     this.sessions.delete(id)
     this.acpSessions.delete(id)
     this.persist()
@@ -273,10 +285,19 @@ export class FxLocalRuntime {
 
   /** 重启 wasm core（模型切换/注入变更后调用）：会话数据保留，acp 会话句柄作废。 */
   restartCore(): void {
+    // 世代号递增——ensureCore 在途 IIFE 检出过期后不落地 stale-model 核（审查八轮 D4）。
+    this.coreGen += 1
     this.acpSessions.clear()
+    // 未决 permission 以 null 收（与 cancel 同构）——否则 wasm 侧 request_permission
+    // 等答复永挂、turn 卡 running；dispose 拒绝 acp pending 使 client.prompt 的
+    // await 被拒而非死等（wasm.abort 后响应永不至）。
+    for (const p of this.pendingPermissions.values()) p.resolve(null)
     this.pendingPermissions.clear()
+    this.client?.dispose('fx core 已重启')
     this.wasm?.abort()
+    this.startingWasm?.abort()
     this.wasm = undefined
+    this.startingWasm = undefined
     this.client = undefined
     this.coreStarting = undefined
     this.coreFailed = undefined
@@ -290,6 +311,9 @@ export class FxLocalRuntime {
     if (this.coreStarting) return this.coreStarting
     if (devConfig === undefined) throw new Error('fx dev-config 缺失：先运行 node scripts/fx-dev-config.mjs')
     this.coreStarting = (async () => {
+      // 世代在 IIFE 起点取样——首个 await 前的同步段与 restartCore 无交错，
+      // 之后任一 restartCore 换代都会在落地前检出（审查八轮 D4）。
+      const gen = this.coreGen
       const cfg = devConfig!
       const route = resolveRoute(cfg)
       const ticket = createTicketProvider(route, cfg)
@@ -319,6 +343,7 @@ export class FxLocalRuntime {
         stderr: () => {},
         hostToolExecutor: (name, input, sid, _callId) => this.dispatchTool(name, input, sid),
       })
+      this.startingWasm = wasm
       const client = createAcpClient(wasm, {
         tools: ALL_TOOLS,
         executeTool: async (name, input, _callId, sid) => this.dispatchTool(name, input, sid),
@@ -330,6 +355,14 @@ export class FxLocalRuntime {
       })
       await wasm.start(devConfig!.wasmPath)
       await client.init()
+      // 启动窗内 restartCore 已换代——stale-model 核不落地，abort 自收（审查八轮 D4）。
+      if (this.coreGen !== gen) {
+        this.startingWasm = undefined
+        client.dispose('fx core 已重启')
+        wasm.abort()
+        return
+      }
+      this.startingWasm = undefined
       this.wasm = wasm
       this.client = client
     })()

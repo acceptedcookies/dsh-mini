@@ -39,8 +39,11 @@ Component({
     onPreview(event: WechatMiniprogram.TouchEvent) {
       const url = String(event.currentTarget.dataset.url ?? '')
       if (url.length === 0) return
-      const item = this.properties.item as { images?: Array<{ url: string }> }
-      wx.previewImage({ current: url, urls: (item.images ?? []).map((image) => image.url) })
+      // 预览列表与渲染同序：durable imageParts 优先，images 回退——
+      // 原只取 images 致跨启动消息后 urls 为空、滑动到死临时路径（审查八轮 D6）。
+      const item = this.properties.item as { images?: Array<{ url: string }>; imageParts?: Array<{ url: string }> }
+      const sources = item.imageParts ?? item.images ?? []
+      wx.previewImage({ current: url, urls: sources.map((image) => image.url) })
     },
 
     onFeedback(event: WechatMiniprogram.CustomEvent<{ rating: string }>) {

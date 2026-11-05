@@ -436,7 +436,8 @@ Page({
   },
 
   async send() {
-    const text = this.data.input.trim()
+    const rawInput = this.data.input
+    const text = rawInput.trim()
     const images = this.data.pendingImages
     if (text.length === 0 && images.length === 0) return
     if (text.startsWith('/') && images.length === 0) {
@@ -456,7 +457,11 @@ Page({
     }
     this.setData({ atTail: true })
     const accepted = await sessionStore.prompt(text, images)
-    if (accepted) this.setData({ input: '', pendingImages: [], sidebarOpen: false, commandMenuVisible: false })
+    // await 窗内用户续打的草稿不得清——仅载荷原样未动才清空（铸票/图片
+    // 解析可达秒级，窗真实存在）。
+    if (accepted && this.data.input === rawInput && this.data.pendingImages === images) {
+      this.setData({ input: '', pendingImages: [], sidebarOpen: false, commandMenuVisible: false })
+    }
   },
 
   measureComposer(callback: (rect: WechatMiniprogram.BoundingClientRectCallbackResult | null) => void) {
