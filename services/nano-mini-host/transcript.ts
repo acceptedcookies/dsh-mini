@@ -94,11 +94,14 @@ export async function syncTranscript(sessionId: string, items: ChatItem[], meta:
       session_id: sessionId, item_count: items.length, last_seq: lastSeq,
       model: meta.model ?? 'unknown', updated_ms: Date.now(),
     })), { mime: 'application/json' })
+    // 回执字段无条件并集——指针整写，只在产生时并入会让下轮干净同步抹掉旧回执（审查四轮 F4）。
+    const droppedSeqs = [...(ptr?.dropped_seqs ?? []), ...dropped.map((d) => d.seq).filter((s) => !(ptr?.dropped_seqs ?? []).includes(s))]
+    const conflictSeqs = [...(ptr?.conflict_seqs ?? []), ...conflicts.map((c) => c.seq).filter((s) => !(ptr?.conflict_seqs ?? []).includes(s))]
     writeSessionPointer(sessionId, {
       remote_prefix: `transcripts/${sessionId}/`,
       last_seq: lastSeq, item_count: items.length, updated_ms: Date.now(),
-      ...(dropped.length > 0 ? { dropped_seqs: [...(ptr?.dropped_seqs ?? []), ...dropped.map((d) => d.seq)] } : {}),
-      ...(conflicts.length > 0 ? { conflict_seqs: conflicts.map((c) => c.seq) } : {}),
+      ...(droppedSeqs.length > 0 ? { dropped_seqs: droppedSeqs } : {}),
+      ...(conflictSeqs.length > 0 ? { conflict_seqs: conflictSeqs } : {}),
     })
   }
   return { pushed, skipped, lastSeq, dropped, conflicts }

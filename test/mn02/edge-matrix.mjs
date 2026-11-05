@@ -400,6 +400,47 @@ export { ensureDurableTicket, ioStateFor, hasFreshTicket }`,
   check('E11:重臂行 attempts=1+dueAt 退避未来', rec?.attempts === 1 && typeof rec?.dueAt === 'number' && rec.dueAt > Date.now(), `attempts=${rec?.attempts} dueIn=${rec !== null ? rec.dueAt - Date.now() : 'n/a'}ms`)
 }
 
+// ── E12 审查四轮修复面：异常重臂（F2）+ 删除墓碑（F3）──────────────────
+{
+  const cas = mkCas('o1')
+  // F2：腐坏 state 行 → runPump 抛（loadSnap JSON.parse）——异常同样走重臂账，
+  // 不再永留原 dueAt 行每 tick 满步重跑（确定性故障烧 llm 的无界面）。
+  const csSid = `${RUN}-cs`
+  await post('state/put-cas', { key: `state/${csSid}`, body: '{{{corrupt-state', cond: { ifNoneMatch: '*' } })
+  const due2 = Date.now() - 1000
+  await post('state/put-cas', { key: `alarms/${due2}-${csSid}`, body: JSON.stringify({ sessionId: csSid, kind: 'turn-resume', dueAt: due2, fence: 'new' }), cond: { ifNoneMatch: '*' } })
+  const io2 = mkIo(cas).io
+  const ran2 = await host.sweepTick({ kernel, io: io2, owner: 'o1', holder: 'sw-e12' }, { batchLimit: 10 })
+  const nowDue2 = (await post('alarm/due', { now: Date.now() })).body.keys.filter((k) => k.includes(csSid))
+  const futureDue2 = (await post('alarm/due', { now: Date.now() + 120000 })).body.keys.filter((k) => k.includes(csSid))
+  const ck2 = futureDue2[0]?.replace(/^alarms\//, '').replace(/^[^/]+\//, '')
+  const cl2 = ck2 !== undefined ? await post('alarm/claim', { key: ck2, holder: 'e12-verify' }) : { status: 0, body: null }
+  const rec2 = cl2.status === 200 ? JSON.parse(cl2.body.body) : null
+  check('E12:异常路径同走重臂账（F2）', nowDue2.length === 0 && rec2?.attempts === 1 && rec2.dueAt > Date.now(), `now=${nowDue2.length} attempts=${rec2?.attempts}`)
+
+  // F3 墓碑：远端行在而本地有删除碑（模拟 pushRemove 曾失败）——pullRows 不复活
+  // 且重发删除收敛；远端行新于碑=真重建则复活（LWW）。
+  const { createRemoteVfs } = await bundle(`import { createRemoteVfs } from '${repo}/services/vfs/remote'; export { createRemoteVfs }`)
+  const { createVfsSync: mkSync } = await bundle(`import { createVfsSync } from '${repo}/services/vfs/remote-sync'; export { createVfsSync }`)
+  const rv = createRemoteVfs({ baseUrl: BASE, headers: () => ({ authorization: `Bearer ${TICKET}` }), post: async (u, h, b) => { const r = await fetch(u, { method: 'POST', headers: h, body: JSON.stringify(b) }); return { status: r.status, body: await r.json().catch(() => null) } } })
+  const sync = mkSync(rv)
+  const tombPath = `/data/${RUN}-tomb/f1.txt`
+  const tombRow = { virtual_path: tombPath, object_key: 'ab'.repeat(32), content_hash: 'ab'.repeat(32), size_bytes: 1, mime: 'text/plain', placement: 'durable', lane: 'durable', committed: true, updated_ms: 1 }
+  await rv.put(`rows/data/${RUN}-tomb/f1.txt`, Buffer.from(JSON.stringify(tombRow)), { mime: 'application/json' })
+  wx.setStorageSync('dsh:mini:vfs-tombstones', { [tombPath]: Date.now() })
+  const pulled3 = await sync.pullRows()
+  const end = Date.now() + 8000
+  let gone = false
+  while (Date.now() < end) { if ((await rv.get(`rows/data/${RUN}-tomb/f1.txt`)) === null) { gone = true; break } await new Promise((r) => setTimeout(r, 400)) }
+  check('E12:墓碑行不复活+重删收敛（F3）', !pulled3.includes(tombPath) && gone === true, `pulled=${pulled3.length} gone=${gone}`)
+  // 远端行新于墓碑=真重建 → pullRows 复活+清碑（LWW 语义不吞真写）。
+  const newer = { ...tombRow, updated_ms: Date.now() + 1000 }
+  await rv.put(`rows/data/${RUN}-tomb/f1.txt`, Buffer.from(JSON.stringify(newer)), { mime: 'application/json' })
+  const pulled4 = await sync.pullRows()
+  const { vfsStore } = await bundle(`import { vfsStore } from '${repo}/services/vfs/store'; export { vfsStore }`)
+  check('E12:远端新于墓碑→真重建复活（F3 LWW）', pulled4.includes(tombPath) && vfsStore.getRow(tombPath) !== undefined, `pulled=${pulled4.includes(tombPath)}`)
+}
+
 const failed = results.filter((r) => !r.ok)
 console.log(`\n${results.length - failed.length}/${results.length} PASS  @ ${new Date().toISOString()}`)
 process.exit(failed.length === 0 ? 0 : 1)

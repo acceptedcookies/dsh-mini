@@ -200,6 +200,22 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
   return { outcome: 'step-exhausted', trace }
 }
 
+/** 非终态重臂（审查三轮 N8）：claim-denied/fenced/step-exhausted/killed/异常不是
+ *  简单留行——同 dueAt 每个 tick 都满 maxSteps 重跑=无界烧 llm（确定性故障如
+ *  >256KB 413 每 tick 烧真 llm 调用，审查四轮 F2）。原键内嵌 dueTs 不可原地改，
+ *  故先写新 dueTs 键（写败保旧行不丢 resume 触发）再删旧键；attempts 记账、封顶放弃。 */
+async function rearmOrDrop(ctx: PumpCtx, key: string, rec: AlarmRecord, reason: string): Promise<void> {
+  const attempts = (rec.attempts ?? 0) + 1
+  if (attempts >= 5) {
+    console.warn(`[pump] sweepTick ${rec.sessionId} 重臂 ${attempts} 次仍 ${reason}——alarm 消费放弃（如实止损）`)
+    await ctx.io.state.del(key)
+    return
+  }
+  const nextDue = Date.now() + 30000 * Math.pow(2, attempts - 1)
+  await ctx.io.state.putCas(`${AL}/${ctx.owner}/${nextDue}-${rec.sessionId}`, JSON.stringify({ ...rec, dueAt: nextDue, attempts }), { ifNoneMatch: '*' })
+  await ctx.io.state.del(key)
+}
+
 /** sweeper 单次 tick：枚举 owner 前缀下 due 的 alarm → claim 行 → runPump 恢复。 */
 export async function sweepTick(
   ctx: PumpCtx,
@@ -226,25 +242,15 @@ export async function sweepTick(
         // 终态消费 alarm：resume 职责已尽。
         await ctx.io.state.del(key)
       } else {
-        // 非终态重臂（审查三轮 N8）：claim-denied/fenced/step-exhausted/killed 不是
-        // 简单留行——同 dueAt 每个 tick 都满 maxSteps 重跑=无界烧 llm。原键内嵌
-        // dueTs 不可原地改，故删旧键+新 dueTs 重建，attempts 记账、封顶如实放弃。
-        const attempts = (rec.attempts ?? 0) + 1
-        if (attempts >= 5) {
-          console.warn(`[pump] sweepTick ${rec.sessionId} 重臂 ${attempts} 次仍 ${r.outcome}——alarm 消费放弃（如实止损）`)
-          await ctx.io.state.del(key)
-        } else {
-          const nextDue = Date.now() + 30000 * Math.pow(2, attempts - 1)
-          // 先写新键再删旧键——写失败时旧行仍在，resume 触发不丢（at-least-once 偏向重复不偏向失活）。
-          await ctx.io.state.putCas(`${AL}/${ctx.owner}/${nextDue}-${rec.sessionId}`, JSON.stringify({ ...rec, dueAt: nextDue, attempts }), { ifNoneMatch: '*' })
-          await ctx.io.state.del(key)
-        }
+        await rearmOrDrop(ctx, key, rec, r.outcome)
       }
       ran.push({ sessionId: rec.sessionId, outcome: r.outcome })
     } catch (e) {
-      // 毒化行不终止整批：留 alarm 等下 tick（天然退避=周期）；
-      // outcome 沿用 step-exhausted 枚举（不扩约），真实原因日志登记——不谎报。
+      // 毒化行不终止整批：异常同走重臂账（审查四轮 F2）——否则确定性故障
+      // （腐行/>256KB 413）永留在行，每 tick 满步重跑含真 llm 调用=无界烧。
+      // 重臂自身失败留行下 tick，天然退避不终止整批。
       console.warn(`[pump] sweepTick ${rec.sessionId} pump error: ${(e as Error).message ?? e}`)
+      try { await rearmOrDrop(ctx, key, rec, 'pump-error') } catch { /* 留行下 tick 重试 */ }
       ran.push({ sessionId: rec.sessionId, outcome: 'step-exhausted' })
     }
   }

@@ -533,7 +533,10 @@ export class FxLocalRuntime {
   }
 
   private emit(event: LocalEvent): void {
-    for (const listener of this.listeners) listener(event)
+    // 单监听器抛错不得波及其余订阅方或中断轮次状态（与 kernel runtime 同构，审查四轮 F9）。
+    for (const listener of this.listeners) {
+      try { listener(event) } catch (e) { console.warn('[fx-runtime] listener 抛错:', e instanceof Error ? e.message : e) }
+    }
   }
 }
 

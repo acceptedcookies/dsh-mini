@@ -128,12 +128,25 @@ export class KernelMiniRuntime {
     if (this.running.has(id)) throw new Error('当前会话仍在运行')
     // 防御性清陈旧 cancel 标记（idle 期误触 cancel 不得吃掉下一轮）。
     this.cancelled.delete(id)
+    // 提前占位：resolveImageParts/铸票跨秒级 await——running 只在 drive 置位会让
+    // 第二个 prompt 从间隙穿过，同 holder 双泵互扰（审查四轮 F5）。
+    this.running.add(id)
     const messageId = randomId('user')
     this.append(id, { kind: 'user_message', id: messageId, seq: this.nextSeq(s), text, images: images.length > 0 ? images : undefined })
     if (s.summary.title === '新会话' && text.trim().length > 0) s.summary.title = text.trim().slice(0, 28)
     s.summary.status = 'running'
     this.emit({ type: 'status', sessionId: id, state: 'running', step: 1 })
     this.persist()
+    // 票据前置（用户手势上下文）：云 durable 车道无活票时 resolveImageParts 的
+    // publishArtifact 与 runPump claim 同样 401——图片解析在 mint 门之前时冷启动/
+    // 过期后图片发送永久失败且永无铸票路径（审查四轮 F1）。
+    try {
+      await ensureDurableTicket()
+    } catch (e) {
+      this.running.delete(id)
+      this.fail(id, 'ticket-required', e instanceof Error ? e.message : String(e))
+      return { messageId }
+    }
     // G4：images → kernel image_url parts（cloud=publish→https，local/sim=data: 内联）。
     // 解析失败（远端 lane 缺位/文件读不出）如实上报——不丢图静默跑文本。
     // 已解析 parts 沉淀进 user item（imageParts）——跨轮历史/转录重建用；
@@ -157,6 +170,7 @@ export class KernelMiniRuntime {
           content: [...parts, ...(text.trim().length > 0 ? [{ kind: 'text', text }] : [])],
         }
       } catch (e) {
+        this.running.delete(id)
         this.fail(id, 'image-resolve-failed', e instanceof Error ? e.message : String(e))
         return { messageId }
       }
@@ -184,8 +198,12 @@ export class KernelMiniRuntime {
   /** kernel pump 驱动一轮 turn；io 回调内投影 UI 事件。 */
   private async drive(sessionId: string, input: unknown): Promise<void> {
     // require 在 try 外会漏 unhandled rejection——会话已在 pump 落地前删除属正常竞态（审查 B8）。
+    // prompt 提前占位 running（F5）——此处早退必须释放，否则会话删除后 running 泄漏。
     const s = this.sessions.get(sessionId)
-    if (s === undefined) return
+    if (s === undefined) {
+      this.running.delete(sessionId)
+      return
+    }
     this.running.add(sessionId)
     // 真机：kernel 纯资源分包经 preloadRule 异步下载——轮询等可用（最长 20s）
     const bundle = await loadKernelAsync()

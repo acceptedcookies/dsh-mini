@@ -21,6 +21,32 @@ import { encodeUtf8, decodeUtf8 } from '../fx/utf8'
 import type { RemoteVfs } from './remote'
 
 const SYNC_KEY = 'dsh:vfs:v1:sync'
+/** 删除墓碑（客户端侧，不占远端键区——不扩约）：path→deleted_ms。
+ *  pushRemove 失败（网络抖动）后，pullRows 见远端行不复活本删项，并重发删除收敛；
+ *  远端行 updated_ms 更新于墓碑=真重建（LWW），复活并清碑（审查四轮 F3）。 */
+const TOMB_KEY = 'dsh:mini:vfs-tombstones'
+
+function tombstones(): Record<string, number> {
+  const v = wx.getStorageSync(TOMB_KEY) as Record<string, number> | '' | undefined
+  return v !== '' && v !== undefined ? v : {}
+}
+
+/** 记碑只在缺席时落——heal 重试不得把 deleted_ms 刷前遮蔽真重建。 */
+function setTomb(path: string): void {
+  const t = tombstones()
+  if (t[path] === undefined) {
+    t[path] = Date.now()
+    wx.setStorageSync(TOMB_KEY, t)
+  }
+}
+
+function clearTomb(path: string): void {
+  const t = tombstones()
+  if (t[path] !== undefined) {
+    delete t[path]
+    wx.setStorageSync(TOMB_KEY, t)
+  }
+}
 
 interface SyncPointer {
   etag: string
@@ -84,6 +110,7 @@ export function createVfsSync(remote: RemoteVfs) {
     const map = pointers()
     map[path] = { etag: r.etag, synced_ms: row.updated_ms }
     writePointers(map)
+    clearTomb(path) // 本地新写胜出——删碑让位（LWW：内容新于删除意图）
     return r.etag
   }
 
@@ -109,8 +136,10 @@ export function createVfsSync(remote: RemoteVfs) {
     return report
   }
 
-  /** 行删除传播：远端行键删除；对象字节按无引用惰性保留（与本地对象层同语义）。 */
+  /** 行删除传播：远端行键删除；对象字节按无引用惰性保留（与本地对象层同语义）。
+   *  墓碑先落——远端 del 失败时删除意图仍 durable，pullRows 不复活+重删收敛（F3）。 */
   async function pushRemove(path: string): Promise<void> {
+    setTomb(path)
     await remote.del(rowKey(path))
     const map = pointers()
     delete map[path]
@@ -135,6 +164,15 @@ export function createVfsSync(remote: RemoteVfs) {
         // 坏行如实 warn——静默跳过会让毒化行永远缺席且无面可查（审查 B8）。
         console.warn(`[remote-sync] pullRows 跳过坏行 ${key}`)
         continue
+      }
+      const tomb = tombstones()[path]
+      if (local === undefined && tomb !== undefined) {
+        if (row.updated_ms <= tomb) {
+          // 本删项远端行残存（pushRemove 曾失败）——不复活，重发删除收敛（F3）。
+          void remote.del(key).catch((e) => console.warn(`[remote-sync] 墓碑重删失败 ${key}:`, e instanceof Error ? e.message : e))
+          continue
+        }
+        clearTomb(path) // 远端行新于墓碑=真重建，LWW 复活
       }
       if (local !== undefined && local.updated_ms >= row.updated_ms) continue
       vfsStore.putRow(row)

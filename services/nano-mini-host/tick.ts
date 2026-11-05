@@ -6,7 +6,7 @@
  */
 
 import { ioStateFor } from '../state/provider'
-import { loadKernel } from './kernel-loader'
+import { loadKernelAsync } from './kernel-loader'
 import { sweepTick, type PumpCtx } from './pump'
 import { createIoTool } from './io/tool'
 import { createIoLlm } from './io/llm'
@@ -23,7 +23,9 @@ function ioFor(sessionId: string): Io {
 }
 
 export async function nanoMiniCatchUp(): Promise<string[]> {
-  const bundle = loadKernel()
+  // loadKernel 同步面的 tried 闩会把 onLaunch 首败（分包未就绪）永久锁存——
+  // async 面轮询等待分包下载，launch catch-up 不哑火（审查四轮 F7）。
+  const bundle = await loadKernelAsync()
   if (bundle === undefined) return []
   const ctx: PumpCtx = { kernel: bundle.kernel, io: ioFor(''), owner: 'local', holder: HOLDER }
   const ran = await sweepTick(ctx, { batchLimit: 10 }, ioFor)
