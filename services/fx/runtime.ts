@@ -228,11 +228,17 @@ export class FxLocalRuntime {
     }
     s.summary.status = 'running'
     s.summary.updatedAt = Date.now()
-    this.emit({ type: 'status', sessionId: id, state: 'running', step: 1 })
     const messageId = randomId('user')
-    this.append(id, { kind: 'user_message', id: messageId, seq: this.nextSeq(s), text, images: images.length > 0 ? images : undefined })
-    if (s.summary.title === '新会话' && text.trim().length > 0) s.summary.title = text.trim().slice(0, 28)
-    this.persist()
+    try {
+      this.append(id, { kind: 'user_message', id: messageId, seq: this.nextSeq(s), text, images: images.length > 0 ? images : undefined })
+      if (s.summary.title === '新会话' && text.trim().length > 0) s.summary.title = text.trim().slice(0, 28)
+      this.persist()
+    } catch (e) {
+      // persist/quota 抛错不得滞留 running——否则该会话此后永不可 prompt（F5-1 同族）。
+      s.summary.status = 'idle'
+      throw e
+    }
+    this.emit({ type: 'status', sessionId: id, state: 'running', step: 1 })
 
     const epoch = (this.turnEpoch.get(id) ?? 0) + 1
     this.turnEpoch.set(id, epoch)
