@@ -14,6 +14,7 @@ import { resolveRoute } from './route'
 import { loadDevConfig } from './dev'
 import { createTicketProvider, hasFreshTicket, type TicketProvider } from './ticket'
 import { markdownToHtml, plainText } from '../markdown'
+import { reportSilent } from '../error-report'
 import { storage } from '../storage'
 import { randomId } from '../../utils/uuid'
 import type {
@@ -260,6 +261,7 @@ export class FxLocalRuntime {
       // 已删会话的迟到失败不发全局横幅（删除竞态，UI 审查 F5——与 kernel fail 同构）。
       if (this.sessions.get(id) === undefined) {
         console.warn(`[fx-runtime] turn_failed on deleted session ${id}:`, error instanceof Error ? error.message : error)
+        reportSilent(error, { op: 'turn-late-fail', lane: 'fx', sessionId: id })
         return
       }
       // 换代后的迟到失败（cancel+重发/看守强收）——新轮已接管 status，
@@ -269,6 +271,7 @@ export class FxLocalRuntime {
         // 此刻链上仅本 turn 刚退出、新轮尚未产 delta，settle 不误杀（审查十二轮 F-1）。
         this.emit({ type: 'assistant.settle', sessionId: id, seq: 0, messageId: '' })
         console.warn(`[fx-runtime] stale turn_failed suppressed for ${id}:`, error instanceof Error ? error.message : error)
+        reportSilent(error, { op: 'turn-stale-fail', lane: 'fx', sessionId: id })
         return
       }
       s.summary.status = 'error'
@@ -538,6 +541,7 @@ export class FxLocalRuntime {
     setTimeout(() => {
       if (this.inFlightTurns.get(id) === victim) {
         console.warn(`[fx-runtime] 会话 ${id} 轮次取消未结算——restartCore 强收`)
+        reportSilent(new Error('轮次取消 20s 未结算——restartCore 强收'), { op: 'cancel-watchdog', lane: 'fx', sessionId: id })
         this.restartCore()
       }
     }, 20_000)

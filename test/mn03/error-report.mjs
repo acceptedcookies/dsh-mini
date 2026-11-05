@@ -112,6 +112,15 @@ const { classifyError, errorBus, reportText, reportSilent } = await bundle(
   check('M8:对象 status=401→upstream-401（NanoApiError 面）', c8.code === 'upstream-401' && c8.category === 'ticket' && c8.diagnostics.status === 401)
   const c9 = classifyError(new Error('setStorageSync:fail exceed storage size limit'))
   check('M9:wx 配额 errMsg 仍归 storage-quota modal', c9.code === 'storage-quota' && c9.surface === 'modal')
+  // R3 修复验收
+  const c10 = classifyError(new Error('upload 500 files'))
+  check('M10:单位词 500 files 不误归 upstream-500', c10.code === 'unknown-error', `code=${c10.code}`)
+  const c11 = classifyError(new Error('retry in 500 ms'))
+  check('M11:500 ms 单位词不误归 upstream-500', c11.code === 'unknown-error')
+  const c12 = classifyError(new Error('{"error":"insufficient_quota"}'))
+  check('M12:裸 insufficient_quota→rate-limit（非 storage-quota）', c12.code === 'rate-limit' && c12.surface === 'toast', `code=${c12.code}`)
+  const c13 = classifyError({ errMsg: 'request:fail timeout' })
+  check('M13:wx errMsg 形状消费为 message→network-timeout', c13.code === 'network-timeout' && c13.message === 'request:fail timeout')
 }
 
 // ── bus：surface 路由 + dedupe + cap + 队列 ─────────────────────────

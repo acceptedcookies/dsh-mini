@@ -246,6 +246,7 @@ async function rearmOrDrop(ctx: PumpCtx, key: string, rec: AlarmRecord, reason: 
     return
   }
   console.warn(`[pump] sweepTick ${rec.sessionId} 重臂写新行 status=${wr.status}——旧行保留`)
+  reportSilent(new Error(`alarm 重臂写新行 status=${wr.status}`), { op: 'alarm-rearm', lane: 'background', sessionId: rec.sessionId, status: wr.status })
 }
 
 /** sweeper 单次 tick：枚举 owner 前缀下 due 的 alarm → claim 行 → runPump 恢复。 */

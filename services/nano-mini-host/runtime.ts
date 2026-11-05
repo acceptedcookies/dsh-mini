@@ -450,7 +450,7 @@ export class KernelMiniRuntime {
     this.emit({ type: 'status', sessionId, state: 'idle' })
     // 状态迁移已内存落位——持久化尽力即可：配额抛不得逃逸成 void drive()
     // 链的 unhandled rejection 或掩盖上游真实错误路径（审查六轮）。
-    try { this.persist() } catch (e) { console.warn('[runtime] idle persist 失败:', e instanceof Error ? e.message : e) }
+    try { this.persist() } catch (e) { console.warn('[runtime] idle persist 失败:', e instanceof Error ? e.message : e); reportSilent(e, { op: 'persist', lane: 'background', sessionId }) }
   }
 
   private fail(sessionId: string, code: string, message: string, retryable = true): void {
@@ -458,10 +458,11 @@ export class KernelMiniRuntime {
     if (s === undefined) {
       // 已删会话的迟到失败不发全局横幅——删除竞态噪声不上用户当前界面（UI 审查 F5）。
       console.warn(`[runtime] fail(${code}) on deleted session ${sessionId}: ${message}`)
+      reportSilent(new Error(`fail(${code}) ${message}`), { op: 'fail-late', lane: 'kernel', sessionId })
       return
     }
     s.summary.status = 'error'
-    try { this.persist() } catch (e) { console.warn('[runtime] fail persist 失败:', e instanceof Error ? e.message : e) }
+    try { this.persist() } catch (e) { console.warn('[runtime] fail persist 失败:', e instanceof Error ? e.message : e); reportSilent(e, { op: 'persist', lane: 'background', sessionId }) }
     this.emit({ type: 'status', sessionId, state: 'error' })
     this.emit({ type: 'error', code, message, retryable })
   }

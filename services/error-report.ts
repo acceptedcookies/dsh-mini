@@ -155,17 +155,25 @@ const GENERIC_TABLE: Array<{ pattern: RegExp; code: string }> = [
   { pattern: /ECONNREFUSED|ENOTFOUND|EAI_AGAIN|ECONNRESET|ENETUNREACH|EHOSTUNREACH|no route to host|fetch failed|socket|request:fail|网络|offline|不可达|连接失败|NetworkError/i, code: 'network-error' },
   { pattern: /killed|被中断/i, code: 'killed' },
   { pattern: /image|图片/i, code: 'image-resolve-failed' },
+  // 上游配额措辞（OpenAI 兼容面 'insufficient_quota'/'quota exceeded' 无 status
+  // 裸入时）→rate-limit 语义；裸 'quota'/'exceed size' 才落本地存储面（MN03-R3）。
+  { pattern: /insufficient_quota|quota exceeded/i, code: 'rate-limit' },
   { pattern: /quota|exceed.*size/i, code: 'storage-quota' },
 ]
 
-/** 从 message 里抽取 http status。两段抽取（MN03-R2 C-2）：
+/** 从 message 里抽取 http status。三段防御（MN03-R2 C-2 / R3 单位词假阳）：
  *  ①锚定上下文 `upstream|status|http`——'io.llm upstream 503'/'status=413'/'status":503' 真形状；
- *  ②裸三位但排除 `:` 前缀——`127.0.0.1:443` 端口不误归 upstream-443。 */
+ *  ②裸三位但排除 `:` 前缀——`127.0.0.1:443` 端口不误归 upstream-443；
+ *  ③单位词后缀跳过——'retry in 500 ms'/'upload 500 files'/'batch 404 items' 非 status。 */
 function httpStatusOf(message: string): number | undefined {
   const anchored = /(?:upstream|status|http)\s*[=:"]?\s*([1-5]\d\d)/i.exec(message)
   if (anchored !== null) return Number(anchored[1])
-  const m = /(^|[\s=(,])([1-5]\d\d)\b/.exec(message)
-  return m !== null ? Number(m[2]) : undefined
+  for (const m of message.matchAll(/(^|[\s=(,])([1-5]\d\d)\b\s*([\p{L}\p{N}%]*)/gu)) {
+    const suffix = m[3] ?? ''
+    if (/^(ms|s|px|k|kb|mb|gb|bytes?|files?|items?|rows?|lines?|个|条|字节|行|次|秒|分)$/i.test(suffix)) continue
+    return Number(m[2])
+  }
+  return undefined
 }
 
 function taxonFor(code: string, message: string, objStatus?: number): { code: string; taxon: Taxon; status?: number } {
@@ -222,9 +230,11 @@ export function classifyError(input: unknown, ctx: ErrorDiagnostics = {}): Error
   } else if (typeof input === 'string') {
     message = input
   } else if (input !== null && typeof input === 'object') {
-    const row = input as ClassifyInput & { stack?: string; status?: unknown }
+    // wx fail 回调形状 {errMsg:'xxx:fail ...'}——errMsg 是 wx 面的 message 等价物
+    // （MN03-R3：原样 JSON.stringify 会把 {"errMsg":...} 原文呈给用户）。
+    const row = input as ClassifyInput & { stack?: string; status?: unknown; errMsg?: unknown }
     code = typeof row.code === 'string' ? row.code : ''
-    message = typeof row.message === 'string' ? row.message : JSON.stringify(input)
+    message = typeof row.message === 'string' ? row.message : typeof row.errMsg === 'string' ? row.errMsg : JSON.stringify(input)
     stack = typeof row.stack === 'string' ? row.stack : undefined
     retryable = row.retryable ?? retryable
     if (typeof row.status === 'number' && row.status >= 100 && row.status <= 599) objStatus = row.status
