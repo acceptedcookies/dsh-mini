@@ -211,6 +211,15 @@ class LocalTicketProvider implements TicketProvider {
   }
 }
 
+/** 该路由的 provider 是否走铸票车道（sim/cloud 代理面会 ensure→bio 证明）；
+ *  LocalTicketProvider 不铸票——后台 no-mint 门控据此判定（审查五轮 F6）。 */
+export function providerMintsTicket(route: RouteConfig): boolean {
+  return (
+    (route.mode === 'cloud-sim' && route.proxyBaseUrl !== undefined && route.simBaseUrl !== undefined)
+    || (route.mode === 'cloud' && route.proxyBaseUrl !== undefined)
+  )
+}
+
 export function createTicketProvider(route: RouteConfig, cfg: TicketSource): TicketProvider {
   if (route.mode === 'cloud-sim' && route.proxyBaseUrl !== undefined && route.simBaseUrl !== undefined) {
     return new SimTicketProvider(route.simBaseUrl, route.proxyBaseUrl, route, cfg)

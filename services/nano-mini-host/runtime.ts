@@ -132,11 +132,18 @@ export class KernelMiniRuntime {
     // 第二个 prompt 从间隙穿过，同 holder 双泵互扰（审查四轮 F5）。
     this.running.add(id)
     const messageId = randomId('user')
-    this.append(id, { kind: 'user_message', id: messageId, seq: this.nextSeq(s), text, images: images.length > 0 ? images : undefined })
-    if (s.summary.title === '新会话' && text.trim().length > 0) s.summary.title = text.trim().slice(0, 28)
-    s.summary.status = 'running'
-    this.emit({ type: 'status', sessionId: id, state: 'running', step: 1 })
-    this.persist()
+    try {
+      this.append(id, { kind: 'user_message', id: messageId, seq: this.nextSeq(s), text, images: images.length > 0 ? images : undefined })
+      if (s.summary.title === '新会话' && text.trim().length > 0) s.summary.title = text.trim().slice(0, 28)
+      s.summary.status = 'running'
+      this.emit({ type: 'status', sessionId: id, state: 'running', step: 1 })
+      this.persist()
+    } catch (e) {
+      // append/persist 的 wx.setStorageSync 可抛配额——running 已提前占位，
+      // 不释放会让会话终身不可 prompt（审查五轮）。
+      this.running.delete(id)
+      throw e
+    }
     // 票据前置（用户手势上下文）：云 durable 车道无活票时 resolveImageParts 的
     // publishArtifact 与 runPump claim 同样 401——图片解析在 mint 门之前时冷启动/
     // 过期后图片发送永久失败且永无铸票路径（审查四轮 F1）。

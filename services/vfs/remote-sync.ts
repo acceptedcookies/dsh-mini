@@ -31,11 +31,18 @@ function tombstones(): Record<string, number> {
   return v !== '' && v !== undefined ? v : {}
 }
 
-/** 记碑只在缺席时落——heal 重试不得把 deleted_ms 刷前遮蔽真重建。 */
+/** 记碑只在缺席时落——heal 重试不得把 deleted_ms 刷前遮蔽真重建。
+ *  无界增长防（审查五轮）：每删一碑且 heal 成功/远端缺席才清——满 512 逐最旧。 */
+const TOMB_CAP = 512
 function setTomb(path: string): void {
   const t = tombstones()
   if (t[path] === undefined) {
     t[path] = Date.now()
+    const keys = Object.keys(t)
+    if (keys.length > TOMB_CAP) {
+      keys.sort((a, b) => (t[a] ?? 0) - (t[b] ?? 0))
+      for (const k of keys.slice(0, keys.length - TOMB_CAP)) delete t[k]
+    }
     wx.setStorageSync(TOMB_KEY, t)
   }
 }
@@ -139,8 +146,16 @@ export function createVfsSync(remote: RemoteVfs) {
   /** 行删除传播：远端行键删除；对象字节按无引用惰性保留（与本地对象层同语义）。
    *  墓碑先落——远端 del 失败时删除意图仍 durable，pullRows 不复活+重删收敛（F3）。 */
   async function pushRemove(path: string): Promise<void> {
-    setTomb(path)
+    try {
+      setTomb(path)
+    } catch (e) {
+      // 碑写入自身可抛（storage 配额）——删除意图不因此丢失：远端 del 照常，
+      // 远端 del 成功即收敛；仅「碑缺席+远端 del 也失败」留复活面（如实 warn，审查五轮）。
+      console.warn(`[remote-sync] setTomb 失败 ${path}（复活防护缺席）:`, e instanceof Error ? e.message : e)
+    }
     await remote.del(rowKey(path))
+    // 远端已删=删除意图落地——碑使命完成即清，否则每删一碑永久积压（审查五轮）。
+    clearTomb(path)
     const map = pointers()
     delete map[path]
     writePointers(map)
@@ -156,7 +171,11 @@ export function createVfsSync(remote: RemoteVfs) {
       if (path === null) continue
       const local = vfsStore.getRow(path)
       const r = await remote.get(key)
-      if (r === null) continue
+      if (r === null) {
+        // 远端已缺席——若有碑其意图已落地，清碑防积压（审查五轮）。
+        if (tombstones()[path] !== undefined) clearTomb(path)
+        continue
+      }
       let row: VfsRow
       try {
         row = JSON.parse(dec(r.bytes)) as VfsRow
@@ -168,8 +187,11 @@ export function createVfsSync(remote: RemoteVfs) {
       const tomb = tombstones()[path]
       if (local === undefined && tomb !== undefined) {
         if (row.updated_ms <= tomb) {
-          // 本删项远端行残存（pushRemove 曾失败）——不复活，重发删除收敛（F3）。
-          void remote.del(key).catch((e) => console.warn(`[remote-sync] 墓碑重删失败 ${key}:`, e instanceof Error ? e.message : e))
+          // 本删项远端行残存（pushRemove 曾失败）——不复活，重发删除收敛（F3）；
+          // 重删成功即清碑（使命完成），失败留碑下轮重试（审查五轮）。
+          void remote.del(key)
+            .then(() => clearTomb(path))
+            .catch((e) => console.warn(`[remote-sync] 墓碑重删失败 ${key}:`, e instanceof Error ? e.message : e))
           continue
         }
         clearTomb(path) // 远端行新于墓碑=真重建，LWW 复活

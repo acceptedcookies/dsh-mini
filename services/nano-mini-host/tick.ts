@@ -19,10 +19,24 @@ const HOLDER = 'mp-foreground'
 let timer: ReturnType<typeof setInterval> | undefined
 
 function ioFor(sessionId: string): Io {
-  return { llm: createIoLlm(), tool: createIoTool(sessionId), state: ioStateFor() }
+  // 后台车道不铸票：sweep 的 io.llm 无活票直接失败（pump-error→重臂），
+  // 不在 30s tick/launch 上下文弹 SOTER（审查五轮 F6）。
+  return { llm: createIoLlm({ noMint: true }), tool: createIoTool(sessionId), state: ioStateFor() }
 }
 
-export async function nanoMiniCatchUp(): Promise<string[]> {
+let catchUpInFlight: Promise<string[]> | undefined
+
+export function nanoMiniCatchUp(): Promise<string[]> {
+  // setInterval 不 await 前次 promise——loadKernelAsync 轮询（最长 ~20s）拉长
+  // catchUp 后并发 sweepTick 可达：同 holder claim 双通，先烧 llm/tool 才被
+  // CAS 栅栏拦下（审查五轮）。单飞收敛：并发调用方共享同一 promise。
+  catchUpInFlight ??= doCatchUp().finally(() => {
+    catchUpInFlight = undefined
+  })
+  return catchUpInFlight
+}
+
+async function doCatchUp(): Promise<string[]> {
   // loadKernel 同步面的 tried 闩会把 onLaunch 首败（分包未就绪）永久锁存——
   // async 面轮询等待分包下载，launch catch-up 不哑火（审查四轮 F7）。
   const bundle = await loadKernelAsync()

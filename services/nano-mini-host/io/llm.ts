@@ -5,7 +5,7 @@
  * 首版非流式 JSON（仓内无 TS 侧 SSE 解析器；需流式则本文件内新写）。
  */
 
-import { createTicketProvider } from '../../fx/ticket'
+import { createTicketProvider, hasFreshTicket, providerMintsTicket } from '../../fx/ticket'
 import { loadDevConfig, currentRoute } from '../../fx/dev'
 import { readEnrollment, activeModel } from '../../fx/enrollment'
 import { MODELS, DEFAULT_MODEL } from '../../config'
@@ -109,6 +109,9 @@ async function wxRequestJson(url: string, headers: Record<string, string>, data:
 export interface IoLlmDeps {
   /** 测试注入：替换 wx.request 通道（Node harness / 单测用）。 */
   request?: (url: string, headers: Record<string, string>, data: unknown) => Promise<{ status: number; body: unknown }>
+  /** 后台车道（sweep/tick）：铸票车道路由下无活票即抛 ticket-required——
+   *  ready() 会走 bio 证明（SOTER 须用户手势上下文），后台不得触发（审查五轮 F6）。 */
+  noMint?: boolean
 }
 
 export function createIoLlm(deps: IoLlmDeps = {}): (messages: unknown[]) => Promise<LlmOutput> {
@@ -150,6 +153,11 @@ export function createIoLlm(deps: IoLlmDeps = {}): (messages: unknown[]) => Prom
         cloud: cfg?.cloud ?? { envId: route.cloudEnvId ?? '', proxyUrl: route.proxyBaseUrl ?? '' },
       }
       const ticket = createTicketProvider(route, source)
+      // 后台车道（noMint）：LocalTicketProvider 不铸票直接放行；铸票车道
+      // 无活票时 ready() 会弹 SOTER——抛 ticket-required 让 pump-error→重臂（F6）。
+      if (deps.noMint === true && providerMintsTicket(route) && !hasFreshTicket()) {
+        throw new Error('io.llm: ticket-required（后台车道无活票不铸票）')
+      }
       const resolved = await ticket.ready()
       const base = route.proxyBaseUrl ?? resolved.upstreamBaseUrl
       url = `${base.replace(/\/$/, '')}/v1/chat/completions`
