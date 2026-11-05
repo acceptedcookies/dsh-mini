@@ -10,5 +10,8 @@ interface IAppOption {
     /** durable 铸票面测试钩子（E10 语义直达——IDE 探针用）。 */
     __hasFreshTicket?: unknown
     __ensureDurableTicket?: unknown
+    /** MN03 诊断/错误钩子：__diagnostics(sid?)→bundle；__errorBus=总线实例。 */
+    __diagnostics?: unknown
+    __errorBus?: unknown
   }
 }

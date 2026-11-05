@@ -1,5 +1,5 @@
 import { sessionStore } from '../../services/session-store'
-import { vfsStore } from '../../services/vfs/store'
+import { vfs, vfsStore } from '../../services/vfs/api'
 import { nanoRuntime } from '../../services/nano/runtime'
 import { fxRuntime } from '../../services/fx/runtime'
 import { fetchTodos, fetchWorkspaceFiles } from '../../services/nano/http'
@@ -8,6 +8,8 @@ import { APP_VERSION, DEFAULT_MODEL, MODELS, type ModelOption } from '../../serv
 import { applyNavigationBar, getTheme, type Theme } from '../../services/theme'
 import { storage } from '../../services/storage'
 import { DEFAULT_PERMISSION, PERMISSIONS, permissionOf, type PermissionOption } from '../../services/permissions'
+import { classifyError, errorBus, type ErrorReport } from '../../services/error-report'
+import { sessionDiagnostics } from '../../services/diagnostics'
 import { firstCommand } from '../../services/commands'
 import { formatRelative } from '../../utils/time'
 import { toolView, type ToolView } from '../../utils/tool-view'
@@ -99,6 +101,7 @@ const SLASH_ALIASES: Record<string, string> = {
 
 const SESSION_MENU: MenuItem[] = [
   { id: 'rename', label: '重命名', icon: 'edit-outline' },
+  { id: 'diagnostics', label: '诊断', icon: 'info-outline' },
   { id: 'delete', label: '删除会话', icon: 'trash-outline', danger: true },
 ]
 
@@ -108,6 +111,7 @@ const WORKSPACE_MENU: MenuItem[] = [
 ]
 
 let unsubscribe: (() => void) | undefined
+let unsubscribeErr: (() => void) | undefined
 let resizeHandler: ((result: WechatMiniprogram.OnWindowResizeListenerResult) => void) | undefined
 /** 按会话记住折叠的轮次。页面实例在热重载时会被换掉，所以不挂在 this 上。 */
 const foldedTurns = new Map<string, Set<number>>()
@@ -187,6 +191,8 @@ Page({
     toastVisible: false,
     toastMessage: '',
     toastTone: 'info',
+    errToasts: [] as ErrorReport[],
+    errModal: null as ErrorReport | null,
     runStartedAt: 0,
     runLabel: '深度求索中',
     commandMenuVisible: false,
@@ -235,6 +241,8 @@ Page({
     void sessionStore.init()
     if (unsubscribe !== undefined) unsubscribe()
     unsubscribe = sessionStore.subscribe((state) => this.apply(state))
+    if (unsubscribeErr !== undefined) unsubscribeErr()
+    unsubscribeErr = errorBus.subscribe((bus) => this.setData({ errToasts: bus.toasts, errModal: bus.modal ?? null }))
 
     if (runClock !== undefined) clearInterval(runClock)
     runClock = setInterval(() => {
@@ -333,6 +341,8 @@ Page({
   onUnload() {
     unsubscribe?.()
     unsubscribe = undefined
+    unsubscribeErr?.()
+    unsubscribeErr = undefined
     if (runClock !== undefined) {
       clearInterval(runClock)
       runClock = undefined
@@ -670,8 +680,26 @@ Page({
     wx.setClipboardData({
       data: text,
       success: () => this.showToast('会话内容已复制到剪贴板', 'success'),
-      fail: () => this.showToast('复制会话内容失败', 'error'),
+      fail: (err) => errorBus.report(err, { op: 'clipboard', lane: 'ui' }),
     })
+  },
+
+  /** G2：session workspace 诊断按钮——bundle 落 vfs + 全文复制剪贴板。
+   *  与 globalData.__diagnostics（devtools MCP/automator evaluate 面）同一真源。 */
+  exportDiagnostics(sessionId: string) {
+    try {
+      const bundle = sessionDiagnostics(sessionId.length > 0 ? sessionId : undefined)
+      const text = JSON.stringify(bundle, null, 2)
+      const path = `/root/diagnostics/${bundle.session?.id ?? 'app'}-${bundle.ts}.json`
+      vfs.write(path, text, { sessionId: sessionId.length > 0 ? sessionId : 'diagnostics', mime: 'application/json' })
+      wx.setClipboardData({
+        data: text,
+        success: () => this.showToast(`诊断已复制（已存 ${path}）`, 'success'),
+        fail: () => this.showToast(`诊断已存 ${path}，复制失败`, 'error'),
+      })
+    } catch (error) {
+      errorBus.report(error, { op: 'diagnostics', lane: 'ui', sessionId })
+    }
   },
 
   openAutoPermissionDialog(permission: PermissionOption) {
@@ -742,9 +770,13 @@ Page({
   },
 
   async attach() {
-    const image = await pickImage()
-    if (image === undefined) return
-    this.setData({ pendingImages: [...this.data.pendingImages, image] })
+    try {
+      const image = await pickImage()
+      if (image === undefined) return
+      this.setData({ pendingImages: [...this.data.pendingImages, image] })
+    } catch (error) {
+      errorBus.report(error, { op: 'attach', lane: 'ui' })
+    }
   },
 
   removeImage(event: WechatMiniprogram.CustomEvent<{ index: number }>) {
@@ -858,6 +890,10 @@ Page({
       }
     } catch (error) {
       this.setData({ rightError: error instanceof Error ? error.message : '加载失败' })
+      // 面板内联错误已是专属显示面——入 bus 仅作 silent 台账（不双弹）。
+      const report = classifyError(error, { op: 'right-panel', lane: 'ui', sessionId })
+      report.surface = 'silent'
+      errorBus.report(report)
     } finally {
       this.setData({ rightLoading: false })
     }
@@ -1004,6 +1040,7 @@ Page({
     }
     if (targetId.length === 0) return
     if (id === 'rename') this.openRenameDialog(targetId)
+    if (id === 'diagnostics') this.exportDiagnostics(targetId)
     if (id === 'delete') this.openDeleteDialog(targetId)
   },
 
@@ -1126,8 +1163,27 @@ Page({
     this.showToast('分支需要 dsh Host 的 session/fork', 'info')
   },
 
-  dismissError() {
-    sessionStore.dismissError()
+  // ── error-center 事件面（MN03 G1）──────────────────────────────
+
+  onErrToastClose(event: WechatMiniprogram.CustomEvent<{ id: string }>) {
+    errorBus.dismiss(event.detail.id)
+  },
+
+  onErrDetail(event: WechatMiniprogram.CustomEvent<{ id: string }>) {
+    errorBus.openDetail(event.detail.id)
+  },
+
+  onErrModalClose() {
+    const modal = this.data.errModal
+    if (modal !== null) errorBus.dismiss(modal.id)
+  },
+
+  onErrCopied() {
+    this.showToast('错误全文已复制', 'success')
+  },
+
+  onErrCopyFailed() {
+    this.showToast('复制失败', 'error')
   },
 })
 

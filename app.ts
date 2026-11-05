@@ -1,5 +1,7 @@
 // app.ts
 import { getTheme, watchSystemTheme } from './services/theme'
+import { classifyError, errorBus } from './services/error-report'
+import { sessionDiagnostics } from './services/diagnostics'
 import { vfs, vfsReadView, vfsStore } from './services/vfs/api'
 import { setVfsMirrorHook } from './services/vfs/vfs'
 import { nanoMiniCatchUp, nanoMiniStartTick, nanoMiniStopTick } from './services/nano-mini-host/tick'
@@ -25,6 +27,7 @@ function wireRemoteMirror(): void {
       if (rep.failed.length > 0) console.warn('[vfs-mirror] reconcile 残留失败:', rep.failed)
     } catch (e) {
       console.warn('[vfs-mirror] reconcile 失败（远端不可达——写路径仍先推）:', e instanceof Error ? e.message : e)
+      errorBus.report(e, { op: 'vfs-mirror', lane: 'background' })
     }
   }
   // 后台面铁律：无活票据不碰远端——铸票=SOTER 须用户手势上下文（审查 B8）。
@@ -38,7 +41,13 @@ function wireRemoteMirror(): void {
     const s = vfsSyncFor()
     if (s === null) return
     const p = kind === 'write' ? s.pushPath(path) : s.pushRemove(path)
-    p.then(() => reconcile()).catch((e) => console.warn(`[vfs-mirror] ${kind} ${path} 推送失败（reconcile 兜底）:`, e instanceof Error ? e.message : e))
+    p.then(() => reconcile()).catch((e) => {
+      console.warn(`[vfs-mirror] ${kind} ${path} 推送失败（reconcile 兜底）:`, e instanceof Error ? e.message : e)
+      // 高频面——每次写都可能撞远端不可达，仅入 silent 台账不弹（reconcile 兜底）。
+      const report = classifyError(e, { op: 'vfs-push', lane: 'background' })
+      report.surface = 'silent'
+      errorBus.report(report)
+    })
   })
   onTicketMinted(() => reconcile())
   reconcile()
@@ -57,6 +66,10 @@ App<IAppOption>({
      *  显式铸票（SOTER=真机面，DevTools 可模拟 TouchID）——E10 语义直达。 */
     __hasFreshTicket: hasFreshTicket as unknown,
     __ensureDurableTicket: ensureDurableTicket as unknown,
+    /** MN03 G2：session 诊断 bundle——devtools MCP/automator evaluate 直达
+     *  （`getApp().globalData.__diagnostics(sid?)`，sid 缺席=当前会话）。 */
+    __diagnostics: sessionDiagnostics as unknown,
+    __errorBus: errorBus as unknown,
   },
   onLaunch() {
     watchSystemTheme((theme) => {
@@ -65,7 +78,10 @@ App<IAppOption>({
     // 纯资源分包下载由 app.json preloadRule（workspace 页）触发；
     // 消费端各自轮询等待（loadKernelAsync / instantiate 重试），launch 无需预热调用
     // T-O-9：启动 catch-up（sweep due 闹钟/恢复挂起 turn）——catch 住防 unhandled rejection
-    nanoMiniCatchUp().catch((e) => console.warn('[nano-mini] catchUp failed:', e))
+    nanoMiniCatchUp().catch((e) => {
+      console.warn('[nano-mini] catchUp failed:', e)
+      errorBus.report(e, { op: 'catch-up', lane: 'background' })
+    })
     wireRemoteMirror()
   },
   onShow() {
