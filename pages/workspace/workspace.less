@@ -11,7 +11,8 @@
 
 .sidebar {
   position: fixed;
-  z-index: 50;
+  /* 压过 right-panel(60)：侧边栏永远顶层的 overlay 契约（菜单 1000 / error 1210+ 仍更高）。 */
+  z-index: 80;
   top: 0;
   left: 0;
   width: min(280px, calc(100vw - 72px));
@@ -43,7 +44,8 @@
 .mask {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  /* 与 sidebar 同档——右面板开时遮罩也要盖住它。 */
+  z-index: 70;
   background: var(--dsw-alias-bg-mask-3, rgba(0, 0, 0, 0.48));
   animation: app-mask-in 180ms ease-out;
 }

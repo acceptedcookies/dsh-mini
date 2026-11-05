@@ -175,6 +175,16 @@ page {
   -webkit-font-smoothing: antialiased;
 }
 
+/* 首帧白闪修复：page 元素自身背景恒持浅色字面量，.app.theme-dark 盖上前的
+ * 一帧即白屏。系统深色时媒体查询直接落深底——渲染管线第 0 帧就位，不等 JS。
+ * 已知边界：系统深+手动浅的用户会在 .app.theme-light 覆盖前见到一帧深底
+ * （对称问题，少数路径；无法对 page 做运行时样式注入，媒体查询是唯一 0 帧手段）。 */
+@media (prefers-color-scheme: dark) {
+  page {
+    background: #151517;
+  }
+}
+
 .theme-dark {
   --dsw-alias-bg-base: #151517;
   --dsw-alias-bg-layer-1: #232324;
