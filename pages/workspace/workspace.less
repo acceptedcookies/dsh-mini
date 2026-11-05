@@ -764,7 +764,9 @@
   }
 }
 
-/* Unlock banner (W2 BL-5 C 半：云端 durable 无活票据时的手势解锁入口) */
+/* Unlock banner (W2 BL-5 C 半：云端 durable 无活票据时的手势解锁入口)
+ * 业主 MN05-W6：layer-2 灰卡在双主题都不显眼 → warn 警示色板高亮
+ * （琥珀底 tertiary + 琥珀字 label，浅 #fef5e7/#dd8629，深 #2a241a/#dd8629）。 */
 
 .unlock-banner {
   flex: none;
@@ -774,15 +776,16 @@
   margin: var(--dsw-space-10) var(--dsw-page-x) var(--dsw-space-8);
   padding: var(--dsw-space-10) var(--dsw-space-12);
   border-radius: var(--dsw-radius-md);
-  background: var(--dsw-alias-bg-layer-2);
-  border: 0.5px solid var(--dsw-alias-border-l2);
-  color: var(--dsw-alias-label-secondary);
+  background: var(--dsw-alias-state-warn-tertiary);
+  border: 0.5px solid var(--dsw-alias-state-warn-secondary);
+  color: var(--dsw-alias-state-warn-label);
   font-size: var(--dsw-text-caption);
   line-height: var(--dsw-lh-18);
 }
 
 .unlock-banner:active {
-  background: var(--dsw-alias-interactive-bg-hover);
+  /* 按压保琥珀系：深色无 warn-wash，用透明度做反馈。 */
+  opacity: 0.82;
 }
 
 .unlock-banner-text {

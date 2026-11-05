@@ -119,7 +119,7 @@
     </header>
 
     <view wx:if="{{needUnlock}}" class="unlock-banner" bindtap="onUnlockSync">
-      <dsh-icon name="shield-outline" theme="{{theme}}" size="{{14}}" />
+      <dsh-icon name="warning-triangle-outline" tone="warn" theme="{{theme}}" size="{{14}}" />
       <text class="unlock-banner-text">云端同步未解锁，点此验证以恢复同步</text>
       <dsh-icon name="chevron-right-outline" theme="{{theme}}" size="{{12}}" />
     </view>
