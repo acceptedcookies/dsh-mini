@@ -69,11 +69,23 @@ export function createAcpClient(runtime: FxRuntime, options: AcpClientOptions): 
   let buf = new Uint8Array()
 
   const send = (msg: AcpMessage) => runtime.write(encoder.encode(JSON.stringify(msg) + '\n'))
+  // send 在死 stdin 上同步抛（fx-host stdin.push 'stdin closed'）——回包面尽力而为
+  // 不得让 void handleMessage 变 unhandled rejection，也不得让 cancel/remove
+  // 调用方在会话清理前被抛出中断（审查十轮 D10-3）。
+  const trySend = (msg: AcpMessage): void => {
+    try { send(msg) } catch (e) { console.warn('[acp] send 失败（stdin 已闭？）:', e instanceof Error ? e.message : e) }
+  }
   const request = (method: string, params: unknown) =>
     new Promise<any>((resolve, reject) => {
       const id = nextId++
       pending.set(id, { resolve, reject })
-      send({ jsonrpc: '2.0', id, method, params: params as AcpMessage['params'] })
+      try {
+        send({ jsonrpc: '2.0', id, method, params: params as AcpMessage['params'] })
+      } catch (e) {
+        // 同步抛即此请求永不发——pending 清账防挂起等待（审查十轮 D10-3）。
+        pending.delete(id)
+        reject(e instanceof Error ? e : new Error(String(e)))
+      }
     })
 
   async function handleMessage(msg: AcpMessage): Promise<void> {
@@ -101,9 +113,9 @@ export function createAcpClient(runtime: FxRuntime, options: AcpClientOptions): 
           msg.params?.toolCallId as string | undefined,
           msg.params?.sessionId as string | undefined,
         )
-        send({ jsonrpc: '2.0', id: msg.id, result: { content: res.content, isError: !!res.isError, ...(res.rich ? { contentType: 'rich' } : {}) } as AcpMessage['result'] })
+        trySend({ jsonrpc: '2.0', id: msg.id, result: { content: res.content, isError: !!res.isError, ...(res.rich ? { contentType: 'rich' } : {}) } as AcpMessage['result'] })
       } catch (e) {
-        send({ jsonrpc: '2.0', id: msg.id, error: { code: -32000, message: String((e as Error)?.message || e) } })
+        trySend({ jsonrpc: '2.0', id: msg.id, error: { code: -32000, message: String((e as Error)?.message || e) } })
       }
       return
     }
@@ -114,7 +126,7 @@ export function createAcpClient(runtime: FxRuntime, options: AcpClientOptions): 
       } catch {
         /* noop */
       }
-      send({
+      trySend({
         jsonrpc: '2.0',
         id: msg.id,
         result: optionId ? { outcome: { outcome: 'selected', optionId } } : { outcome: { outcome: 'cancelled' } },
@@ -122,7 +134,7 @@ export function createAcpClient(runtime: FxRuntime, options: AcpClientOptions): 
       return
     }
     if (msg.method === 'libfx/journal_flush') {
-      send({ jsonrpc: '2.0', id: msg.id, result: {} })
+      trySend({ jsonrpc: '2.0', id: msg.id, result: {} })
       return
     }
   }
@@ -162,7 +174,7 @@ export function createAcpClient(runtime: FxRuntime, options: AcpClientOptions): 
       return request('session/prompt', { sessionId, prompt: blocks })
     },
     cancel(sessionId: string) {
-      send({ jsonrpc: '2.0', method: 'session/cancel', params: { sessionId } })
+      trySend({ jsonrpc: '2.0', method: 'session/cancel', params: { sessionId } })
     },
     dispose(reason = 'acp client disposed') {
       const err = new Error(reason)

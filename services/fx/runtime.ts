@@ -324,6 +324,10 @@ export class FxLocalRuntime {
       this.ticket = ticket
       // ready() 解析凭证来源：local=dev 直连；sim=注入记录优先/dev 兜底自动注入；cloud=必须用户注入。
       const source = await ticket.ready()
+      // ready() 可达 challenge/SOTER 秒级——期间 restartCore 换代后 resume 写共享
+      // 字段会覆盖新一代 starting* 注册使其资源不可达（审查十轮 D10-1）；抛错而
+      // 非空 resolve——等待方须得到实拒而非走 client! TypeError（审查十轮 D10-4）。
+      if (this.coreGen !== gen) throw new Error('fx core 已重启')
       const fxEnv = { ...cfg.fxEnv }
       // wasm provider 定义以生效源重建：cloudish 时 base_url 改写为数据面代理（wasm 无感，见 rules/topology-local.md §4）
       const baseUrl = route.proxyBaseUrl !== undefined ? `${route.proxyBaseUrl}/v1` : source.upstreamBaseUrl
@@ -361,12 +365,14 @@ export class FxLocalRuntime {
       await wasm.start(devConfig!.wasmPath)
       await client.init()
       // 启动窗内 restartCore 已换代——stale-model 核不落地，abort 自收（审查八轮 D4）。
+      // 清字段按同一引守卫——不得清掉新一代 IIFE 已注册的 starting*（审查十轮 D10-1）；
+      // 抛错使全部等待方得到实拒（审查十轮 D10-4）。
       if (this.coreGen !== gen) {
-        this.startingWasm = undefined
-        this.startingClient = undefined
+        if (this.startingWasm === wasm) this.startingWasm = undefined
+        if (this.startingClient === client) this.startingClient = undefined
         client.dispose('fx core 已重启')
         wasm.abort()
-        return
+        throw new Error('fx core 已重启')
       }
       this.startingWasm = undefined
       this.startingClient = undefined
@@ -435,7 +441,23 @@ export class FxLocalRuntime {
     return blocks
   }
 
-  private async runTurn(dshId: string, blocks: AcpPromptBlock[]): Promise<void> {
+  /** 全局轮次互斥（审查十轮 D10-2）：fx_host_tool_call 不带 sessionId，
+   *  dispatchTool 以 activeDshId 单槽兜底——并发轮次会互相改写 cwd 作用域，
+   *  A 的文件工具读写进 B 的 /data/{sid}。串行排队是「单活动会话」注释语义
+   *  的诚实执行；队列内取消/删除由入口处 status 检查兜底。 */
+  private turnChain: Promise<void> = Promise.resolve()
+
+  private runTurn(dshId: string, blocks: AcpPromptBlock[]): Promise<void> {
+    const run = this.turnChain.then(() => {
+      const s = this.sessions.get(dshId)
+      if (s === undefined || s.summary.status !== 'running') return
+      return this.runTurnInner(dshId, blocks)
+    })
+    this.turnChain = run.catch(() => { /* 单轮失败不断链 */ })
+    return run
+  }
+
+  private async runTurnInner(dshId: string, blocks: AcpPromptBlock[]): Promise<void> {
     const s = this.require(dshId)
     await this.ensureCore()
     // 票据过期重铸：core 常驻跨多轮，ensureCore 只在首轮铸票——票据 ~30min TTL
