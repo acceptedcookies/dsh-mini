@@ -42,7 +42,8 @@ Component({
       // 预览列表与渲染同序：durable imageParts 优先，images 回退——
       // 原只取 images 致跨启动消息后 urls 为空、滑动到死临时路径（审查八轮 D6）。
       const item = this.properties.item as { images?: Array<{ url: string }>; imageParts?: Array<{ url: string }> }
-      const sources = item.imageParts ?? item.images ?? []
+      // 空数组不得遮蔽 images——`??` 只在 undefined 回退（审查九轮 D6-fragile）。
+      const sources = item.imageParts !== undefined && item.imageParts.length > 0 ? item.imageParts : (item.images ?? [])
       wx.previewImage({ current: url, urls: sources.map((image) => image.url) })
     },
 

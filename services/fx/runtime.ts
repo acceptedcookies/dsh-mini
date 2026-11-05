@@ -132,6 +132,8 @@ export class FxLocalRuntime {
   private coreGen = 0
   /** ensureCore 在途 wasm 实例——restartCore 可及以便 abort（此前实例逃逸不可达）。 */
   private startingWasm: WasmRuntime | undefined
+  /** ensureCore 在途 client——init() 悬死时 restartCore 可 dispose 拒 pending（审查九轮 4c）。 */
+  private startingClient: AcpClient | undefined
   /** 在飞轮次的 dsh session——host-import 工具调用无 sessionId 时的兜底作用域。 */
   private activeDshId: string | undefined
 
@@ -206,12 +208,7 @@ export class FxLocalRuntime {
     if (acpId !== undefined && this.client !== undefined) this.client.cancel(acpId)
     // 该会话的未决 permission 以 null 收——否则 wasm 侧 request_permission 永挂
     // （cancel() 同构，删除即隐式全拒，审查八轮 D9）。
-    for (const p of this.pendingPermissions.values()) {
-      if (p.sessionId === id) {
-        p.resolve(null)
-        this.pendingPermissions.delete(p.approvalId)
-      }
-    }
+    this.resolveSessionApprovals(id)
     this.sessions.delete(id)
     this.acpSessions.delete(id)
     this.persist()
@@ -254,16 +251,22 @@ export class FxLocalRuntime {
     const s = this.require(id)
     const acpId = this.acpSessions.get(id)
     if (acpId !== undefined && this.client) this.client.cancel(acpId)
-    for (const p of this.pendingPermissions.values()) {
-      if (p.sessionId === id) {
-        p.resolve(null)
-        this.pendingPermissions.delete(p.approvalId)
-      }
-    }
+    this.resolveSessionApprovals(id)
     s.summary.status = 'idle'
     this.emit({ type: 'status', sessionId: id, state: 'idle' })
     this.emit({ type: 'error', code: 'cancelled', message: '已停止当前轮次', retryable: false })
     this.persist()
+  }
+
+  /** 未决 permission 以 null 收+approval.cancel 同步 UI 卡；id 缺席=全会话（审查九轮 D9a）。 */
+  private resolveSessionApprovals(id?: string): void {
+    for (const p of this.pendingPermissions.values()) {
+      if (id === undefined || p.sessionId === id) {
+        p.resolve(null)
+        this.pendingPermissions.delete(p.approvalId)
+        this.emit({ type: 'approval.cancel', approvalId: p.approvalId })
+      }
+    }
   }
 
   answerApproval(approvalId: string, outcome: ApprovalOutcome): void {
@@ -290,14 +293,15 @@ export class FxLocalRuntime {
     this.acpSessions.clear()
     // 未决 permission 以 null 收（与 cancel 同构）——否则 wasm 侧 request_permission
     // 等答复永挂、turn 卡 running；dispose 拒绝 acp pending 使 client.prompt 的
-    // await 被拒而非死等（wasm.abort 后响应永不至）。
-    for (const p of this.pendingPermissions.values()) p.resolve(null)
-    this.pendingPermissions.clear()
+    // await 被拒而非死等（wasm.abort 后响应永不至）。approval.cancel 同步收 UI 卡（审查九轮 D9a）。
+    this.resolveSessionApprovals()
     this.client?.dispose('fx core 已重启')
+    this.startingClient?.dispose('fx core 已重启')
     this.wasm?.abort()
     this.startingWasm?.abort()
     this.wasm = undefined
     this.startingWasm = undefined
+    this.startingClient = undefined
     this.client = undefined
     this.coreStarting = undefined
     this.coreFailed = undefined
@@ -353,24 +357,36 @@ export class FxLocalRuntime {
           this.emit({ type: 'error', code: 'protocol', message: `fx 协议异常: ${e.message}`, retryable: false })
         },
       })
+      this.startingClient = client
       await wasm.start(devConfig!.wasmPath)
       await client.init()
       // 启动窗内 restartCore 已换代——stale-model 核不落地，abort 自收（审查八轮 D4）。
       if (this.coreGen !== gen) {
         this.startingWasm = undefined
+        this.startingClient = undefined
         client.dispose('fx core 已重启')
         wasm.abort()
         return
       }
       this.startingWasm = undefined
+      this.startingClient = undefined
       this.wasm = wasm
       this.client = client
     })()
+    const starting = this.coreStarting
     try {
-      await this.coreStarting
+      await starting
     } catch (e) {
-      this.coreFailed = e instanceof Error ? e : new Error(String(e))
-      throw this.coreFailed
+      // 失败只在本代记账——restartCore 换代后迟到的旧 IIFE 拒绝不得毒化
+      // 新一代（否则所有后续 ensureCore 永投旧错，审查九轮 4b）。
+      if (this.coreStarting === starting) {
+        this.coreFailed = e instanceof Error ? e : new Error(String(e))
+      }
+      throw e
+    } finally {
+      // settled 即清——stale-gen resolved 路径后 coreStarting 滞留会让下个
+      // ensureCore 短路返回、client!.newSession TypeError 楔死车道（审查九轮 4a）。
+      if (this.coreStarting === starting) this.coreStarting = undefined
     }
   }
 

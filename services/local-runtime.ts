@@ -77,16 +77,46 @@ function pluginItems(): ChatItem[] {
 export class LocalRuntime {
   private readonly sessions = new Map<string, StoredSession>()
   private readonly listeners = new Set<(event: LocalEvent) => void>()
-  private readonly timers = new Set<ReturnType<typeof setTimeout>>()
+  /** timers 按会话分域——cancel(B) 不再清 A 的在飞延迟/timer（审查九轮 L1）。 */
+  private readonly timers = new Map<string, Set<ReturnType<typeof setTimeout>>>()
   private readonly pendingApprovals = new Map<string, PendingApproval>()
 
   constructor() {
     const saved = storage.getSessions<StoredSession>()
     if (saved !== undefined && saved.length > 0) {
-      for (const session of saved) this.sessions.set(session.summary.id, session)
+      for (const session of saved) {
+        // 中断轮残留归一（kernel/fx 构造面同构，审查九轮 L2）：running→idle、
+        // running 工具卡→error+注记——否则持久化 spinner+prompt 锁跨启动存活。
+        if (session.summary.status === 'running') session.summary.status = 'idle'
+        let interrupted = false
+        for (const item of session.items) {
+          if (item.kind === 'tool_call' && item.status === 'running') {
+            item.status = 'error'
+            interrupted = true
+          }
+        }
+        if (interrupted) {
+          session.items.push({ kind: 'notice', id: randomId('notice'), seq: ++session.cursor, ts: Date.now(), level: 'warn', text: '（上一轮在工具执行中被中断）' } as ChatItem)
+        }
+        this.sessions.set(session.summary.id, session)
+      }
     } else {
       this.seed()
     }
+  }
+
+  private timersFor(id: string): Set<ReturnType<typeof setTimeout>> {
+    let set = this.timers.get(id)
+    if (set === undefined) {
+      set = new Set()
+      this.timers.set(id, set)
+    }
+    return set
+  }
+
+  private dropTimers(id: string): void {
+    for (const timer of this.timers.get(id) ?? []) clearTimeout(timer)
+    this.timers.delete(id)
   }
 
   subscribe(listener: (event: LocalEvent) => void): () => void {
@@ -141,6 +171,8 @@ export class LocalRuntime {
     // 不再触达 askForToolApproval/streamAssistant 的 require 抛错（审查八轮 D5）。
     const session = this.sessions.get(id)
     if (session !== undefined && session.summary.status === 'running') session.summary.status = 'idle'
+    this.dropTimers(id)
+    this.resolveSessionApprovals(id)
     this.sessions.delete(id)
     this.persist()
   }
@@ -165,7 +197,7 @@ export class LocalRuntime {
     }
 
     const timer = setTimeout(() => {
-      this.timers.delete(timer)
+      this.timers.get(id)?.delete(timer)
       if (session.summary.status !== 'running') return
       if (session.toolRuns === 0) {
         this.askForToolApproval(session, text)
@@ -174,17 +206,17 @@ export class LocalRuntime {
       session.toolRuns += 1
       void this.streamAssistant(id, text)
     }, 320)
-    this.timers.add(timer)
+    this.timersFor(id).add(timer)
     this.persist()
     return { messageId }
   }
 
   cancel(id: string): void {
     const session = this.require(id)
-    for (const timer of this.timers) {
-      clearTimeout(timer)
-      this.timers.delete(timer)
-    }
+    // 只清本会话 timer——全局清理会把其他在飞会话的流式延迟一起杀掉，
+    // 使其 streamAssistant 的 await 永不 resolve、status 永卡 running（审查九轮 L1）。
+    this.dropTimers(id)
+    this.resolveSessionApprovals(id)
     session.summary.status = 'idle'
     session.summary.updatedAt = Date.now()
     this.emit({ type: 'status', sessionId: id, state: 'idle' })
@@ -237,8 +269,14 @@ export class LocalRuntime {
   }
 
   clear(): void {
-    this.sessions.clear()
+    // 在飞 timer/pending 同清——post-clear 回调触达 require 会在 setTimeout 内
+    // 同步抛错/挂起（审查九轮 L3）；approval.cancel 使 UI 卡同步消失（D9a）。
+    for (const id of [...this.timers.keys()]) this.dropTimers(id)
+    for (const pending of this.pendingApprovals.values()) {
+      this.emit({ type: 'approval.cancel', approvalId: pending.approvalId })
+    }
     this.pendingApprovals.clear()
+    this.sessions.clear()
     storage.clearConversations()
   }
 
@@ -337,10 +375,10 @@ export class LocalRuntime {
       index += 1
       await new Promise<void>((resolve) => {
         const timer = setTimeout(() => {
-          this.timers.delete(timer)
+          this.timers.get(sessionId)?.delete(timer)
           resolve()
         }, 18)
-        this.timers.add(timer)
+        this.timersFor(sessionId).add(timer)
       })
     }
     const item = assistantItem(this.nextSeq(session), text, '分析请求、组织结构，并检查输出格式。')
@@ -392,8 +430,21 @@ export class LocalRuntime {
     storage.setSessions([...this.sessions.values()])
   }
 
+  /** 会话的未决审批以 approval.cancel 收——卡同步消失（fx/kernel 同构，审查九轮 D9a）。 */
+  private resolveSessionApprovals(id: string): void {
+    for (const pending of this.pendingApprovals.values()) {
+      if (pending.sessionId === id) {
+        this.pendingApprovals.delete(pending.approvalId)
+        this.emit({ type: 'approval.cancel', approvalId: pending.approvalId })
+      }
+    }
+  }
+
   private emit(event: LocalEvent): void {
-    for (const listener of this.listeners) listener(event)
+    // 单监听器抛错不得波及其余订阅方（kernel/fx emit 同构）。
+    for (const listener of this.listeners) {
+      try { listener(event) } catch (e) { console.warn('[local-runtime] listener 抛错:', e instanceof Error ? e.message : e) }
+    }
   }
 }
 

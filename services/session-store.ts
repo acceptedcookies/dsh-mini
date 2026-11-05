@@ -171,10 +171,12 @@ class SessionStore {
       if (this.state.current === undefined) {
         const id = await this.create()
         if (id === undefined) return false
+        // 用 create 返回的 id——await 窗内用户切到 B 会话时 current 已变，
+        // 草稿属新建会话而非 B（审查九轮 D3a：重读 current 会发错会话+留空僵尸）。
+        await this.runtime.prompt(id, text, images)
+        return true
       }
-      const current = this.state.current
-      if (current === undefined) return false
-      await this.runtime.prompt(current.sessionId, text, images)
+      await this.runtime.prompt(this.state.current.sessionId, text, images)
       return true
     } catch (error) {
       this.setState({ error: messageOf(error) })
