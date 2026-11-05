@@ -24,7 +24,10 @@ function wireRemoteMirror(): void {
       // 行在字节失（cache 清理）不只在 pulled 集内——全量缺失面自愈（审查三轮 N4）。
       await s.hydrateMissing()
       const rep = await s.pushAll()
-      if (rep.failed.length > 0) console.warn('[vfs-mirror] reconcile 残留失败:', rep.failed)
+      if (rep.failed.length > 0) {
+        console.warn('[vfs-mirror] reconcile 残留失败:', rep.failed)
+        reportSilent(new Error(`vfs reconcile 残留失败 ${rep.failed.length} 行`), { op: 'vfs-mirror', lane: 'background', detail: rep.failed.map((f) => `${f.path}: ${f.error}`).join('\n').slice(0, 800) })
+      }
     } catch (e) {
       console.warn('[vfs-mirror] reconcile 失败（远端不可达——写路径仍先推）:', e instanceof Error ? e.message : e)
       // 后台 reconcile 是 best-effort 兜底——silent 台账不弹（MN03-R1）。

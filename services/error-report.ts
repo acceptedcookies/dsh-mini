@@ -142,7 +142,10 @@ const SPECIFIC_TABLE: Array<{ pattern: RegExp; code: string }> = [
   { pattern: /会话不存在|not found.*session|session.*missing/i, code: 'session-missing' },
   { pattern: /仍在运行|still running/i, code: 'session-busy' },
   { pattern: /localRuntimeRoute|路由解析失败|缺少 upstreamBaseUrl|route-config/i, code: 'route-config' },
-  { pattern: /quota|setStorageSync|存储|exceed.*size/i, code: 'storage-quota' },
+  // wx errMsg/存储词锚定在 SPECIFIC（status 之前）；裸 quota/size 在 GENERIC
+  // （status 之后）——上游 429/402 body 'insufficient_quota/quota exceeded'
+  // 须先归 rate-limit/upstream，不得被 quota 抢成「本地存储已满」（MN03-R2 C-1）。
+  { pattern: /setStorageSync|存储配额|本地存储/i, code: 'storage-quota' },
   { pattern: /alarm.*(abandon|放弃)|重臂.*放弃|alarm-abandoned/i, code: 'alarm-abandoned' },
 ]
 
@@ -152,26 +155,30 @@ const GENERIC_TABLE: Array<{ pattern: RegExp; code: string }> = [
   { pattern: /ECONNREFUSED|ENOTFOUND|EAI_AGAIN|ECONNRESET|ENETUNREACH|EHOSTUNREACH|no route to host|fetch failed|socket|request:fail|网络|offline|不可达|连接失败|NetworkError/i, code: 'network-error' },
   { pattern: /killed|被中断/i, code: 'killed' },
   { pattern: /image|图片/i, code: 'image-resolve-failed' },
+  { pattern: /quota|exceed.*size/i, code: 'storage-quota' },
 ]
 
-/** 从 message 里抽取 http status（`io.llm upstream 503`、`state/get 401`、`status=413` 等真实形状）。 */
+/** 从 message 里抽取 http status。两段抽取（MN03-R2 C-2）：
+ *  ①锚定上下文 `upstream|status|http`——'io.llm upstream 503'/'status=413'/'status":503' 真形状；
+ *  ②裸三位但排除 `:` 前缀——`127.0.0.1:443` 端口不误归 upstream-443。 */
 function httpStatusOf(message: string): number | undefined {
-  const m = /\b([1-5]\d\d)\b/.exec(message)
-  if (m === null) return undefined
-  const n = Number(m[1])
-  return n >= 100 && n <= 599 ? n : undefined
+  const anchored = /(?:upstream|status|http)\s*[=:"]?\s*([1-5]\d\d)/i.exec(message)
+  if (anchored !== null) return Number(anchored[1])
+  const m = /(^|[\s=(,])([1-5]\d\d)\b/.exec(message)
+  return m !== null ? Number(m[2]) : undefined
 }
 
-function taxonFor(code: string, message: string): { code: string; taxon: Taxon; status?: number } {
+function taxonFor(code: string, message: string, objStatus?: number): { code: string; taxon: Taxon; status?: number } {
   const known = TAXONOMY[code]
-  if (known !== undefined) return { code, taxon: known }
+  if (known !== undefined) return { code, taxon: known, status: objStatus }
   // 序：domain 锚定码 → http status（≥400 才抢分类）→ 自由文本启发式。
   for (const row of SPECIFIC_TABLE) {
     if (row.pattern.test(code) || row.pattern.test(message)) {
-      return { code: row.code, taxon: TAXONOMY[row.code] ?? TAXONOMY['unknown-error'] }
+      return { code: row.code, taxon: TAXONOMY[row.code] ?? TAXONOMY['unknown-error'], status: objStatus }
     }
   }
-  const status = httpStatusOf(message) ?? httpStatusOf(code)
+  // 对象自带 status（NanoApiError.status 等结构化字段）优先于文本抽取（MN03-R2 C-3）。
+  const status = objStatus ?? httpStatusOf(message) ?? httpStatusOf(code)
   if (status !== undefined && status >= 400) {
     if (status === 401 || status === 403) return { code: `upstream-${status}`, taxon: TAXONOMY['upstream-auth'], status }
     if (status === 429 || status === 408) return { code: `upstream-${status}`, taxon: TAXONOMY['rate-limit'], status }
@@ -198,6 +205,7 @@ export function classifyError(input: unknown, ctx: ErrorDiagnostics = {}): Error
   let message = ''
   let retryable: boolean | undefined = ctx.retryable
   let stack: string | undefined
+  let objStatus: number | undefined
   if (input !== null && typeof input === 'object' && 'type' in (input as Record<string, unknown>)) {
     // LocalEvent error 形状 {type:'error',code,message,retryable}
     const e = input as ClassifyInput
@@ -208,18 +216,22 @@ export function classifyError(input: unknown, ctx: ErrorDiagnostics = {}): Error
     message = input.message
     stack = input.stack
     code = codeOf(input)
+    // NanoApiError 等结构化 status 字段——'登录已失效'(无文本 status) 不再掉 unknown（MN03-R2 C-3）。
+    const s = (input as Error & { status?: unknown }).status
+    if (typeof s === 'number' && s >= 100 && s <= 599) objStatus = s
   } else if (typeof input === 'string') {
     message = input
   } else if (input !== null && typeof input === 'object') {
-    const row = input as ClassifyInput & { stack?: string }
+    const row = input as ClassifyInput & { stack?: string; status?: unknown }
     code = typeof row.code === 'string' ? row.code : ''
     message = typeof row.message === 'string' ? row.message : JSON.stringify(input)
     stack = typeof row.stack === 'string' ? row.stack : undefined
     retryable = row.retryable ?? retryable
+    if (typeof row.status === 'number' && row.status >= 100 && row.status <= 599) objStatus = row.status
   } else {
     message = String(input)
   }
-  const { code: finalCode, taxon, status } = taxonFor(code, message)
+  const { code: finalCode, taxon, status } = taxonFor(code, message, objStatus)
   return {
     id: randomId('err'),
     code: finalCode,
@@ -253,6 +265,7 @@ export function reportText(report: ErrorReport): string {
     ['code', report.code], ['category', report.category], ['severity', report.severity],
     ['title', report.title], ['message', report.message], ['op', d.op], ['lane', d.lane],
     ['route', d.route], ['model', d.model], ['sessionId', d.sessionId], ['url', d.url],
+    ['path', d.path], ['key', d.key], ['workspace', d.workspace],
     ['status', d.status], ['retryable', d.retryable], ['count', report.count],
     ['ts', new Date(report.ts).toISOString()],
   ]

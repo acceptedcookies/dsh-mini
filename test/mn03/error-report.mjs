@@ -103,6 +103,15 @@ const { classifyError, errorBus, reportText, reportSilent } = await bundle(
   check('M4:纯用户 abort 仍归 cancelled silent', c4.code === 'cancelled' && c4.surface === 'silent')
   const c5 = classifyError({ type: 'error', code: 'alarm-abandoned', message: '后台恢复 s1 重试 5 次仍 pump-error——已放弃', retryable: false })
   check('M5:alarm-abandoned→runtime warn toast', c5.code === 'alarm-abandoned' && c5.category === 'runtime' && c5.surface === 'toast')
+  // R2 修复验收
+  const c6 = classifyError(new Error('io.llm upstream 429: {"error":"insufficient_quota"}'))
+  check('M6:429 体含 quota→rate-limit（不被 quota 抢成 storage-quota）', c6.code === 'upstream-429' && c6.category === 'upstream' && c6.surface === 'toast', `code=${c6.code}`)
+  const c7 = classifyError(new Error('ECONNREFUSED 127.0.0.1:443'))
+  check('M7:端口 :443 不误归 upstream-443→network-error', c7.code === 'network-error' && c7.category === 'network' && c7.surface === 'toast', `code=${c7.code}`)
+  const c8 = classifyError(Object.assign(new Error('登录已失效'), { status: 401 }))
+  check('M8:对象 status=401→upstream-401（NanoApiError 面）', c8.code === 'upstream-401' && c8.category === 'ticket' && c8.diagnostics.status === 401)
+  const c9 = classifyError(new Error('setStorageSync:fail exceed storage size limit'))
+  check('M9:wx 配额 errMsg 仍归 storage-quota modal', c9.code === 'storage-quota' && c9.surface === 'modal')
 }
 
 // ── bus：surface 路由 + dedupe + cap + 队列 ─────────────────────────

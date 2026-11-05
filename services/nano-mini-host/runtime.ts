@@ -155,6 +155,7 @@ export class KernelMiniRuntime {
       }
     } catch (e) {
       console.warn(`[runtime] pump 行清理 ${sessionId} 失败（best-effort）:`, e instanceof Error ? e.message : e)
+      reportSilent(e, { op: 'pump-rows-drop', lane: 'background', sessionId })
     }
   }
 
@@ -176,6 +177,7 @@ export class KernelMiniRuntime {
       for (const k of keys) wx.removeStorageSync(k)
     } catch (e) {
       console.warn('[runtime] clear 指针键清理失败（best-effort）:', e instanceof Error ? e.message : e)
+      reportSilent(e, { op: 'ptr-keys-clear', lane: 'background' })
     }
   }
 
@@ -188,6 +190,7 @@ export class KernelMiniRuntime {
       }
     } catch (e) {
       console.warn('[runtime] clear 泵态键区清理失败（best-effort）:', e instanceof Error ? e.message : e)
+      reportSilent(e, { op: 'pump-rows-clear', lane: 'background' })
     }
   }
 

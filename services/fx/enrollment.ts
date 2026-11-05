@@ -7,6 +7,7 @@
  */
 import { storage } from '../storage'
 import { DEFAULT_MODEL, MODELS } from '../config'
+import { reportSilent } from '../error-report'
 import type { RouteConfig } from './route'
 
 export interface EnrollmentRecord {
@@ -221,10 +222,10 @@ export async function revokeEnrollment(route: RouteConfig, cfg: DevSource): Prom
   storage.clearEnrollment()
   if (rec === undefined || route.mode === 'local') return
   if (route.mode === 'cloud-sim') {
-    await postJSON(`${route.simBaseUrl}/sim/revoke`, { action: 'key', provider: rec.provider }).catch(() => {})
+    await postJSON(`${route.simBaseUrl}/sim/revoke`, { action: 'key', provider: rec.provider }).catch((e) => reportSilent(e, { op: 'enroll-revoke', lane: 'background' }))
     return
   }
-  await callCloud(cfg.cloud.envId, 'revoke', { action: 'key', provider: rec.provider }).catch(() => {})
+  await callCloud(cfg.cloud.envId, 'revoke', { action: 'key', provider: rec.provider }).catch((e) => reportSilent(e, { op: 'enroll-revoke', lane: 'background' }))
 }
 
 function normalizeModel(model: string | undefined, allowed: string[] | undefined): string {

@@ -16,7 +16,7 @@ import type {
   StepDecision,
   SweepResult,
 } from './types'
-import { errorBus } from '../error-report'
+import { errorBus, reportSilent } from '../error-report'
 
 const ST = 'dsh-mini/state'
 const CL = 'dsh-mini/claims'
@@ -267,7 +267,9 @@ export async function sweepTick(
     const row = await ctx.io.state.get(key)
     if (row === null) continue
     let rec: AlarmRecord
-    try { rec = JSON.parse(row.body) as AlarmRecord } catch {
+    try { rec = JSON.parse(row.body) as AlarmRecord } catch (e) {
+      // 腐行消费=真异常——silent 台账（MN03-R2 B-2），del 失败留行下 tick 重试不终止整批。
+      reportSilent(e, { op: 'alarm-parse', lane: 'background', key })
       try { await ctx.io.state.del(key) } catch { /* 消费失败留行下 tick 重试——不终止整批 */ }
       continue
     }

@@ -50,7 +50,7 @@ async function doCatchUp(): Promise<string[]> {
   const settled = ran.every((r) => r.outcome === 'completed' || r.outcome === 'suspended')
   // 标记写尽力即可——配额抛会把 tick 变 unhandled rejection 且 PENDING 永真（审查十四轮 L14）。
   if (settled) {
-    try { wx.setStorageSync(PENDING_KEY, false) } catch (e) { console.warn('[nano-mini] pending 标记清理失败:', e instanceof Error ? e.message : e) }
+    try { wx.setStorageSync(PENDING_KEY, false) } catch (e) { console.warn('[nano-mini] pending 标记清理失败:', e instanceof Error ? e.message : e); reportSilent(e, { op: 'pending-clear', lane: 'background' }) }
   }
   return ran.map((r) => `${r.sessionId}:${r.outcome}`)
 }
@@ -70,5 +70,5 @@ export function nanoMiniStopTick(): void {
     timer = undefined
   }
   // 标记写尽力即可——onHide 抛配额会把隐藏生命周期变崩溃（审查十四轮 L14）。
-  try { wx.setStorageSync(PENDING_KEY, true) } catch (e) { console.warn('[nano-mini] pending 标记置位失败:', e instanceof Error ? e.message : e) }
+  try { wx.setStorageSync(PENDING_KEY, true) } catch (e) { console.warn('[nano-mini] pending 标记置位失败:', e instanceof Error ? e.message : e); reportSilent(e, { op: 'pending-set', lane: 'background' }) }
 }

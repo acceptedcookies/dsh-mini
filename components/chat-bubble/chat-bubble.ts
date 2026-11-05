@@ -1,3 +1,5 @@
+import { errorBus } from '../../services/error-report'
+
 Component({
   properties: {
     item: { type: Object, value: {} },
@@ -44,7 +46,11 @@ Component({
       const item = this.properties.item as { images?: Array<{ url: string }>; imageParts?: Array<{ url: string }> }
       // 空数组不得遮蔽 images——`??` 只在 undefined 回退（审查九轮 D6-fragile）。
       const sources = item.imageParts !== undefined && item.imageParts.length > 0 ? item.imageParts : (item.images ?? [])
-      wx.previewImage({ current: url, urls: sources.map((image) => image.url) })
+      wx.previewImage({
+        current: url,
+        urls: sources.map((image) => image.url),
+        fail: (err) => errorBus.report(err, { op: 'preview-image', lane: 'ui' }),
+      })
     },
 
     onFeedback(event: WechatMiniprogram.CustomEvent<{ rating: string }>) {

@@ -316,8 +316,9 @@ export function createVfsSync(remote: RemoteVfs) {
           const w = JSON.parse(dec(r.bytes)) as { name: string; sessions?: string[]; created_ms?: number }
           vfsStore.putMount({ name: w.name, workspace: w.name, sessions: w.sessions ?? [], created_ms: w.created_ms ?? Date.now() })
           names.add(w.name)
-        } catch {
-          /* 坏行跳过 */
+        } catch (e) {
+          /* 坏行跳过——台账留痕与 pullRows 同型（MN03-R2 B-1） */
+          reportSilent(e, { op: 'vfs-pull-workspaces', lane: 'background', key })
         }
         continue
       }

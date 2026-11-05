@@ -5,6 +5,7 @@
  */
 
 import { installKernelShims } from './shims'
+import { reportSilent } from '../error-report'
 import type { KernelModule } from './types'
 
 declare const require: (path: string) => unknown
@@ -24,8 +25,10 @@ export function loadKernel(): KernelBundle | undefined {
       installKernelShims()
       cached = require('../../subpkg/kernel/kernel.js') as KernelBundle
     } catch (e) {
-      // 降级必须可观察（静默回退 fx/demo 的盲区——审查 P2）：console 为 mp 侧唯一通道
+      // 降级必须可观察（静默回退 fx/demo 的盲区——审查 P2）：console 为 mp 侧唯一通道；
+      // silent 台账让 kernel 缺席在诊断面可见而非仅 console（MN03-R2）。
       console.warn('[kernel-loader] subpkg/kernel 加载失败，回退 fx/localRuntime:', e)
+      reportSilent(e, { op: 'kernel-load', lane: 'background' })
       cached = undefined
     }
   }
@@ -65,6 +68,7 @@ export async function loadKernelAsync(timeoutMs = 25000): Promise<KernelBundle |
     const loadErr = (globalThis as Record<string, unknown>).__dshKernelError
     if (loadErr !== undefined) {
       console.warn('[kernel-loader] 引导页 require 失败:', loadErr)
+      reportSilent(loadErr instanceof Error ? loadErr : new Error(String(loadErr)), { op: 'kernel-bootstrap', lane: 'background' })
       return undefined
     }
     if (Date.now() >= deadline) return undefined
