@@ -139,7 +139,7 @@ function send<T>(url: string, options: RequestOptions, token?: string): Promise<
         }
       },
       fail: (error) => {
-        reject(new NanoApiError(error.errMsg || '网络请求失败', 'NETWORK_ERROR', 0))
+        reject(new NanoApiError(`${error.errMsg || '网络请求失败'} · ${url}`, 'NETWORK_ERROR', 0))
       },
     })
   })

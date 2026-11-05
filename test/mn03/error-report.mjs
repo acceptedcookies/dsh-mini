@@ -147,6 +147,15 @@ const { classifyError, errorBus, reportText, reportSilent } = await bundle(
   check('M22:pump-error 壳码不自匹配→message 内 502 让位', c22.code === 'upstream-502' && c22.diagnostics.status === 502, `code=${c22.code}`)
   const c23 = classifyError({ code: 'pump-error', message: 'pump 步 7 超限放弃' })
   check('M23:pump-error 无命中→回自身 taxon（不跌 unknown）', c23.code === 'pump-error' && c23.category === 'runtime', `code=${c23.code}`)
+
+  // W4 真机实录：域名白名单专属面 + image-resolve-failed 壳码让位 + URL 抽取。
+  const c24 = classifyError({ code: 'image-resolve-failed', message: 'request:fail url not in domain list · https://dsh-mini.haimang.com.cn/v1/artifacts/publish' })
+  check('M24:image-resolve-failed 包域名错→让位 domain-not-whitelisted', c24.code === 'domain-not-whitelisted' && c24.category === 'network' && c24.surface === 'modal' && c24.diagnostics.retryable === false, `code=${c24.code}`)
+  check('M25:URL 从 message 抽入 diagnostics.url', c24.diagnostics.url === 'https://dsh-mini.haimang.com.cn/v1/artifacts/publish', `url=${c24.diagnostics.url}`)
+  const c26 = classifyError({ code: 'image-resolve-failed', message: '图片未能解析或发布到工件出口' })
+  check('M26:image-resolve-failed 无命中→回自身 image taxon', c26.code === 'image-resolve-failed' && c26.category === 'image' && c26.surface === 'modal', `code=${c26.code}`)
+  const c27 = classifyError(new Error('request:fail url not in domain list'))
+  check('M27:裸域名错→domain-not-whitelisted + 白名单提示', c27.code === 'domain-not-whitelisted' && /合法域名/.test(c27.hint ?? ''), `code=${c27.code}`)
 }
 
 // ── bus：surface 路由 + dedupe + cap + 队列 ─────────────────────────

@@ -21,7 +21,9 @@ function wxPost(url: string, headers: Record<string, string>, data: unknown): Pr
       url, method: 'POST', header: headers,
       data: data as Record<string, unknown>, timeout: 30000,
       success: (res) => resolve({ status: res.statusCode, body: res.data }),
-      fail: (err) => reject(new Error(err.errMsg ?? 'wx.request failed')),
+      // errMsg 独存会丢目标域——'url not in domain list' 不带 URL 时
+      // 无法自诊是哪个域没白名单（W4 真机 publishArtifact 实录）。
+      fail: (err) => reject(new Error(`${err.errMsg ?? 'wx.request failed'} · ${url}`)),
     })
   })
 }

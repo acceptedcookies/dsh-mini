@@ -25,7 +25,7 @@ function wxPost(url: string, headers: Record<string, string>, data: unknown): Pr
       url, method: 'POST', header: headers,
       data: data as Record<string, unknown>, timeout: 30000,
       success: (res) => resolve({ status: res.statusCode, body: res.data }),
-      fail: (err) => reject(new Error(err.errMsg ?? 'wx.request failed')),
+      fail: (err) => reject(new Error(`${err.errMsg ?? 'wx.request failed'} · ${url}`)),
     })
   })
 }

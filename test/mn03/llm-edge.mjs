@@ -44,6 +44,12 @@ const devSwap = {
 
 const { createIoLlm } = await bundle(`import { createIoLlm } from '${repo}/services/nano-mini-host/io/llm'; export { createIoLlm }`, [devSwap])
 const { classifyError, errorBus } = await bundle(`import { classifyError, errorBus } from '${repo}/services/error-report'; export { classifyError, errorBus }`)
+// MODEL 环境变量 → 生效模型槽（activeModel=storage.getModel∩白名单——cfg.model
+// 不参选；配额隔离时 MODEL=workbuddy/deepseek-v4-pro 可绕上游单模型 429）。
+if (process.env.MODEL !== undefined) {
+  wx.setStorageSync('dsh:model:v2', process.env.MODEL)
+  globalThis.__MN03_ALLOWED = [process.env.MODEL]
+}
 
 /** node fetch → wx.request 语义替身：fail 产出 wx errMsg 形状；timeout/abort 可控。 */
 const fetchRequest = (opts = {}) => async (url, headers, data) => {
@@ -100,6 +106,12 @@ globalThis.__MN03_MODEL = MODEL
   check('L3b:report→modal 面落位', errorBus.state().modal?.code === 'upstream-400' && errorBus.state().toasts.length === 0)
   globalThis.__MN03_ALLOWED = []
   wx.removeStorageSync('dsh:model:v2')
+  // MODEL env 注入在 L3 清理后被抹——重放以覆盖 L4..L10（normalizeModel
+  // 无选择回落白名单首项/默认模型，env 意图须持续生效）。
+  if (process.env.MODEL !== undefined) {
+    wx.setStorageSync('dsh:model:v2', process.env.MODEL)
+    globalThis.__MN03_ALLOWED = [process.env.MODEL]
+  }
 }
 
 // ── L4 坏请求：空 messages → magpie 4xx → upstream-4xx modal ──────

@@ -104,7 +104,7 @@ async function wxRequestJson(url: string, headers: Record<string, string>, data:
       data: data as Record<string, unknown>,
       timeout: 60000,
       success: (res) => resolve({ status: res.statusCode, body: res.data }),
-      fail: (err) => reject(new Error(err.errMsg ?? 'wx.request failed')),
+      fail: (err) => reject(new Error(`${err.errMsg ?? 'wx.request failed'} · ${url}`)),
     })
   })
 }

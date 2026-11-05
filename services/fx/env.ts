@@ -127,7 +127,7 @@ export function wxFetch(url: string, init: { method?: string; headers?: Record<s
         }
       },
       fail(err) {
-        failed = new Error(`wx.request fail: ${JSON.stringify(err)}`)
+        failed = new Error(`wx.request fail: ${JSON.stringify(err)} · ${url}`)
         ended = true
         wake()
         if (!settled) {

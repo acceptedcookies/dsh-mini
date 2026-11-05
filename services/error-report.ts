@@ -77,6 +77,10 @@ const TAXONOMY: Record<string, Taxon> = {
     category: 'image', severity: 'error', surface: 'modal', title: '图片处理失败', retryable: true,
     hint: '图片未能解析或发布到工件出口。可改发文本，或稍后重试。',
   },
+  'domain-not-whitelisted': {
+    category: 'network', severity: 'error', surface: 'modal', title: '请求域名未白名单', retryable: false,
+    hint: '真机/预览版强制校验合法域名。请在 mp.weixin.qq.com → 开发管理 → 服务器域名，把诊断 url 的域名加入 request 合法域名（socket/uploadFile/downloadFile 各有独立表）。',
+  },
   'kernel-unavailable': {
     category: 'runtime', severity: 'fatal', surface: 'modal', title: '运行时不可用', retryable: false,
     hint: 'kernel 分包不可加载。请重启小程序；反复出现请检查分包完整性。',
@@ -129,6 +133,7 @@ const TAXONOMY: Record<string, Taxon> = {
  *  GENERIC 表后置：status 抽取之后——'upstream 503 aborted' 里的 abort/timeout
  *  属上游返回体内容，不得抢分类（审查 MN03-R1：真错误曾被 abort→cancelled 静默）。 */
 const SPECIFIC_TABLE: Array<{ pattern: RegExp; code: string }> = [
+  { pattern: /not in domain list|domain list|合法域名/i, code: 'domain-not-whitelisted' },
   { pattern: /ticket-required|ticket required/i, code: 'ticket-required' },
   { pattern: /image-resolve-failed/i, code: 'image-resolve-failed' },
   { pattern: /kernel-unavailable|kernel 分包不可加载/i, code: 'kernel-unavailable' },
@@ -204,7 +209,7 @@ function sanitizeDisplay(message: string): { display: string; raw?: string } {
 /** 包装码（pump/host 兜底层）——其 message 内的真上游/域错误身份优先于壳码
  *  （MN03-B9 实证：'host-error: io.llm upstream 404' 若停在壳码，'运行错误'
  *  通用弹窗吞掉上游 404 语义；让位后呈 upstream-404 专属面）。 */
-const WRAPPER_CODES = new Set(['host-error', 'turn_failed', 'pump-error'])
+const WRAPPER_CODES = new Set(['host-error', 'turn_failed', 'pump-error', 'image-resolve-failed'])
 
 function taxonFor(code: string, message: string, objStatus?: number): { code: string; taxon: Taxon; status?: number } {
   const known = TAXONOMY[code]
@@ -280,6 +285,9 @@ export function classifyError(input: unknown, ctx: ErrorDiagnostics = {}): Error
   }
   const { code: finalCode, taxon, status } = taxonFor(code, message, objStatus)
   const cleaned = sanitizeDisplay(message)
+  // message 内嵌 URL（wx.request 保真后缀 '… · https://…'）→ 诊断 url 字段——
+  // 'url not in domain list' 这类错误缺 URL 时根本无法定位是哪个域（W4 实录）。
+  const msgUrl = ctx.url === undefined ? /https?:\/\/[^\s·"']+/.exec(message)?.[0] : undefined
   return {
     id: randomId('err'),
     code: finalCode,
@@ -291,6 +299,7 @@ export function classifyError(input: unknown, ctx: ErrorDiagnostics = {}): Error
     hint: taxon.hint,
     diagnostics: {
       ...ctx,
+      ...(msgUrl !== undefined ? { url: msgUrl } : {}),
       ...(status !== undefined ? { status } : {}),
       retryable: retryable ?? taxon.retryable,
       ...(cleaned.raw !== undefined
