@@ -12,8 +12,10 @@ const host = require("./vendor/host.cjs");
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
 
-const WORKER = () => (process.env.DURABLE_WORKER_URL ?? "").replace(/\/$/, "");
-const PROXY = () => (process.env.BYOK_PROXY_URL ?? "").replace(/\/$/, "");
+// 公网端点内嵌默认值（非密钥——密钥仅 TICKET_SECRET 必须 env）；
+// POD1 fss3 收窄面 = worker 五端点同码，MN02 落地后即默认可用。
+const WORKER = () => (process.env.DURABLE_WORKER_URL ?? "https://dsh-mini.haimang.com.cn").replace(/\/$/, "");
+const PROXY = () => (process.env.BYOK_PROXY_URL ?? "https://dsh-byok-proxy-341346-12-1326709251.sh.run.tcloudbase.com").replace(/\/$/, "");
 const TICKET_SECRET = () => process.env.TICKET_SECRET ?? "";
 const BATCH_LIMIT = 10;
 
@@ -107,8 +109,8 @@ function ioTool() {
 function safeParse(s) { try { return JSON.parse(s); } catch { return s; } }
 
 exports.main = async () => {
-  if (WORKER() === "" || PROXY() === "" || TICKET_SECRET() === "") {
-    console.log("sweeper: env 未配（DURABLE_WORKER_URL/BYOK_PROXY_URL/TICKET_SECRET）→ 空转");
+  if (TICKET_SECRET() === "") {
+    console.log("sweeper: TICKET_SECRET env 未配 → 空转");
     return { ok: false, reason: "env-missing" };
   }
   const { data: rows } = await db.collection("byok_keys").field({ openid: true, model: true }).get();

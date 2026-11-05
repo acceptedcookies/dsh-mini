@@ -9,6 +9,8 @@
  */
 import { localCas } from './local-cas'
 import { createRemoteCas } from './remote-cas'
+import { createRemoteVfs, type RemoteVfs } from '../vfs/remote'
+import { createVfsSync, type VfsSync } from '../vfs/remote-sync'
 import { createTicketProvider } from '../fx/ticket'
 import { loadDevConfig, currentRoute } from '../fx/dev'
 import { readEnrollment } from '../fx/enrollment'
@@ -24,14 +26,16 @@ export function remoteDurableEnabled(): boolean {
   return currentRoute().mode === 'cloud'
 }
 
-export function ioStateFor(): IoState {
+let cachedTicketProvider: ReturnType<typeof createTicketProvider> | undefined
+
+/** 共享票据提供器（remoteCas / vfsRemote 同车道复用——模块级票据缓存已单飞）。 */
+function durableTicketProvider(): { base: string; provider: ReturnType<typeof createTicketProvider> } | null {
   const route = currentRoute()
-  if (route.mode !== 'cloud' || !remoteDurableEnabled()) return localCas
-  if (cachedRemote !== undefined) return cachedRemote
+  if (route.mode !== 'cloud') return null
   const cfg = loadDevConfig()
   const enrollment = readEnrollment()
   const durableBase = (cfg?.cloud.durableUrl ?? '') !== '' ? cfg!.cloud.durableUrl! : DSH_MINI_BASE_URL
-  const ticket = createTicketProvider(route, {
+  cachedTicketProvider ??= createTicketProvider(route, {
     providerName: cfg?.providerName ?? enrollment?.provider ?? 'byok',
     upstreamBaseUrl: cfg?.upstreamBaseUrl ?? enrollment?.upstreamBaseUrl ?? '',
     providerApiKey: cfg?.providerApiKey ?? '',
@@ -40,10 +44,29 @@ export function ioStateFor(): IoState {
     sim: cfg?.sim ?? { baseUrl: 'http://127.0.0.1:3426' },
     cloud: cfg?.cloud ?? { envId: route.cloudEnvId ?? '', proxyUrl: route.proxyBaseUrl ?? '', durableUrl: durableBase },
   })
-  cachedRemote = createRemoteCas({
-    baseUrl: durableBase,
+  return { base: durableBase, provider: cachedTicketProvider }
+}
+
+export function ioStateFor(): IoState {
+  const t = durableTicketProvider()
+  if (t === null || !remoteDurableEnabled()) return localCas
+  cachedRemote ??= createRemoteCas({
+    baseUrl: t.base,
     owner: 'self',
-    headers: () => ticket.authHeaders(durableBase),
+    headers: () => t.provider.authHeaders(t.base),
   })
   return cachedRemote
+}
+
+/** 远端 vfs 客户端句柄：cloud 路由且开关开 → RemoteVfs；否则 null（诚实降级）。 */
+export function vfsRemoteFor(): RemoteVfs | null {
+  const t = durableTicketProvider()
+  if (t === null || !remoteDurableEnabled()) return null
+  return createRemoteVfs({ baseUrl: t.base, headers: () => t.provider.authHeaders(t.base) })
+}
+
+/** 远端镜像器：vfsRemoteFor 不可用 → null；调用方按 null 降级（本地行照常）。 */
+export function vfsSyncFor(): VfsSync | null {
+  const r = vfsRemoteFor()
+  return r === null ? null : createVfsSync(r)
 }

@@ -4,5 +4,8 @@ interface IAppOption {
     sessionId?: string
     /** VFS 测试钩子（automator evaluate 入口）。 */
     __vfs?: unknown
+    __vfsRemoteFor?: unknown
+    __vfsSyncFor?: unknown
+    __ioStateFor?: unknown
   }
 }
