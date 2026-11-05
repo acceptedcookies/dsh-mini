@@ -357,12 +357,19 @@
   border-top: 0.5px solid var(--dsw-alias-border-l3);
 }
 
+/* 双钮并列一排（业主 MN05-W4 修正）：各半宽，中线分隔。 */
+.foot-btns {
+  display: flex;
+}
+
 .foot-row {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: var(--dsw-space-8);
+  justify-content: center;
+  gap: var(--dsw-space-6);
   height: 32px;
-  padding: 0 var(--dsw-inset-x);
   border-radius: var(--dsw-radius-sm);
   color: var(--dsw-alias-label-secondary);
   font-size: var(--dsw-text-label);
