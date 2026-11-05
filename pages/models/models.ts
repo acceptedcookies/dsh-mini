@@ -11,12 +11,13 @@ import {
   revokeEnrollment,
 } from '../../services/fx/enrollment'
 import { fxRuntime } from '../../services/fx/runtime'
+import { vfsStore } from '../../services/vfs/api'
 import { errorBus, reportSilent, type ErrorReport } from '../../services/error-report'
 import { getWindowMetrics } from '../../utils/window'
 
 /* 模型配置页（业主 MN05-W4）：自 settings 拆出——模型选择 + 供应商密钥托管。 */
 interface Section {
-  id: 'models' | 'providers'
+  id: 'models' | 'providers' | 'storage'
   label: string
   icon: string
 }
@@ -24,6 +25,7 @@ interface Section {
 const SECTIONS: Section[] = [
   { id: 'models', label: '模型', icon: 'layers-outline' },
   { id: 'providers', label: '供应商', icon: 'globe-outline' },
+  { id: 'storage', label: '存储', icon: 'folder-open-outline' },
 ]
 
 let unsubscribeErr: (() => void) | undefined
@@ -57,6 +59,12 @@ Page({
     apiKey: '',
     enrollBusy: false,
     enrollError: '',
+    s3Endpoint: '',
+    s3Bucket: '',
+    s3Region: '',
+    s3Configured: false,
+    s3ConfiguredAt: '',
+    s3Error: '',
     errToasts: [] as ErrorReport[],
     errModal: null as ErrorReport | null,
     errPending: 0,
@@ -83,6 +91,16 @@ Page({
       modelLabel: lane.find((item) => item.id === model)?.label ?? model,
       models: lane,
     })
+    const s3 = vfsStore.getS3Config()
+    if (s3 !== undefined) {
+      this.setData({
+        s3Endpoint: s3.endpoint,
+        s3Bucket: s3.bucket,
+        s3Region: s3.region,
+        s3Configured: true,
+        s3ConfiguredAt: new Date(s3.configured_ms).toLocaleString(),
+      })
+    }
   },
 
   onShow() {
@@ -243,6 +261,50 @@ Page({
     } catch (error) {
       errorBus.report(error, { op: 'revoke-provider', lane: 'ui' })
     }
+  },
+
+  onS3EndpointInput(event: WechatMiniprogram.Input) {
+    this.setData({ s3Endpoint: event.detail.value, s3Error: '' })
+  },
+
+  onS3BucketInput(event: WechatMiniprogram.Input) {
+    this.setData({ s3Bucket: event.detail.value, s3Error: '' })
+  },
+
+  onS3RegionInput(event: WechatMiniprogram.Input) {
+    this.setData({ s3Region: event.detail.value, s3Error: '' })
+  },
+
+  /** S3 后端占位：仅存非密配置（endpoint/bucket/region），access_key 引用名不落盘，后端未启用。 */
+  saveS3Config() {
+    const endpoint = this.data.s3Endpoint.trim()
+    const bucket = this.data.s3Bucket.trim()
+    const region = this.data.s3Region.trim() || 'auto'
+    if (endpoint.length === 0 || bucket.length === 0) {
+      this.setData({ s3Error: 'endpoint 与 bucket 必填' })
+      return
+    }
+    try {
+      vfsStore.setS3Config({ endpoint, bucket, region, path_style: true, configured_ms: Date.now() })
+    } catch (error) {
+      this.setData({ s3Error: messageOf(error) })
+      reportSilent(error, { op: 's3-config', lane: 'ui' })
+      return
+    }
+    this.setData({ s3Configured: true, s3ConfiguredAt: new Date().toLocaleString(), s3Error: '' })
+    this.showToast('S3 配置已登记（占位 · 后端未启用）', 'info')
+  },
+
+  clearS3Config() {
+    try {
+      vfsStore.clearS3Config()
+    } catch (error) {
+      this.setData({ s3Error: messageOf(error) })
+      reportSilent(error, { op: 's3-config-clear', lane: 'ui' })
+      return
+    }
+    this.setData({ s3Endpoint: '', s3Bucket: '', s3Region: '', s3Configured: false, s3ConfiguredAt: '', s3Error: '' })
+    this.showToast('已清除 S3 配置', 'info')
   },
 
   showToast(message: string, tone = 'info') {

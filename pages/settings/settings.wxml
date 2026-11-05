@@ -165,66 +165,6 @@
           </block>
         </block>
 
-        <block wx:elif="{{activeId === 'storage'}}">
-          <view class="section-head">
-            <view class="section-title">存储</view>
-            <view class="section-desc">工作区五根 VFS · 对象后端占位（rules/filesystem.md）</view>
-          </view>
-
-          <view class="provider-row">
-            <view class="provider-mark">
-              <dsh-icon name="folder-open-outline" theme="{{theme}}" size="{{14}}" />
-            </view>
-            <view class="model-copy">
-              <view class="model-name">本地对象层</view>
-              <view class="model-desc">USER_DATA_PATH content-addressed · placement=local-*（cache-tier 非 durable 承诺）</view>
-            </view>
-            <text class="provider-status">生效中</text>
-          </view>
-
-          <view class="field auth-field">
-            <view class="field-label">S3 对象后端（占位 · 未启用）</view>
-            <view class="field-hint">合约先行：登记 endpoint/bucket 后，后续版本可将 /root 与 /data 行的 placement 升级为 s3-pinned。密钥不落本机——access key 将走供应商同一条云端托管管道。当前配置不产生任何网络请求。</view>
-            <input
-              class="settings-input"
-              value="{{s3Endpoint}}"
-              placeholder="endpoint（如 s3.example.com）"
-              placeholder-class="settings-placeholder"
-              type="text"
-              bindinput="onS3EndpointInput"
-            />
-            <input
-              class="settings-input"
-              value="{{s3Bucket}}"
-              placeholder="bucket"
-              placeholder-class="settings-placeholder"
-              type="text"
-              bindinput="onS3BucketInput"
-            />
-            <input
-              class="settings-input"
-              value="{{s3Region}}"
-              placeholder="region（可选，默认 auto）"
-              placeholder-class="settings-placeholder"
-              type="text"
-              bindinput="onS3RegionInput"
-            />
-            <view class="auth-actions">
-              <dsh-button class="auth-submit" variant="primary" label="登记配置" bind:tap="saveS3Config" />
-            </view>
-            <view wx:if="{{s3Error}}" class="auth-error">{{s3Error}}</view>
-            <view wx:if="{{s3Configured}}" class="field-hint">已登记 · {{s3ConfiguredAt}} · 后端仍未启用（s3-pinned 写入将返回 backend-unavailable）</view>
-          </view>
-
-          <view wx:if="{{s3Configured}}" class="field action-row" bindtap="clearS3Config">
-            <view class="field-copy">
-              <view class="field-label">清除 S3 配置</view>
-              <view class="field-hint">移除登记的 endpoint/bucket/region</view>
-            </view>
-            <text class="action-danger">清除</text>
-          </view>
-        </block>
-
         <block wx:elif="{{activeId === 'plugins'}}">
           <view class="section-head">
             <view class="section-title">插件</view>

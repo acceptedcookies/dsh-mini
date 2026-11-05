@@ -12,7 +12,6 @@ import {
   wxLogin,
 } from '../../services/nano/http'
 import { nanoRuntime } from '../../services/nano/runtime'
-import { vfsStore } from '../../services/vfs/api'
 import { errorBus, reportSilent, type ErrorReport } from '../../services/error-report'
 import { getWindowMetrics } from '../../utils/window'
 
@@ -23,7 +22,7 @@ const FX_LICENSE_URL = 'https://github.com/vercel-labs/fx/blob/main/LICENSE'
 
 /* 账户设置页（业主 MN05-W4）：模型/供应商段已迁至 pages/models 独立页。 */
 interface Section {
-  id: 'general' | 'account' | 'storage' | 'plugins' | 'archived' | 'conversations' | 'about'
+  id: 'general' | 'account' | 'plugins' | 'archived' | 'conversations' | 'about'
   label: string
   icon: string
 }
@@ -31,7 +30,6 @@ interface Section {
 const SECTIONS: Section[] = [
   { id: 'general', label: '通用', icon: 'settings-outline' },
   { id: 'account', label: '账户', icon: 'user-outline' },
-  { id: 'storage', label: '存储', icon: 'folder-open-outline' },
   { id: 'plugins', label: '插件', icon: 'plugin-pinwheel-outline' },
   { id: 'archived', label: '归档', icon: 'archive-outline' },
   { id: 'conversations', label: '会话', icon: 'list-pen-outline' },
@@ -80,12 +78,6 @@ Page({
     authMode: 'login' as 'login' | 'register',
     authBusy: false,
     authError: '',
-    s3Endpoint: '',
-    s3Bucket: '',
-    s3Region: '',
-    s3Configured: false,
-    s3ConfiguredAt: '',
-    s3Error: '',
     errToasts: [] as ErrorReport[],
     errModal: null as ErrorReport | null,
     errPending: 0,
@@ -120,16 +112,6 @@ Page({
       nanoUser: getStoredUser()?.display_name ?? '',
       nanoInitial: initialOf(getStoredUser()?.display_name),
     })
-    const s3 = vfsStore.getS3Config()
-    if (s3 !== undefined) {
-      this.setData({
-        s3Endpoint: s3.endpoint,
-        s3Bucket: s3.bucket,
-        s3Region: s3.region,
-        s3Configured: true,
-        s3ConfiguredAt: new Date(s3.configured_ms).toLocaleString(),
-      })
-    }
   },
 
   onShow() {
@@ -214,50 +196,6 @@ Page({
       success: () => this.showToast('fx 许可地址已复制（Apache-2.0 · vercel-labs/fx）', 'info'),
       fail: (err) => errorBus.report(err, { op: 'clipboard', lane: 'ui' }),
     })
-  },
-
-  onS3EndpointInput(event: WechatMiniprogram.Input) {
-    this.setData({ s3Endpoint: event.detail.value, s3Error: '' })
-  },
-
-  onS3BucketInput(event: WechatMiniprogram.Input) {
-    this.setData({ s3Bucket: event.detail.value, s3Error: '' })
-  },
-
-  onS3RegionInput(event: WechatMiniprogram.Input) {
-    this.setData({ s3Region: event.detail.value, s3Error: '' })
-  },
-
-  /** S3 后端占位：仅存非密配置（endpoint/bucket/region），access_key 引用名不落盘，后端未启用。 */
-  saveS3Config() {
-    const endpoint = this.data.s3Endpoint.trim()
-    const bucket = this.data.s3Bucket.trim()
-    const region = this.data.s3Region.trim() || 'auto'
-    if (endpoint.length === 0 || bucket.length === 0) {
-      this.setData({ s3Error: 'endpoint 与 bucket 必填' })
-      return
-    }
-    try {
-      vfsStore.setS3Config({ endpoint, bucket, region, path_style: true, configured_ms: Date.now() })
-    } catch (error) {
-      this.setData({ s3Error: messageOf(error) })
-      reportSilent(error, { op: 's3-config', lane: 'ui' })
-      return
-    }
-    this.setData({ s3Configured: true, s3ConfiguredAt: new Date().toLocaleString(), s3Error: '' })
-    this.showToast('S3 配置已登记（占位 · 后端未启用）', 'info')
-  },
-
-  clearS3Config() {
-    try {
-      vfsStore.clearS3Config()
-    } catch (error) {
-      this.setData({ s3Error: messageOf(error) })
-      reportSilent(error, { op: 's3-config-clear', lane: 'ui' })
-      return
-    }
-    this.setData({ s3Endpoint: '', s3Bucket: '', s3Region: '', s3Configured: false, s3ConfiguredAt: '', s3Error: '' })
-    this.showToast('已清除 S3 配置', 'info')
   },
 
   clearConversations() {
