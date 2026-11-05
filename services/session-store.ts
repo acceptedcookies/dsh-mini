@@ -70,6 +70,9 @@ class SessionStore {
     try {
       await this.bindRuntime()
     } catch (error) {
+      // initialized 置回 false——bindRuntime 败后保持 true 会永久堵死重试路径，
+      // 应用停在一次性的 error 态（审查十四轮 L15）。
+      this.initialized = false
       this.setState({ loadingSessions: false, loadingSession: false, error: messageOf(error) })
       return
     }
@@ -258,11 +261,16 @@ class SessionStore {
   }
 
   async clearAll(): Promise<void> {
-    await this.runtime.clear()
-    this.setState({
-      ...initialState,
-      loadingSessions: false,
-    })
+    // clear() 抛错也不得跳过 UI 复位——否则 current/streaming/error 陈旧残留，
+    // 界面假装会话还在（审查十四轮 H3）。
+    try {
+      await this.runtime.clear()
+    } finally {
+      this.setState({
+        ...initialState,
+        loadingSessions: false,
+      })
+    }
   }
 
   private apply(event: LocalEvent): void {
@@ -401,7 +409,10 @@ class SessionStore {
   }
 
   private publish(): void {
-    for (const listener of this.listeners) listener(this.state)
+    // 单页面回调抛错不得波及其他订阅方的状态推送（runtime emit 同构）。
+    for (const listener of this.listeners) {
+      try { listener(this.state) } catch (e) { console.warn('[session-store] listener 抛错:', e instanceof Error ? e.message : e) }
+    }
   }
 }
 

@@ -727,7 +727,10 @@ export class NanoRuntime {
   }
 
   private emit(event: LocalEvent): void {
-    for (const listener of this.listeners) listener(event)
+    // 单监听器抛错不得波及其余订阅方（kernel/local/fx emit 同构，审查十四轮 L9）。
+    for (const listener of this.listeners) {
+      try { listener(event) } catch (e) { console.warn('[nano-runtime] listener 抛错:', e instanceof Error ? e.message : e) }
+    }
   }
 }
 

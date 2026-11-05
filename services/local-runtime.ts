@@ -79,6 +79,9 @@ export class LocalRuntime {
   private readonly listeners = new Set<(event: LocalEvent) => void>()
   /** timers 按会话分域——cancel(B) 不再清 A 的在飞延迟/timer（审查九轮 L1）。 */
   private readonly timers = new Map<string, Set<ReturnType<typeof setTimeout>>>()
+  /** streamAssistant 的 chunk 延迟 resolver——dropTimers 只 clearTimeout 不收
+   *  resolver，被等 promise 永不 resolve、协程永停（审查十四轮 L10）。 */
+  private readonly delayResolvers = new Map<string, Set<() => void>>()
   private readonly pendingApprovals = new Map<string, PendingApproval>()
 
   constructor() {
@@ -117,6 +120,9 @@ export class LocalRuntime {
   private dropTimers(id: string): void {
     for (const timer of this.timers.get(id) ?? []) clearTimeout(timer)
     this.timers.delete(id)
+    // 被等 chunk-delay 一并 resolve——resume 后循环查 status 即早退（审查十四轮 L10）。
+    for (const resolve of this.delayResolvers.get(id) ?? []) resolve()
+    this.delayResolvers.delete(id)
   }
 
   subscribe(listener: (event: LocalEvent) => void): () => void {
@@ -182,28 +188,43 @@ export class LocalRuntime {
     if (session.summary.status === 'running') throw new Error('当前会话仍在运行')
     session.summary.status = 'running'
     session.summary.updatedAt = Date.now()
-    this.emit({ type: 'status', sessionId: id, state: 'running', step: 1 })
 
     const messageId = randomId('user')
-    this.append(id, {
-      kind: 'user_message',
-      id: messageId,
-      seq: this.nextSeq(session),
-      text,
-      images: images.length > 0 ? images : undefined,
-    })
-    if (session.summary.title === '新会话' && text.trim().length > 0) {
-      session.summary.title = text.trim().slice(0, 28)
+    const prevTitle = session.summary.title
+    const prevLastMessage = session.summary.lastMessage
+    try {
+      this.append(id, {
+        kind: 'user_message',
+        id: messageId,
+        seq: this.nextSeq(session),
+        text,
+        images: images.length > 0 ? images : undefined,
+      })
+      if (session.summary.title === '新会话' && text.trim().length > 0) {
+        session.summary.title = text.trim().slice(0, 28)
+      }
+      this.persist()
+    } catch (e) {
+      // quota 抛错不得滞留 running+幽灵行（fx 同构回滚，审查十四轮 H1）。
+      session.summary.status = 'idle'
+      const idx = session.items.findIndex((i) => i.id === messageId)
+      if (idx !== -1) session.items.splice(idx, 1)
+      session.summary.messageCount = session.items.length
+      session.summary.title = prevTitle
+      session.summary.lastMessage = prevLastMessage
+      throw e
     }
+    this.emit({ type: 'status', sessionId: id, state: 'running', step: 1 })
 
     const timer = setTimeout(() => {
       this.timers.get(id)?.delete(timer)
       if (session.summary.status !== 'running') return
-      if (session.toolRuns === 0) {
+      if ((session.toolRuns ?? 0) === 0) {
         this.askForToolApproval(session, text)
         return
       }
-      session.toolRuns += 1
+      // toolRuns 可能随跨车道 StoredSession 缺失——??0 兜底防 NaN 永跳审批（审查十四轮 L12）。
+      session.toolRuns = (session.toolRuns ?? 0) + 1
       void this.streamAssistant(id, text)
     }, 320)
     this.timersFor(id).add(timer)
@@ -239,25 +260,44 @@ export class LocalRuntime {
       })
     }
     if (allowed) {
-      session.toolRuns += 1
-      this.append(pending.sessionId, {
-        kind: 'tool_result',
-        id: randomId('result'),
-        seq: this.nextSeq(session),
-        tool: 'shell',
-        status: 'ok',
-        summary: '2 passed, 0 failed',
-        detail: 'PASS tests/session.test.ts\nPASS tests/projection.test.ts',
-      })
+      session.toolRuns = (session.toolRuns ?? 0) + 1
+      const resultId = randomId('result')
+      try {
+        this.append(pending.sessionId, {
+          kind: 'tool_result',
+          id: resultId,
+          seq: this.nextSeq(session),
+          tool: 'shell',
+          status: 'ok',
+          summary: '2 passed, 0 failed',
+          detail: 'PASS tests/session.test.ts\nPASS tests/projection.test.ts',
+        })
+      } catch (e) {
+        // quota 抛错丢 pending+留 running（H1 同族）——回滚行+重挂审批可重答。
+        const idx = session.items.findIndex((i) => i.id === resultId)
+        if (idx !== -1) session.items.splice(idx, 1)
+        session.summary.messageCount = session.items.length
+        this.pendingApprovals.set(approvalId, pending)
+        throw e
+      }
       void this.streamAssistant(pending.sessionId, pending.promptText, '审批通过。测试已执行：`2 passed, 0 failed`。\n\n')
     } else {
-      this.append(pending.sessionId, {
-        kind: 'notice',
-        id: randomId('notice'),
-        seq: this.nextSeq(session),
-        level: 'error',
-        text: '命令未执行：审批被拒绝。',
-      })
+      const noticeId = randomId('notice')
+      try {
+        this.append(pending.sessionId, {
+          kind: 'notice',
+          id: noticeId,
+          seq: this.nextSeq(session),
+          level: 'error',
+          text: '命令未执行：审批被拒绝。',
+        })
+      } catch (e) {
+        const idx = session.items.findIndex((i) => i.id === noticeId)
+        if (idx !== -1) session.items.splice(idx, 1)
+        session.summary.messageCount = session.items.length
+        this.pendingApprovals.set(approvalId, pending)
+        throw e
+      }
       session.summary.status = 'idle'
       this.emit({ type: 'status', sessionId: pending.sessionId, state: 'idle' })
       this.persist()
@@ -327,7 +367,19 @@ export class LocalRuntime {
       detail: '准备在工作区内执行测试命令',
       args: '{"command":"pnpm test"}',
     }
-    this.append(id, toolItem)
+    try {
+      this.append(id, toolItem)
+    } catch (e) {
+      // setTimeout 内 append 抛错=未捕获+running 永卡（H1 同族）——回滚行+落 idle 如实。
+      const idx = session.items.findIndex((i) => i.id === toolItem.id)
+      if (idx !== -1) session.items.splice(idx, 1)
+      session.summary.messageCount = session.items.length
+      session.summary.status = 'idle'
+      try { this.persist() } catch { /* quota 持续满——内存面一致即可 */ }
+      this.emit({ type: 'status', sessionId: id, state: 'idle' })
+      this.emit({ type: 'error', code: 'host-error', message: e instanceof Error ? e.message : '持久化失败', retryable: true })
+      return
+    }
     const approvalId = randomId('approval')
     this.pendingApprovals.set(approvalId, {
       approvalId,
@@ -376,9 +428,16 @@ export class LocalRuntime {
       await new Promise<void>((resolve) => {
         const timer = setTimeout(() => {
           this.timers.get(sessionId)?.delete(timer)
+          this.delayResolvers.get(sessionId)?.delete(resolve)
           resolve()
         }, 18)
         this.timersFor(sessionId).add(timer)
+        let set = this.delayResolvers.get(sessionId)
+        if (set === undefined) {
+          set = new Set()
+          this.delayResolvers.set(sessionId, set)
+        }
+        set.add(resolve)
       })
     }
     const item = assistantItem(this.nextSeq(session), text, '分析请求、组织结构，并检查输出格式。')

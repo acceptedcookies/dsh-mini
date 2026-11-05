@@ -47,7 +47,10 @@ async function doCatchUp(): Promise<string[]> {
   // ran=[] 无 due 行=无事可恢复，vacuous-true 清标记——否则首次 onHide 后
   // PENDING 永真，每个 tick 白跑一次 sweep（UI 审查 F12）。
   const settled = ran.every((r) => r.outcome === 'completed' || r.outcome === 'suspended')
-  if (settled) wx.setStorageSync(PENDING_KEY, false)
+  // 标记写尽力即可——配额抛会把 tick 变 unhandled rejection 且 PENDING 永真（审查十四轮 L14）。
+  if (settled) {
+    try { wx.setStorageSync(PENDING_KEY, false) } catch (e) { console.warn('[nano-mini] pending 标记清理失败:', e instanceof Error ? e.message : e) }
+  }
   return ran.map((r) => `${r.sessionId}:${r.outcome}`)
 }
 
@@ -65,5 +68,6 @@ export function nanoMiniStopTick(): void {
     clearInterval(timer)
     timer = undefined
   }
-  wx.setStorageSync(PENDING_KEY, true)
+  // 标记写尽力即可——onHide 抛配额会把隐藏生命周期变崩溃（审查十四轮 L14）。
+  try { wx.setStorageSync(PENDING_KEY, true) } catch (e) { console.warn('[nano-mini] pending 标记置位失败:', e instanceof Error ? e.message : e) }
 }

@@ -50,12 +50,22 @@ async function claim(ctx: PumpCtx, sessionId: string, ttlMs: number): Promise<Cl
   return r.status === 200 ? { status: 200 } : { status: 412 }
 }
 
-async function loadSnap(ctx: PumpCtx, sessionId: string): Promise<{ snap: KernelSnapshot | null; etag: string | null }> {
+async function loadSnap(ctx: PumpCtx, sessionId: string): Promise<{ snap: KernelSnapshot | null; etag: string | null; reset?: boolean }> {
   const row = await ctx.io.state.get(`${ST}/${ctx.owner}/${sessionId}`)
   if (row === null) return { snap: null, etag: null }
-  const frag = JSON.parse(row.body)
-  // restoreFromFragment 内含 zod schema 校验 + KERNEL_VERSION 版本闸
-  return { snap: ctx.kernel.restoreFromFragment(frag), etag: row.etag }
+  // 腐行/版本错位（KERNEL_VERSION 升级、JSON 截断、zod 失格）不得永砖会话——
+  // 原样传播会让每次 prompt 同点抛出且无复位路径（审查十四轮 M5）。
+  // 如实 warn 后按空快照重建：kernel 状态丢但 UI 转录在 s.items 保留；
+  // saveSnap 持既有 etag 覆写同键（旧行不复存=取舍在案：永砖更差）。
+  // reset 标志上抛——宿主落账「执行态已重置」注记，不伪造无恢复（E2 契约更新）。
+  let frag: unknown
+  try {
+    frag = JSON.parse(row.body)
+    return { snap: ctx.kernel.restoreFromFragment(frag), etag: row.etag }
+  } catch (e) {
+    console.warn(`[pump] loadSnap ${sessionId} 快照不可恢复（按新会话重建）:`, e instanceof Error ? e.message : e)
+    return { snap: null, etag: row.etag, reset: true }
+  }
 }
 
 async function saveSnap(ctx: PumpCtx, sessionId: string, snap: KernelSnapshot, etag: string | null): Promise<string | { fenced: true }> {
@@ -92,12 +102,15 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
     return true
   }
 
-  let { snap, etag } = await loadSnap(ctx, sessionId)
+  const loaded = await loadSnap(ctx, sessionId)
+  let { snap, etag } = loaded
+  // reset 透传所有返回面——宿主（runtime/sweeper）据此落账重置注记（审查十四轮 M5）。
+  const ret = (r: PumpResult): PumpResult => loaded.reset === true ? { ...r, reset: true } : r
   if (snap === null) {
     snap = ctx.kernel.createKernelSnapshot(ctx.kernel.createInitialSessionState())
     snap = ctx.kernel.applyAction(snap, { type: 'start_turn', turnId: opts.turnId ?? `t-${sessionId}` })
     const wr = await saveSnap(ctx, sessionId, snap, etag)
-    if (typeof wr === 'object') return { outcome: 'fenced', trace: [] }
+    if (typeof wr === 'object') return ret({ outcome: 'fenced', trace: [] })
     if (typeof wr === 'string') etag = wr
   }
   // idle 会话新一轮：complete_turn 后 phase=idle/activeTurn=null——须先 start_turn
@@ -105,11 +118,11 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
   // 导致 io.llm([]) 空 messages 400（真机 B-43 第二轮全灭根因）。
   let phase = (snap.session as { phase?: string }).phase
   if (phase === 'idle' || phase === 'ended') {
-    if (opts.input === undefined || phase === 'ended') return { outcome: 'completed', trace: [] }
+    if (opts.input === undefined || phase === 'ended') return ret({ outcome: 'completed', trace: [] })
     const turnCount = (snap.session as { turnCount?: number }).turnCount ?? 0
     snap = ctx.kernel.applyAction(snap, { type: 'start_turn', turnId: opts.turnId ?? `t-${sessionId}-t${turnCount}` })
     const wr = await saveSnap(ctx, sessionId, snap, etag)
-    if (typeof wr === 'object') return { outcome: 'fenced', trace: [] }
+    if (typeof wr === 'object') return ret({ outcome: 'fenced', trace: [] })
     if (typeof wr === 'string') etag = wr
     phase = 'turn_running'
   }
@@ -124,13 +137,13 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
     }
     snap = ctx.kernel.applyAction(snap, { type: 'resume' })
     const wr = await saveSnap(ctx, sessionId, snap, etag)
-    if (typeof wr === 'object') return { outcome: 'fenced', trace: [] }
+    if (typeof wr === 'object') return ret({ outcome: 'fenced', trace: [] })
     if (typeof wr === 'string') etag = wr
   }
 
   const trace: string[] = []
   for (let i = 0; i < (opts.maxSteps ?? 50); i++) {
-    if (!(await renewClaim())) return { outcome: 'fenced', trace }
+    if (!(await renewClaim())) return ret({ outcome: 'fenced', trace })
     const turn = snap.activeTurn as { turnId?: string; epoch?: number; stepIndex?: number; messages?: unknown[]; pendingToolCalls?: unknown[]; llmFinished?: boolean } | null
     const signals: SchedulerSignals = {
       hasMoreToolCalls: (turn?.pendingToolCalls?.length ?? 0) > 0,
@@ -166,38 +179,39 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
         snap = ctx.kernel.applyAction(snap, { type: 'resume' })
         snap = ctx.kernel.applyAction(snap, { type: 'complete_turn', reason: d.reason })
         const wr = await saveSnap(ctx, sessionId, snap, etag)
-        await ctx.io.state.del(`${CL}/${ctx.owner}/${sessionId}`)
-        return typeof wr === 'object' ? { outcome: 'fenced', trace } : { outcome: 'completed', trace }
+        // fenced 时 claim 行可能已被对手改写——del 会释放他人持锁（审查十四轮 L4）。
+        if (typeof wr !== 'object') await ctx.io.state.del(`${CL}/${ctx.owner}/${sessionId}`)
+        return ret(typeof wr === 'object' ? { outcome: 'fenced', trace } : { outcome: 'completed', trace })
       }
       if (d.reason === 'compact_required') {
         // 宿主侧无 compaction 实现（T-O 未承诺）——resume 续跑；同决策重复即 bail 防死循环
         snap = ctx.kernel.applyAction(snap, { type: 'resume' })
         const wr = await saveSnap(ctx, sessionId, snap, etag)
-        if (typeof wr === 'object') return { outcome: 'fenced', trace }
+        if (typeof wr === 'object') return ret({ outcome: 'fenced', trace })
         etag = wr
         if (trace.length >= 2 && trace[trace.length - 2].startsWith('wait:compact_required')) {
-          return { outcome: 'step-exhausted', trace }
+          return ret({ outcome: 'step-exhausted', trace })
         }
         continue
       }
       // confirmation_pending/fatal_error：挂起等外部输入——不落 due-now alarm
       // （自动复活语义错误）；恢复走 runPump 的 waiting→resume 正路
       const wr = await saveSnap(ctx, sessionId, snap, etag)
-      return typeof wr === 'object' ? { outcome: 'fenced', trace } : { outcome: 'suspended', trace }
+      return ret(typeof wr === 'object' ? { outcome: 'fenced', trace } : { outcome: 'suspended', trace })
     } else if (d.kind === 'finish') {
       snap = ctx.kernel.applyAction(snap, { type: 'complete_turn', reason: d.reason })
       const wr = await saveSnap(ctx, sessionId, snap, etag)
-      await ctx.io.state.del(`${CL}/${ctx.owner}/${sessionId}`)
-      return typeof wr === 'object' ? { outcome: 'fenced', trace } : { outcome: 'completed', trace }
+      if (typeof wr !== 'object') await ctx.io.state.del(`${CL}/${ctx.owner}/${sessionId}`)
+      return ret(typeof wr === 'object' ? { outcome: 'fenced', trace } : { outcome: 'completed', trace })
     }
     // hook_emit / compact：kernel 内部语义，本宿主按 step 推进（事件外发属后续 AP）
     snap = ctx.kernel.applyAction(snap, { type: 'complete_step', stepIndex: turn?.stepIndex ?? 0, result: null })
     const wr = await saveSnap(ctx, sessionId, snap, etag)
-    if (typeof wr === 'object') return { outcome: 'fenced', trace }
+    if (typeof wr === 'object') return ret({ outcome: 'fenced', trace })
     etag = wr
-    if (opts.killAfter !== undefined && i === opts.killAfter - 1) return { outcome: 'killed', trace }
+    if (opts.killAfter !== undefined && i === opts.killAfter - 1) return ret({ outcome: 'killed', trace })
   }
-  return { outcome: 'step-exhausted', trace }
+  return ret({ outcome: 'step-exhausted', trace })
 }
 
 /** 非终态重臂（审查三轮 N8）：claim-denied/fenced/step-exhausted/killed/异常不是
@@ -239,7 +253,11 @@ export async function sweepTick(
   // 同 sid 重复 due 行（重臂部分失败的残留）批内只跑一次——否则副本占满
   // batchLimit 饿死其他会话的 alarm（审查五轮）。副本留行下 tick 收敛。
   const seen = new Set<string>()
-  for (const key of due.slice(0, opts.batchLimit ?? 10)) {
+  // 先滤后切：未来行不占批额——slice 前置会让未来行饿死到期行一个周期（审查十四轮 L13）。
+  const limit = opts.batchLimit ?? 10
+  let taken = 0
+  for (const key of due) {
+    if (taken >= limit) break
     const row = await ctx.io.state.get(key)
     if (row === null) continue
     let rec: AlarmRecord
@@ -250,6 +268,7 @@ export async function sweepTick(
     if (rec.dueAt > Date.now()) continue
     if (seen.has(rec.sessionId)) continue
     seen.add(rec.sessionId)
+    taken += 1
     const io = makeIo !== undefined ? makeIo(rec.sessionId) : ctx.io
     // outcome 在 try 内只算不写——后处理统一在 try 外：rearmOrDrop 自身失败不得再
     // 进异常重臂（会产双重臂行），completed 的 del 失败也不得误重臂已完成会话。

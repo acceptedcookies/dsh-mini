@@ -136,6 +136,58 @@ export class KernelMiniRuntime {
     this.persist()
     // 远端转录行+本地指针随会话删除清理（best-effort，不阻塞本地删——审查 B8）。
     void dropTranscript(id)
+    // durable 泵态同行清理：state/claim/alarm 行不随 sessions.delete 走——
+    // 残留行让 in-flight pump 继续写孤儿快照、残留 alarm 让 sweep 对死会话
+    // 空跑满步（审查十四轮 M1）。best-effort：远端 del 为记录 no-op 不阻塞。
+    void this.dropPumpRows(id)
+  }
+
+  /** kernel 泵的 durable 行（state/claims/alarms 下 owner='local'）——删除/清空共用。 */
+  private async dropPumpRows(sessionId: string): Promise<void> {
+    try {
+      const st = ioStateFor()
+      await st.del(`dsh-mini/state/local/${sessionId}`)
+      await st.del(`dsh-mini/claims/local/${sessionId}`)
+      const rows = await st.listPrefix('dsh-mini/alarms/local/')
+      for (const k of rows) {
+        if (k.endsWith(`-${sessionId}`)) await st.del(k)
+      }
+    } catch (e) {
+      console.warn(`[runtime] pump 行清理 ${sessionId} 失败（best-effort）:`, e instanceof Error ? e.message : e)
+    }
+  }
+
+  clear(): void {
+    // 清空前先对在飞轮次武装撤标——sessions.clear 后 pump 的下一步 saveSnap/
+    // io 调用仍在跑，cancelRequested 探测是它们唯一的停下信号（审查十四轮 H2）。
+    // cancelled 故意不清：标记是删后会话的撤停信号，prompt() 对活会话有防御性清。
+    for (const id of this.running) this.cancelled.add(id)
+    for (const s of this.sessions.values()) {
+      if (s.summary.status === 'running') this.cancelled.add(s.summary.id)
+    }
+    this.sessions.clear()
+    storage.clearConversations()
+    // 泵态键区整清（state/claims/alarms under owner='local'）+ 本地指针/
+    // pending-catchup——旧实现只清 UI 存储，在飞泵与 alarm 行原样存活（H2）。
+    void this.dropAllPumpRows()
+    try {
+      const keys = (wx.getStorageInfoSync().keys as string[]).filter((k) => k.startsWith('dsh:mini:session-ptr:') || k === 'dsh:mini:pending-catchup')
+      for (const k of keys) wx.removeStorageSync(k)
+    } catch (e) {
+      console.warn('[runtime] clear 指针键清理失败（best-effort）:', e instanceof Error ? e.message : e)
+    }
+  }
+
+  private async dropAllPumpRows(): Promise<void> {
+    try {
+      const st = ioStateFor()
+      for (const prefix of ['dsh-mini/state/local/', 'dsh-mini/claims/local/', 'dsh-mini/alarms/local/']) {
+        const rows = await st.listPrefix(prefix)
+        for (const k of rows) await st.del(k)
+      }
+    } catch (e) {
+      console.warn('[runtime] clear 泵态键区清理失败（best-effort）:', e instanceof Error ? e.message : e)
+    }
   }
 
   async prompt(id: string, text: string, images: ImageRef[] = []): Promise<{ messageId: string }> {
@@ -147,6 +199,8 @@ export class KernelMiniRuntime {
     // 第二个 prompt 从间隙穿过，同 holder 双泵互扰（审查四轮 F5）。
     this.running.add(id)
     const messageId = randomId('user')
+    const prevTitle = s.summary.title
+    const prevLast = s.summary.lastMessage
     try {
       this.append(id, { kind: 'user_message', id: messageId, seq: this.nextSeq(s), text, images: images.length > 0 ? images : undefined })
       if (s.summary.title === '新会话' && text.trim().length > 0) s.summary.title = text.trim().slice(0, 28)
@@ -155,7 +209,14 @@ export class KernelMiniRuntime {
       this.persist()
     } catch (e) {
       // append/persist 的 wx.setStorageSync 可抛配额——running 已提前占位，
-      // 不释放会让会话终身不可 prompt（审查五轮）。
+      // 不释放会让会话终身不可 prompt（审查五轮）；已入队 user 行与 title/
+      // lastMessage 同步回滚，不留半落账假象（审查十四轮 M3）。
+      const idx = s.items.findIndex((i) => i.id === messageId)
+      if (idx !== -1) s.items.splice(idx, 1)
+      s.summary.messageCount = s.items.length
+      s.summary.title = prevTitle
+      s.summary.lastMessage = prevLast
+      s.summary.status = 'idle'
       this.running.delete(id)
       throw e
     }
@@ -205,17 +266,16 @@ export class KernelMiniRuntime {
     // 仅对进行中的轮有效——idle 期留标记会让下一 prompt 首步即被 cancel 吞掉。
     if (this.running.has(id) || this.sessions.get(id)?.summary.status === 'running') {
       this.cancelled.add(id)
+      // 取消是步边界语义（kernel 步内不可中断）——立即落账一条注记，
+      // 用户拿到确认反馈而非干等本轮结束（审查十四轮 M6）。配额抛不影响撤标。
+      try {
+        this.append(id, { kind: 'notice', id: randomId('notice'), seq: this.nextSeq(this.require(id)), level: 'info', text: '已请求停止，将在当前步骤完成后停止。' })
+      } catch { /* 撤标已在内存生效，注记尽力即可 */ }
     }
   }
 
   answerApproval(_approvalId: string, _outcome: ApprovalOutcome): void { /* kernel 审批面后续 AP */ }
   answerQuestion(_questionId: string, _answers: QuestionAnswer[]): void { /* 同上 */ }
-
-  clear(): void {
-    this.sessions.clear()
-    this.cancelled.clear()
-    storage.clearConversations()
-  }
 
   /** kernel pump 驱动一轮 turn；io 回调内投影 UI 事件。 */
   private async drive(sessionId: string, input: unknown): Promise<void> {
@@ -253,7 +313,9 @@ export class KernelMiniRuntime {
       llm: async (messages) => {
         // 跨轮历史 prepend（worker runtime-mainline 同构）：kernel turn.messages
         // 只装当前 turn，历史由宿主从 UI 转录本临时前置、不回写 kernel buffer。
-        const out = await createIoLlm()([...historyMessages(s), ...messages])
+        // noMint：铸票已在 drive 手势面完成——轮中票据过期的 ready() 会在
+        // 后台上下文弹 SOTER（审查十四轮 L2），如实 401→host-error 更诚实。
+        const out = await createIoLlm({ noMint: true })([...historyMessages(s), ...messages])
         if (typeof out.text === 'string' && out.text.length > 0) {
           assistantText += out.text
           // assistant.delta：io.llm 非流式 → delta 粒度=llm_call 步（诚实粒度，
@@ -280,25 +342,43 @@ export class KernelMiniRuntime {
           throw e
         }
         this.replace(sessionId, { ...toolItem, status: res.kind === 'error' ? 'error' : 'ok' })
+        // detail 上限 4KB：无界 detail 会随 persist/转录上行放大成 wx.storage
+        // 配额爆与 >8MB overflow 丢行（审查十四轮 M4）。显示面有 summary 兜底。
         this.append(sessionId, {
           kind: 'tool_result', id: randomId('result'), seq: this.nextSeq(s),
           tool: name, status: res.kind === 'error' ? 'error' : 'ok',
           summary: (res.text ?? res.message ?? '').slice(0, 120),
-          detail: res.text ?? res.message ?? '',
+          detail: (res.text ?? res.message ?? '').slice(0, 4096),
         })
         return res
       },
     }
     try {
+      // cancel 在票据/分包等待期落地时不得空跑整轮——预检直接收尾（审查十四轮 M6）。
+      if (this.cancelled.has(sessionId)) {
+        this.running.delete(sessionId)
+        this.cancelled.delete(sessionId)
+        this.idle(sessionId)
+        return
+      }
       const r = await runPump(
         { kernel: bundle.kernel, io, owner: 'local', holder: 'mp-foreground' },
         sessionId,
         { input, cancelRequested: () => this.cancelled.has(sessionId) },
       )
+      // 取消标记必须在 delete 前快照——cancel 完成的轮以 'completed' 返回，
+      // 空文本 settle 会产 '（本轮无文本输出）' 垃圾行（审查十四轮 M6）。
+      const wasCancelled = this.cancelled.has(sessionId)
       this.running.delete(sessionId)
       this.cancelled.delete(sessionId)
+      // durable 快照腐坏被按新会话重建（M5）——执行态丢转录在，落账注记不静默。
+      if (r.reset === true && this.sessions.has(sessionId)) {
+        try {
+          this.append(sessionId, { kind: 'notice', id: randomId('notice'), seq: this.nextSeq(s), level: 'warn', text: '（会话执行状态已重置：旧检查点不可恢复，本轮从新状态继续）' })
+        } catch { /* 注记尽力即可 */ }
+      }
       if (r.outcome === 'completed') {
-        this.settleAssistant(sessionId, assistantText)
+        this.settleAssistant(sessionId, assistantText, wasCancelled)
       } else if (r.outcome === 'suspended') {
         // confirmation_pending/fatal_error 挂起不落 alarm——无自动复活路径，
         // 只有新 prompt（waiting→input_arrived→resume）能续跑，文案如实说。
@@ -312,19 +392,29 @@ export class KernelMiniRuntime {
     } catch (e) {
       this.running.delete(sessionId)
       this.cancelled.delete(sessionId)
-      this.fail(sessionId, 'host-error', e instanceof Error ? e.message : String(e))
+      const msg = e instanceof Error ? e.message : String(e)
+      // 413=checkpoint 超存储上限：同一会话每轮必复现且无 compaction，
+      // 如实区分文案+不可重试——恢复路径（新快照面）登记为业主决定（审查十四轮 M4b）。
+      const tooBig = msg.includes('saveSnap putCas 413')
+      this.fail(sessionId, 'host-error',
+        tooBig ? '会话 durable 状态超出存储上限（kernel checkpoint 超限），本轮不可续，建议新建会话。' : msg,
+        !tooBig)
     }
   }
 
-  private settleAssistant(sessionId: string, text: string): void {
+  private settleAssistant(sessionId: string, text: string, wasCancelled = false): void {
     const s = this.require(sessionId)
-    const body = text.length > 0 ? text : '（本轮无文本输出）'
-    const item: ChatItem = {
-      kind: 'assistant_message', id: randomId('msg'), seq: this.nextSeq(s),
-      text: body, html: markdownToHtml(body),
+    // 取消完成的轮无部分文本时跳过 assistant 行——'（本轮无文本输出）'
+    // 是误导性垃圾（用户主动停的）；cancel() 已落'已请求停止'注记（M6）。
+    if (!(wasCancelled && text.length === 0)) {
+      const body = text.length > 0 ? text : '（本轮无文本输出）'
+      const item: ChatItem = {
+        kind: 'assistant_message', id: randomId('msg'), seq: this.nextSeq(s),
+        text: body, html: markdownToHtml(body),
+      }
+      this.append(sessionId, item)
+      this.emit({ type: 'assistant.settle', sessionId, seq: item.seq, messageId: item.id })
     }
-    this.append(sessionId, item)
-    this.emit({ type: 'assistant.settle', sessionId, seq: item.seq, messageId: item.id })
     this.idle(sessionId)
     void this.syncTranscriptNow(sessionId)
   }
@@ -335,7 +425,12 @@ export class KernelMiniRuntime {
     const s = this.sessions.get(sessionId)
     if (s === undefined || !hasFreshTicket()) return null
     try {
-      return await syncTranscript(sessionId, s.items, { model: storage.getModel() })
+      // 删除竞态：sync 进行中被删，继续推行会把已删会话在远端复活（审查十四轮
+      // M7）。shouldStop 逐行闸 + 收尾复检后补 dropTranscript（drop 先行已删的
+      // 行被后推复活，二次 drop 兜底）。
+      const r = await syncTranscript(sessionId, s.items, { model: storage.getModel() }, () => !this.sessions.has(sessionId))
+      if (!this.sessions.has(sessionId)) void dropTranscript(sessionId)
+      return r
     } catch (e) {
       console.warn(`[transcript] sync ${sessionId} 失败（会话不受影响）:`, e instanceof Error ? e.message : e)
       return null

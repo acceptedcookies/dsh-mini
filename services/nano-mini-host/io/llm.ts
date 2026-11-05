@@ -69,12 +69,13 @@ function normalizeMessages(messages: unknown[]): ChatMessage[] {
   return out
 }
 
-/** OpenAI usage {prompt_tokens,completion_tokens} → kernel {inputTokens,outputTokens}（F5 修复 NaN）。 */
+/** OpenAI usage {prompt_tokens,completion_tokens} → kernel {inputTokens,outputTokens}（F5 修复 NaN）。
+ *  双侧缺失时 ?? 0——undefined 参与 reducer 累加会产 NaN 并随 checkpoint 持久化（审查十四轮 L1）。 */
 function normalizeUsage(u: unknown): LlmOutput['usage'] {
   const r = (u ?? {}) as Record<string, unknown>
   return {
-    inputTokens: (r.prompt_tokens ?? r.inputTokens) as number | undefined,
-    outputTokens: (r.completion_tokens ?? r.outputTokens) as number | undefined,
+    inputTokens: (r.prompt_tokens ?? r.inputTokens ?? 0) as number | undefined,
+    outputTokens: (r.completion_tokens ?? r.outputTokens ?? 0) as number | undefined,
   }
 }
 
@@ -174,8 +175,10 @@ export function createIoLlm(deps: IoLlmDeps = {}): (messages: unknown[]) => Prom
     }
     const body = res.body as { choices?: Array<{ message?: { content?: string | null; tool_calls?: ChatMessage['tool_calls'] } }>; usage?: LlmOutput['usage'] }
     const msg = body.choices?.[0]?.message
-    const toolCalls: LlmToolCall[] = (msg?.tool_calls ?? []).map((tc) => ({
-      id: tc.id,
+    const toolCalls: LlmToolCall[] = (msg?.tool_calls ?? []).map((tc, i) => ({
+      // 缺 id 的 tool_calls（部分上游方言）合成稳定 id——undefined id 会让
+      // kernel tool_result 配对落空、步决策误判（审查十四轮 L6）。
+      id: tc.id ?? `call_synth_${i}`,
       name: tc.function.name,
       input: safeParse(tc.function.arguments),
     }))

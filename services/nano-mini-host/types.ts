@@ -165,6 +165,8 @@ export interface PumpResult {
   outcome: PumpOutcome
   trace: string[]
   rival?: string
+  /** durable 快照腐坏/版本错位被按新会话重建——宿主应落账注记（诚实面：不静默丢执行态）。 */
+  reset?: boolean
 }
 
 export interface SweepResult {

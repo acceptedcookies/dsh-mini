@@ -59,13 +59,17 @@ const RUN = `mn02e-${Date.now().toString(36)}`
   check('E1:腐坏 alarm → sweep 跳过+消费不阻塞', ran.every((r) => r.sessionId !== `${RUN}-bad`) && gone, `ran=${JSON.stringify(ran)}`)
 }
 
-// ── E2 腐坏 state 行 → loadSnap 抛出（诚实面：不静默新建）──────────────
+// ── E2 腐坏 state 行 → reset 重建（审查十四轮 M5 契约更新：腐行不再永砖，
+//   loadSnap warn+fresh 重建，PumpResult.reset 上抛供宿主落账注记——不伪造无恢复）──
 {
   const cas = mkCas('o1')
   await post('state/put-cas', { key: `state/${RUN}-corrupt`, body: '{broken', cond: { ifNoneMatch: '*' } })
-  let threw = false
-  try { await host.runPump({ kernel, io: mkIo(cas).io, owner: 'o1', holder: 'h' }, `${RUN}-corrupt`, {}) } catch { threw = true }
-  check('E2:腐坏 state → runPump 抛出（不伪造恢复）', threw === true)
+  const r = await host.runPump({ kernel, io: mkIo(cas).io, owner: 'o1', holder: 'h' }, `${RUN}-corrupt`, {})
+  check('E2:腐坏 state → 不抛出且 reset=true（恢复+宿主注记面）', r.reset === true, `r=${JSON.stringify(r)}`)
+  // 重建后新快照落盘，下轮 loadSnap 正常读——腐行被覆写不残留（永砖解除断言）。
+  const row = await cas.get(`dsh-mini/state/o1/${RUN}-corrupt`)
+  const healthy = await host.runPump({ kernel, io: mkIo(cas).io, owner: 'o1', holder: 'h' }, `${RUN}-corrupt`, {})
+  check('E2:重建行已覆写（二轮 reset=false）', row !== null && healthy.reset !== true, `row=${row !== null} r2.reset=${healthy.reset}`)
 }
 
 // ── E3 超限 fragment → putCas 413 → saveSnap 抛出非 fenced ────────────
@@ -403,13 +407,14 @@ export { ensureDurableTicket, ioStateFor, hasFreshTicket }`,
 // ── E12 审查四轮修复面：异常重臂（F2）+ 删除墓碑（F3）──────────────────
 {
   const cas = mkCas('o1')
-  // F2：腐坏 state 行 → runPump 抛（loadSnap JSON.parse）——异常同样走重臂账，
-  // 不再永留原 dueAt 行每 tick 满步重跑（确定性故障烧 llm 的无界面）。
+  // F2：io.llm 抛 → runPump 异常——异常同样走重臂账，不再永留原 dueAt 行
+  // 每 tick 满步重跑（确定性故障烧 llm 的无界面）。原触发面（腐坏 state→loadSnap
+  // 抛）在审查十四轮 M5 已改 reset 重建，异常触发面换 llm 抛保持同等覆盖。
   const csSid = `${RUN}-cs`
-  await post('state/put-cas', { key: `state/${csSid}`, body: '{{{corrupt-state', cond: { ifNoneMatch: '*' } })
   const due2 = Date.now() - 1000
   await post('state/put-cas', { key: `alarms/${due2}-${csSid}`, body: JSON.stringify({ sessionId: csSid, kind: 'turn-resume', dueAt: due2, fence: 'new' }), cond: { ifNoneMatch: '*' } })
   const io2 = mkIo(cas).io
+  io2.llm = async () => { throw new Error('deterministic-llm-fault') }
   const ran2 = await host.sweepTick({ kernel, io: io2, owner: 'o1', holder: 'sw-e12' }, { batchLimit: 10 })
   const nowDue2 = (await post('alarm/due', { now: Date.now() })).body.keys.filter((k) => k.includes(csSid))
   const futureDue2 = (await post('alarm/due', { now: Date.now() + 120000 })).body.keys.filter((k) => k.includes(csSid))

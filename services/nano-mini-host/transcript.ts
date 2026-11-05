@@ -57,7 +57,7 @@ export interface TranscriptSyncReport {
  * 行级故障隔离：overflow（>8MB，永不可成功）记 dropped 后水位照过（不永久卡水位）；
  * 其余错误整体中止保序重试（瞬时故障下轮 settle 自愈，伪静默丢行不可接受）。
  */
-export async function syncTranscript(sessionId: string, items: ChatItem[], meta: { model?: string } = {}): Promise<TranscriptSyncReport | null> {
+export async function syncTranscript(sessionId: string, items: ChatItem[], meta: { model?: string } = {}, shouldStop?: () => boolean): Promise<TranscriptSyncReport | null> {
   const remote = vfsRemoteFor()
   if (remote === null) return null
   const ptr = readSessionPointer(sessionId)
@@ -68,6 +68,8 @@ export async function syncTranscript(sessionId: string, items: ChatItem[], meta:
   const dropped: Array<{ seq: number; error: string }> = []
   const conflicts: Array<{ seq: number }> = []
   for (const item of items) {
+    // 同步进行中被删：继续推行会把已删会话在远端复活（审查十四轮 M7）。
+    if (shouldStop?.() === true) break
     if (item.seq <= watermark) { skipped += 1; continue }
     const body = enc(JSON.stringify(item))
     try {
@@ -89,7 +91,7 @@ export async function syncTranscript(sessionId: string, items: ChatItem[], meta:
     }
     lastSeq = item.seq
   }
-  if (lastSeq > watermark || ptr === undefined) {
+  if (shouldStop?.() !== true && (lastSeq > watermark || ptr === undefined)) {
     await remote.put(`transcripts/${sessionId}/_meta.json`, enc(JSON.stringify({
       session_id: sessionId, item_count: items.length, last_seq: lastSeq,
       model: meta.model ?? 'unknown', updated_ms: Date.now(),
