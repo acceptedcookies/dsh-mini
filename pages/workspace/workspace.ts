@@ -5,7 +5,7 @@ import { fxRuntime } from '../../services/fx/runtime'
 import { fetchTodos, fetchWorkspaceFiles } from '../../services/nano/http'
 import { pickImage } from '../../services/upload'
 import { APP_VERSION, DEFAULT_MODEL, defaultModelFor, modelsForEngine, type ModelOption } from '../../services/config'
-import { applyNavigationBar, getTheme, type Theme } from '../../services/theme'
+import { applyNavigationBar, getTheme } from '../../services/theme'
 import { storage } from '../../services/storage'
 import { DEFAULT_PERMISSION, PERMISSIONS, permissionOf, type PermissionOption } from '../../services/permissions'
 import { classifyError, errorBus, type ErrorReport } from '../../services/error-report'
@@ -16,7 +16,7 @@ import { hasFreshTicket, onTicketMinted } from '../../services/fx/ticket'
 import { nanoMiniCatchUp } from '../../services/nano-mini-host/tick'
 import { firstCommand } from '../../services/commands'
 import {
-  engineBadgeShort, engineForSession, engineLabel, magpieAvailable, pendingEngine, routeDefaultEngine, setPendingEngine,
+  engineBadge, engineForSession, engineLabel, magpieAvailable, pendingEngine, routeDefaultEngine, setPendingEngine,
 } from '../../services/session-engine'
 import { formatRelative } from '../../utils/time'
 import { toolView, type ToolView } from '../../utils/tool-view'
@@ -38,8 +38,10 @@ interface SessionRow extends SessionSummary {
   /** local=仅本地 | synced=转录水位覆盖最新 | pending=有远端行但本地更新未上行。 */
   syncState: 'local' | 'synced' | 'pending'
   syncLabel: string
-  /** 状态行合一（业主 MN05）：「本地·nano / 已同步·magpie / 云端」——
-   *  同步态词 + 引擎短名；时间上移到控件同行，此处不再重复。 */
+  /** 第二行状态 tag（业主 MN05-W3）：原行首圆点的会话态下沉为标签——
+   *  运行/异常优先；空闲时承同步态（待同步/已同步），本地空闲→空闲。 */
+  statusTag: { text: string; tone: 'run' | 'err' | 'warn' | 'ok' | 'mut' }
+  /** runtime 形态（本地·nano / 本地·magpie / 云端·nano）。 */
   statusLine: string
 }
 
@@ -194,7 +196,9 @@ let runClock: ReturnType<typeof setInterval> | undefined
 
 Page({
   data: {
-    theme: 'light' as Theme,
+    theme: getTheme(),
+    sortDesc: true,
+    sessionCount: 0,
     state: sessionStore.getState() as UiState,
     statusBarHeight: 0,
     navBarContentHeight: 44,
@@ -479,7 +483,7 @@ Page({
   apply(state: UiState) {
     const currentId = state.current?.sessionId ?? ''
     const summary = state.sessions.find((session) => session.id === currentId)
-    const rows = filterRows(state.sessions, this.data.query)
+    const rows = filterRows(state.sessions, this.data.query, this.data.sortDesc)
     const items: DisplayItem[] = [...(state.current?.items ?? [])]
     const stream = state.streaming
     if (stream !== undefined && stream.sessionId === currentId && stream.text.length > 0) {
@@ -527,6 +531,7 @@ Page({
       // chip 名同步按 pending 真源刷新（指针失效后旧 magpie 名不幽灵存活）。
       ...(sessionChanged ? { ...modelView(activeEngine(currentId)), engineChipLabel: chipEngineLabel() } : {}),
       rows,
+      sessionCount: state.sessions.length,
       atTail,
       scrollTarget,
       approval: state.approvals[0] ?? null,
@@ -568,7 +573,13 @@ Page({
 
   onSearch(event: WechatMiniprogram.Input) {
     const query = event.detail.value
-    this.setData({ query, rows: filterRows(this.data.state.sessions, query) })
+    this.setData({ query, rows: filterRows(this.data.state.sessions, query, this.data.sortDesc) })
+  },
+
+  /** 侧栏 filter 钮（业主 MN05-W3）：时间排序 降序↔升序 切换。 */
+  onSortToggle() {
+    const sortDesc = !this.data.sortDesc
+    this.setData({ sortDesc, rows: filterRows(this.data.state.sessions, this.data.query, sortDesc) })
   },
 
   async send() {
@@ -1386,10 +1397,13 @@ function formatRunDuration(milliseconds: number): string {
   return `${seconds}秒`
 }
 
-function filterRows(sessions: SessionSummary[], query: string): SessionRow[] {
+function filterRows(sessions: SessionSummary[], query: string, desc: boolean): SessionRow[] {
   const keyword = query.trim().toLowerCase()
   const syncMap = sessionSyncMap()
   return sessions
+    .slice()
+    /* 时间排序显式化（侧栏 filter 钮可切换升降序，不依赖 store 给出序）。 */
+    .sort((a, b) => desc ? b.updatedAt - a.updatedAt : a.updatedAt - b.updatedAt)
     .filter((session) => {
       if (keyword.length === 0) return true
       return session.title.toLowerCase().includes(keyword)
@@ -1401,12 +1415,18 @@ function filterRows(sessions: SessionSummary[], query: string): SessionRow[] {
       const syncLabel = syncState === 'local' ? '本地' : syncState === 'synced' ? '已同步' : '待同步'
       const timeLabel = formatRelative(session.updatedAt)
       const engine = session.engine ?? routeDefaultEngine()
+      const statusTag: SessionRow['statusTag'] = session.status === 'running' ? { text: '运行中', tone: 'run' }
+        : session.status === 'error' ? { text: '异常', tone: 'err' }
+        : syncState === 'pending' ? { text: '待同步', tone: 'warn' }
+        : syncState === 'synced' ? { text: '已同步', tone: 'ok' }
+        : { text: '空闲', tone: 'mut' }
       return {
         ...session,
         timeLabel,
         syncState,
         syncLabel,
-        statusLine: engine === 'cloud' ? '云端' : `${syncLabel}·${engineBadgeShort(engine)}`,
+        statusTag,
+        statusLine: engineBadge(engine),
       }
     })
 }

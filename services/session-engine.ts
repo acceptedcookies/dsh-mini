@@ -83,7 +83,7 @@ export function engineBadgeShort(engine: SessionEngine): string {
   return engine === 'cloud' ? '云端' : engine === 'nano-agent' ? 'nano' : engine
 }
 
-/** 会话行紧凑徽标：本地·nano / 本地·magpie / 云端。 */
+/** 会话行紧凑徽标：本地·nano / 本地·magpie / 云端·nano（云端内核=nano-agent）。 */
 export function engineBadge(engine: SessionEngine): string {
-  return engine === 'cloud' ? '云端' : `本地·${engineBadgeShort(engine)}`
+  return engine === 'cloud' ? '云端·nano' : `本地·${engineBadgeShort(engine)}`
 }

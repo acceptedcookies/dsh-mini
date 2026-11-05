@@ -18,12 +18,12 @@
   "window": {
     "navigationStyle": "custom",
     "navigationBarTitleText": "dsh",
-    "navigationBarTextStyle": "black",
-    "navigationBarBackgroundColor": "#ffffff",
-    "backgroundColor": "#f7f7f8",
-    "backgroundColorTop": "#f7f7f8",
-    "backgroundColorBottom": "#f7f7f8",
-    "backgroundTextStyle": "dark"
+    "navigationBarTextStyle": "@navigationBarTextStyle",
+    "navigationBarBackgroundColor": "@navigationBarBackgroundColor",
+    "backgroundColor": "@backgroundColor",
+    "backgroundColorTop": "@backgroundColorTop",
+    "backgroundColorBottom": "@backgroundColorBottom",
+    "backgroundTextStyle": "@backgroundTextStyle"
   },
   "style": "v2",
   "darkmode": true,

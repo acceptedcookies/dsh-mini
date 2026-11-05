@@ -17,17 +17,23 @@
       </view>
     </view>
 
-    <!-- 搜索不随会话列表滚动——永远钉在顶图层（业主 MN05）。 -->
-    <view class="sidebar-search">
-      <dsh-icon class="search-icon" name="search-outline" theme="{{theme}}" size="{{14}}" />
-      <input
-        class="search-input"
-        value="{{query}}"
-        placeholder="搜索会话"
-        placeholder-class="search-placeholder"
-        adjust-position="{{false}}"
-        bindinput="onSearch"
-      />
+    <!-- 搜索行不随会话列表滚动——永远钉在顶图层（业主 MN05）。 -->
+    <view class="search-bar">
+      <view class="search-filter sort-{{sortDesc ? 'desc' : 'asc'}}" bindtap="onSortToggle">
+        <dsh-icon name="clock-outline" theme="{{theme}}" size="{{15}}" />
+        <view class="sort-caret"></view>
+      </view>
+      <view class="sidebar-search">
+        <dsh-icon class="search-icon" name="search-outline" theme="{{theme}}" size="{{14}}" />
+        <input
+          class="search-input"
+          value="{{query}}"
+          placeholder="搜索{{sessionCount}}会话"
+          placeholder-class="search-placeholder"
+          adjust-position="{{false}}"
+          bindinput="onSearch"
+        />
+      </view>
     </view>
 
     <!-- 会话列表独立滚动容器：溢出内部滚动；底部渐变层让临近设置区的文字淡出。 -->
@@ -41,21 +47,21 @@
             data-id="{{item.id}}"
             bindtap="openSession"
           >
-            <view class="row-state row-state-{{item.status}}"></view>
-            <text class="row-title">{{item.title}}</text>
-            <view class="row-side">
-              <view class="row-top">
-                <text class="row-time">{{item.timeLabel}}</text>
-                <view
-                  id="session-more-{{item.id}}"
-                  class="row-more"
-                  data-id="{{item.id}}"
-                  catchtap="onSessionMenu"
-                >
-                  <dsh-icon name="ellipsis-outline" theme="{{theme}}" size="{{15}}" />
-                </view>
+            <view class="row-main">
+              <text class="row-title">{{item.title}}</text>
+              <view class="row-meta">
+                <text class="row-tag tag-{{item.statusTag.tone}}">{{item.statusTag.text}}</text>
+                <text class="row-tag tag-time">{{item.timeLabel}}</text>
+                <text class="row-runtime">{{item.statusLine}}</text>
               </view>
-              <text class="row-status row-status-{{item.syncState}}">{{item.statusLine}}</text>
+            </view>
+            <view
+              id="session-more-{{item.id}}"
+              class="row-more"
+              data-id="{{item.id}}"
+              catchtap="onSessionMenu"
+            >
+              <dsh-icon name="ellipsis-outline" theme="{{theme}}" size="{{15}}" />
             </view>
           </view>
           <view wx:if="{{!rows.length}}" class="sidebar-empty">{{query ? '没有匹配的会话' : '还没有会话'}}</view>
