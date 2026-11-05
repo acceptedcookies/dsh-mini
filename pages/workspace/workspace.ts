@@ -11,6 +11,7 @@ import { DEFAULT_PERMISSION, PERMISSIONS, permissionOf, type PermissionOption } 
 import { classifyError, errorBus, type ErrorReport } from '../../services/error-report'
 import { sessionDiagnostics } from '../../services/diagnostics'
 import { ensureDurableTicket, remoteDurableActive } from '../../services/state/provider'
+import { sessionSyncMap } from '../../services/nano-mini-host/transcript'
 import { hasFreshTicket, onTicketMinted } from '../../services/fx/ticket'
 import { nanoMiniCatchUp } from '../../services/nano-mini-host/tick'
 import { firstCommand } from '../../services/commands'
@@ -30,6 +31,9 @@ import type {
 
 interface SessionRow extends SessionSummary {
   timeLabel: string
+  /** local=仅本地 | synced=转录水位覆盖最新 | pending=有远端行但本地更新未上行。 */
+  syncState: 'local' | 'synced' | 'pending'
+  syncLabel: string
 }
 
 /* Tool rows carry their dsh presentation projection (utils/tool-view). */
@@ -1280,13 +1284,19 @@ function formatRunDuration(milliseconds: number): string {
 
 function filterRows(sessions: SessionSummary[], query: string): SessionRow[] {
   const keyword = query.trim().toLowerCase()
+  const syncMap = sessionSyncMap()
   return sessions
     .filter((session) => {
       if (keyword.length === 0) return true
       return session.title.toLowerCase().includes(keyword)
         || (session.lastMessage ?? '').toLowerCase().includes(keyword)
     })
-    .map((session) => ({ ...session, timeLabel: formatRelative(session.updatedAt) }))
+    .map((session) => {
+      const ptr = syncMap.get(session.id)
+      const syncState = ptr === undefined ? 'local' : ptr.updated_ms >= session.updatedAt ? 'synced' : 'pending'
+      const syncLabel = syncState === 'local' ? '本地' : syncState === 'synced' ? '已同步' : '待同步'
+      return { ...session, timeLabel: formatRelative(session.updatedAt), syncState, syncLabel }
+    })
 }
 
 interface TurnMeta {

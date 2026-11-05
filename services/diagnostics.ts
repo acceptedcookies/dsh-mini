@@ -8,7 +8,7 @@
 import { errorBus, type ErrorReport } from './error-report'
 import { sessionStore } from './session-store'
 import { currentRoute, lastRouteError } from './fx/dev'
-import { readSessionPointer, type SessionPointer } from './nano-mini-host/transcript'
+import { readSessionPointer, sessionSyncMap, type SessionPointer } from './nano-mini-host/transcript'
 import { vfsStore } from './vfs/store'
 import { storage } from './storage'
 import { APP_VERSION } from './config'
@@ -38,7 +38,10 @@ export interface SessionDiagnostics {
     lastItems: ChatItem[]
     streaming?: { attemptId: string; text: string }
   }
-  sessions: Array<Pick<SessionSummary, 'id' | 'title' | 'status' | 'updatedAt' | 'messageCount'>>
+  sessions: Array<Pick<SessionSummary, 'id' | 'title' | 'status' | 'updatedAt' | 'messageCount'> & {
+    /** 本地/云端同步态（BL-4）：local=无远端行；synced=水位覆盖最新；pending=待上行。 */
+    sync: { state: 'local' | 'synced' | 'pending'; lastSeq?: number; syncedAt?: number }
+  }>
   durable: {
     sessionPtr?: SessionPointer
   }
@@ -111,9 +114,19 @@ export function sessionDiagnostics(sessionId?: string): SessionDiagnostics {
           },
         }
       : {}),
-    sessions: state.sessions.map((s) => ({
-      id: s.id, title: s.title, status: s.status, updatedAt: s.updatedAt, messageCount: s.messageCount,
-    })),
+    sessions: (() => {
+      // 同步态三态（BL-4 真机「本地 vs 已云端同步」区分接口）：无指针=local；
+      // 指针水位覆盖最新=synced；指针旧于会话更新=pending。
+      const syncMap = sessionSyncMap()
+      return state.sessions.map((s) => {
+        const ptr = syncMap.get(s.id)
+        const syncState = ptr === undefined ? 'local' : ptr.updated_ms >= s.updatedAt ? 'synced' : 'pending'
+        return {
+          id: s.id, title: s.title, status: s.status, updatedAt: s.updatedAt, messageCount: s.messageCount,
+          sync: { state: syncState, ...(ptr !== undefined ? { lastSeq: ptr.last_seq, syncedAt: ptr.updated_ms } : {}) },
+        }
+      })
+    })(),
     durable: {
       ...(sid !== undefined ? { sessionPtr: readSessionPointer(sid) } : {}),
     },

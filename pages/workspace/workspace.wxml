@@ -51,6 +51,7 @@
         >
           <view class="row-state row-state-{{item.status}}"></view>
           <text class="row-title">{{item.title}}</text>
+          <text class="row-sync row-sync-{{item.syncState}}">{{item.syncLabel}}</text>
           <text wx:if="{{item.id !== currentId}}" class="row-time">{{item.timeLabel}}</text>
           <view
             wx:if="{{item.id === currentId}}"

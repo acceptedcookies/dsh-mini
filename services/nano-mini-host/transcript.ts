@@ -30,6 +30,24 @@ export function readSessionPointer(sessionId: string): SessionPointer | undefine
   return v !== '' && v !== undefined ? v : undefined
 }
 
+/** 全部会话同步指针一次扫描——列表/诊断共用，避免逐 sid 打 storage（BL-4 真机区分本
+ *  地/已同步会话的接口面：无指针=本地；指针存在=有远端转录行；ptr.updated_ms <
+ *  会话 updatedAt=待同步水位滞后）。 */
+export function sessionSyncMap(): Map<string, SessionPointer> {
+  const map = new Map<string, SessionPointer>()
+  try {
+    const keys = wx.getStorageInfoSync().keys
+    for (const key of keys) {
+      if (!key.startsWith(PTR_PREFIX)) continue
+      const v = wx.getStorageSync<SessionPointer | ''>(key)
+      if (v !== '' && v !== undefined && typeof v === 'object') map.set(key.slice(PTR_PREFIX.length), v)
+    }
+  } catch {
+    // storage 探测失败→空 map（如实降级为全本地，不阻塞列表渲染）。
+  }
+  return map
+}
+
 function writeSessionPointer(sessionId: string, p: SessionPointer): void {
   wx.setStorageSync(`${PTR_PREFIX}${sessionId}`, p)
 }

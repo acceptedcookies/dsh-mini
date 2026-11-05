@@ -269,6 +269,23 @@
   line-height: var(--dsw-lh-16);
 }
 
+/* 会话同步态徽标（BL-4）：本地=三级灰；已同步=成功绿；待同步=警示色。 */
+.row-sync {
+  flex: none;
+  margin: 0 8rpx;
+  font-size: var(--dsw-text-mini);
+  line-height: var(--dsw-lh-16);
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.row-sync-synced {
+  color: var(--dsw-alias-positive-primary, #1a9e6b);
+}
+
+.row-sync-pending {
+  color: var(--dsw-alias-warning-primary, #d97f00);
+}
+
 .row-more {
   flex: none;
   width: 28px;

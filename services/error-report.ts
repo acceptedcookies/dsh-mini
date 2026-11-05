@@ -168,7 +168,9 @@ const GENERIC_TABLE: Array<{ pattern: RegExp; code: string }> = [
 function httpStatusOf(message: string): number | undefined {
   const anchored = /(?:upstream|status|http)\s*[=:"]?\s*([1-5]\d\d)/i.exec(message)
   if (anchored !== null) return Number(anchored[1])
-  for (const m of message.matchAll(/(^|[\s=(,])([1-5]\d\d)\b\s*([\p{L}\p{N}%]*)/gu)) {
+  // 字符类须 BMP 手写——真机 JSC 不支持 \p{L}\p{N} Unicode 属性转义（W3 真机实测
+  // 整个 classifyError 在 RegExp 构造即 SyntaxError，errorBus 全链崩坏）。
+  for (const m of message.matchAll(/(^|[\s=(,])([1-5]\d\d)\b\s*([0-9A-Za-zÀ-ɏ぀-ヿ㐀-䶿一-鿿豈-﫿%]*)/gu)) {
     const suffix = m[3] ?? ''
     // latin 全等（防 '500 server'/'500 killed' 前缀误伤）；CJK 前缀匹配
     // （'500 次后放弃'/'500 个文件' 复合词中单位在词首，MN03-R4 N1）。
@@ -326,9 +328,24 @@ class ErrorBus {
   private readonly listeners = new Set<BusListener>()
 
   report(input: unknown, ctx: ErrorDiagnostics = {}): ErrorReport {
-    const report = input !== null && typeof input === 'object' && 'diagnostics' in (input as Record<string, unknown>)
-      ? input as ErrorReport
-      : classifyError(input, ctx)
+    let report: ErrorReport
+    try {
+      report = input !== null && typeof input === 'object' && 'diagnostics' in (input as Record<string, unknown>)
+        ? input as ErrorReport
+        : classifyError(input, ctx)
+    } catch {
+      // 分类器自身故障不得向业务抛错（真机 JSC 对 \p{} 正则 SyntaxError 时
+      // report 若抛出，init catch 块二次炸死→loading 永卡——W3 真机实测）。
+      // 降级 unknown-error 兜底面保错误可达。
+      const taxon = TAXONOMY['unknown-error']
+      const raw = input instanceof Error ? input.message : typeof input === 'string' ? input : ''
+      report = {
+        id: randomId('err'), code: 'unknown-error', category: taxon.category,
+        severity: taxon.severity, surface: taxon.surface, title: taxon.title,
+        message: raw.length > 0 ? raw : taxon.title, hint: taxon.hint,
+        diagnostics: { ...ctx, retryable: taxon.retryable }, ts: Date.now(), count: 1,
+      }
+    }
     // dedupe：同 code+sessionId 且仍开着 → 计数合并不重复弹（ts 保首现不滑窗——
     // 持续同错合并到关闭为止，不会再弹新 toast，MN03-R1 修滑动窗漂移）。
     const peer = this.findOpen(report.code, report.diagnostics.sessionId)
