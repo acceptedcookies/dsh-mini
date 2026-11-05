@@ -967,12 +967,13 @@ Page({
     this.setData({ sidebarOpen: false })
   },
 
-  openSettings() {
+  /* 设置拆页（业主 MN05-W4）：账户/模型两个独立入口。 */
+  openAccountSettings() {
     wx.navigateTo({ url: '/pages/settings/settings' })
   },
 
-  openAccountSettings() {
-    wx.navigateTo({ url: '/pages/settings/settings?section=account' })
+  openModelConfig() {
+    wx.navigateTo({ url: '/pages/models/models' })
   },
 
   toggleRightPanel() {

@@ -71,11 +71,15 @@
     </view>
 
     <view class="sidebar-foot">
-      <view class="foot-row" bindtap="openSettings">
-        <dsh-icon name="settings-outline" theme="{{theme}}" size="{{16}}" />
-        <text>设置</text>
+      <view class="foot-row" bindtap="openAccountSettings">
+        <dsh-icon name="user-outline" theme="{{theme}}" size="{{16}}" />
+        <text>账户设置</text>
       </view>
-      <view class="foot-meta" bindtap="openAccountSettings">{{runtimeLabel}} · v{{version}}</view>
+      <view class="foot-row" bindtap="openModelConfig">
+        <dsh-icon name="layers-outline" theme="{{theme}}" size="{{16}}" />
+        <text>模型配置</text>
+      </view>
+      <view class="foot-meta">{{runtimeLabel}} · v{{version}}</view>
     </view>
   </aside>
 

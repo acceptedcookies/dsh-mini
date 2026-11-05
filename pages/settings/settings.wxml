@@ -3,13 +3,14 @@
     <view class="settings-mask" bindtap="back"></view>
 
     <view class="settings-panel">
-      <view class="settings-title">设置</view>
-
-      <view class="settings-header" style="padding-right: {{capsuleInsetRight}}px;">
+      <view class="settings-title">
+        <text>账户设置</text>
         <view class="settings-close" bindtap="back">
-          <dsh-icon name="close-outline" theme="{{theme}}" size="{{14}}" />
+          <dsh-icon name="close-outline" theme="{{theme}}" size="{{13}}" />
         </view>
       </view>
+
+      <view class="settings-header" style="padding-right: {{capsuleInsetRight}}px;"></view>
 
       <view class="settings-nav">
         <view class="settings-nav-list">
@@ -68,7 +69,7 @@
               <view class="field-label">默认模型</view>
               <view class="field-hint">{{modelLabel}}</view>
             </view>
-            <view class="field-chevron" data-id="models" bindtap="selectSection">
+            <view class="field-chevron" bindtap="openModelConfig">
               <dsh-icon name="chevron-right-outline" theme="{{theme}}" size="{{14}}" />
             </view>
           </view>
@@ -161,108 +162,6 @@
               <dsh-button class="auth-wechat {{authBusy ? 'auth-busy' : ''}}" variant="default" label="微信登录" bind:tap="wechatLogin" />
               <view wx:if="{{authError}}" class="auth-error">{{authError}}</view>
             </view>
-          </block>
-        </block>
-
-        <block wx:elif="{{activeId === 'models'}}">
-          <view class="section-head">
-            <view class="section-title">模型</view>
-            <view class="section-desc">选择新会话使用的默认模型</view>
-          </view>
-
-          <view
-            wx:for="{{models}}"
-            wx:key="id"
-            class="model-row {{model === item.id ? 'model-row-active' : ''}}"
-            data-id="{{item.id}}"
-            bindtap="selectModel"
-          >
-            <view class="model-copy">
-              <view class="model-name">{{item.label}}</view>
-              <view class="model-desc">{{item.description}}</view>
-            </view>
-            <view class="model-radio">
-              <dsh-icon wx:if="{{model === item.id}}" name="check-outline" tone="accent" theme="{{theme}}" size="{{14}}" />
-            </view>
-          </view>
-        </block>
-
-        <block wx:elif="{{activeId === 'providers'}}">
-          <view class="section-head">
-            <view class="section-title">供应商</view>
-            <view class="section-desc">本地运行时密钥托管 · 路由：{{routeLabel}}</view>
-          </view>
-
-          <view class="provider-row">
-            <view class="provider-mark">
-              <dsh-icon name="globe-outline" theme="{{theme}}" size="{{14}}" />
-            </view>
-            <view class="model-copy">
-              <view class="model-name">magpie</view>
-              <view class="model-desc">OpenAI 兼容端点 · 信封加密托管 · 按 openid 隔离</view>
-            </view>
-            <text class="provider-status">{{enrolled ? '已注入' : (fxRoute === 'local' ? '直连' : '未注入')}}</text>
-          </view>
-
-          <block wx:if="{{fxRoute === 'local'}}">
-            <view class="field">
-              <view class="field-label">本地直连模式</view>
-              <view class="field-hint">当前经 .local.development.json 直连供应商，不经云端托管；切换到云端路由后可在此注入密钥。</view>
-            </view>
-          </block>
-          <block wx:else>
-            <view class="field">
-              <view class="field-label">生物识别门禁</view>
-              <view class="field-hint">{{bioText}}</view>
-            </view>
-
-            <block wx:if="{{enrolled}}">
-              <view class="profile-card">
-                <view class="profile-avatar">k</view>
-                <view class="profile-copy">
-                  <view class="profile-name">{{enrolledProvider}} · 已托管</view>
-                  <view class="profile-sub">{{enrolledBaseUrl}}</view>
-                </view>
-                <view class="profile-dot"></view>
-              </view>
-              <view class="field">
-                <view class="field-label">注入信息</view>
-                <view class="field-hint">模型 {{enrollModel}} · {{enrolledAt}} · 密钥密文仅存云端，本机不留明文</view>
-              </view>
-              <view class="field action-row" bindtap="revokeProvider">
-                <view class="field-copy">
-                  <view class="field-label">撤回注入</view>
-                  <view class="field-hint">删除云端密钥记录并清除本机登记</view>
-                </view>
-                <text class="action-danger">撤回</text>
-              </view>
-            </block>
-            <block wx:else>
-              <view class="field auth-field">
-                <view class="field-label">注入供应商密钥</view>
-                <view class="field-hint">密钥经 TLS 上行后信封加密存于云端（按 openid 隔离），本机不留存明文。生效模型：{{injectModelLabel}}（在「模型」中切换）。无生物识别时禁止注入。</view>
-                <input
-                  class="settings-input"
-                  value="{{baseUrl}}"
-                  placeholder="供应商地址（base_url）"
-                  placeholder-class="settings-placeholder"
-                  type="text"
-                  bindinput="onBaseUrlInput"
-                />
-                <input
-                  class="settings-input"
-                  value="{{apiKey}}"
-                  password
-                  placeholder="API Key（供应商无鉴权时可留空）"
-                  placeholder-class="settings-placeholder"
-                  bindinput="onApiKeyInput"
-                />
-                <view class="auth-actions">
-                  <dsh-button class="auth-submit {{(!bioOk || enrollBusy) ? 'auth-busy' : ''}}" variant="primary" label="{{enrollBusy ? '注入中…' : (bioOk ? '生物验证并注入' : '生物识别不可用')}}" bind:tap="submitEnroll" />
-                </view>
-                <view wx:if="{{enrollError}}" class="auth-error">{{enrollError}}</view>
-              </view>
-            </block>
           </block>
         </block>
 

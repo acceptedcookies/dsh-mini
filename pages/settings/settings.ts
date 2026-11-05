@@ -12,15 +12,6 @@ import {
   wxLogin,
 } from '../../services/nano/http'
 import { nanoRuntime } from '../../services/nano/runtime'
-import { loadDevConfig } from '../../services/fx/dev'
-import { resolveRoute, type RouteMode } from '../../services/fx/route'
-import {
-  bioStatus,
-  enrollProvider,
-  readEnrollment,
-  revokeEnrollment,
-} from '../../services/fx/enrollment'
-import { fxRuntime } from '../../services/fx/runtime'
 import { vfsStore } from '../../services/vfs/api'
 import { errorBus, reportSilent, type ErrorReport } from '../../services/error-report'
 import { getWindowMetrics } from '../../utils/window'
@@ -30,8 +21,9 @@ type DialogAction = 'clear' | 'reset'
 
 const FX_LICENSE_URL = 'https://github.com/vercel-labs/fx/blob/main/LICENSE'
 
+/* 账户设置页（业主 MN05-W4）：模型/供应商段已迁至 pages/models 独立页。 */
 interface Section {
-  id: 'general' | 'account' | 'models' | 'providers' | 'storage' | 'plugins' | 'archived' | 'conversations' | 'about'
+  id: 'general' | 'account' | 'storage' | 'plugins' | 'archived' | 'conversations' | 'about'
   label: string
   icon: string
 }
@@ -39,8 +31,6 @@ interface Section {
 const SECTIONS: Section[] = [
   { id: 'general', label: '通用', icon: 'settings-outline' },
   { id: 'account', label: '账户', icon: 'user-outline' },
-  { id: 'models', label: '模型', icon: 'layers-outline' },
-  { id: 'providers', label: '供应商', icon: 'globe-outline' },
   { id: 'storage', label: '存储', icon: 'folder-open-outline' },
   { id: 'plugins', label: '插件', icon: 'plugin-pinwheel-outline' },
   { id: 'archived', label: '归档', icon: 'archive-outline' },
@@ -68,8 +58,6 @@ Page({
     sessionCount: 0,
     model: DEFAULT_MODEL,
     modelLabel: MODELS[0]?.label ?? DEFAULT_MODEL,
-    models: modelsForEngine(pendingEngine()),
-    providers: [{ id: 'magpie', name: 'magpie', description: 'OpenAI 兼容端点 · 信封加密托管' }],
     plugins: [
       { name: 'dsh-client-ui-chat', description: 'Chat / Markdown / Tool cards' },
       { name: 'dsh-client-ui-conversation', description: 'Hero / Composer / Settings shell' },
@@ -92,20 +80,6 @@ Page({
     authMode: 'login' as 'login' | 'register',
     authBusy: false,
     authError: '',
-    fxRoute: 'local' as RouteMode,
-    routeLabel: '本地直连',
-    injectModelLabel: '',
-    bioOk: false,
-    bioText: '',
-    enrolled: false,
-    enrolledProvider: '',
-    enrolledBaseUrl: '',
-    enrolledAt: '',
-    enrollModel: '',
-    baseUrl: '',
-    apiKey: '',
-    enrollBusy: false,
-    enrollError: '',
     s3Endpoint: '',
     s3Bucket: '',
     s3Region: '',
@@ -142,7 +116,6 @@ Page({
       sessionCount: sessionStore.getState().sessions.length,
       model,
       modelLabel: lane.find((item) => item.id === model)?.label ?? model,
-      models: lane,
       nanoConnected: nanoRuntime.isAvailable(),
       nanoUser: getStoredUser()?.display_name ?? '',
       nanoInitial: initialOf(getStoredUser()?.display_name),
@@ -171,7 +144,6 @@ Page({
       nanoInitial: initialOf(getStoredUser()?.display_name),
     })
     applyNavigationBar(theme, 'layer-2')
-    void this.refreshByok()
   },
 
   onUnload() {
@@ -231,122 +203,9 @@ Page({
     this.setData({ theme, themeMode: mode })
   },
 
-  selectModel(event: WechatMiniprogram.TouchEvent) {
-    const model = String(event.currentTarget.dataset.id ?? '')
-    // 新会话引擎面白名单：BYOK 车道不显示/不接受 magpie 模型 id（业主 MN04）。
-    const option = modelsForEngine(pendingEngine()).find((item) => item.id === model)
-    if (option === undefined) return
-    storage.setModel(option.id)
-    this.setData({ model: option.id, modelLabel: option.label, injectModelLabel: option.label })
-    // 本地 fx 运行时的生效模型在 core 启动时注入 env，切换后需重启生效（未启动时为空操作）
-    try {
-      fxRuntime.restartCore()
-    } catch (error) {
-      errorBus.report(error, { op: 'model-switch', lane: 'ui' })
-    }
-  },
-
-  async refreshByok() {
-    const cfg = loadDevConfig()
-    // 缺席也过 resolveRoute（app.json 旋钮真源在其内），解析错误经 err 如实显示（UI 审查 F10）
-    const route = safeRoute(cfg)
-    const routeErr = route.err
-    const injectable = route.mode !== 'local'
-    const rec = readEnrollment()
-    const bio = injectable
-      ? await bioStatus(route)
-      : { ok: false, supported: false, enrolled: false, reason: '本地直连模式不经云端注入' }
-    const byokLane = modelsForEngine(pendingEngine())
-    const stored = storage.getModel()
-    const activeModel = stored !== undefined && byokLane.some((m) => m.id === stored) ? stored : (byokLane[0]?.id ?? DEFAULT_MODEL)
-    this.setData({
-      fxRoute: route.mode,
-      routeLabel: routeErr !== undefined
-        ? `本地直连 · 路由解析失败：${routeErr.slice(0, 60)}`
-        : route.mode === 'cloud' ? '微信云端' : route.mode === 'cloud-sim' ? '模拟云端' : '本地直连',
-      bioOk: bio.ok,
-      bioText: bio.ok ? '生物识别可用 · 注入与解锁需本人验证' : (bio.reason ?? '生物识别不可用'),
-      enrolled: rec !== undefined,
-      enrolledProvider: rec?.provider ?? '',
-      enrolledBaseUrl: rec?.upstreamBaseUrl ?? '',
-      enrolledAt: rec !== undefined ? new Date(rec.enrolledAt).toLocaleString() : '',
-      enrollModel: rec?.model ?? activeModel,
-      injectModelLabel: byokLane.find((m) => m.id === activeModel)?.label ?? activeModel,
-      // 云端车道不预填 loopback 上游（真机上 127.0.0.1 无意义）——留空强制手填真实供应商地址
-      baseUrl:
-        this.data.baseUrl !== ''
-          ? this.data.baseUrl
-          : route.mode !== 'local' && (cfg?.upstreamBaseUrl ?? '').includes('127.0.0.1')
-            ? ''
-            : (cfg?.upstreamBaseUrl ?? ''),
-    })
-  },
-
-  onBaseUrlInput(event: WechatMiniprogram.Input) {
-    this.setData({ baseUrl: event.detail.value, enrollError: '' })
-  },
-
-  onApiKeyInput(event: WechatMiniprogram.Input) {
-    this.setData({ apiKey: event.detail.value, enrollError: '' })
-  },
-
-  async submitEnroll() {
-    if (this.data.enrollBusy || !this.data.bioOk) return
-    const cfg = loadDevConfig()
-    if (cfg === undefined) {
-      this.setData({ enrollError: 'dev-config 缺失：先运行 node scripts/fx-dev-config.mjs' })
-      return
-    }
-    const baseUrl = this.data.baseUrl.trim()
-    if (baseUrl.length === 0) {
-      this.setData({ enrollError: '请填写供应商地址' })
-      return
-    }
-    this.setData({ enrollBusy: true, enrollError: '' })
-    try {
-      const rec = await enrollProvider(resolveRoute(cfg), cfg, {
-        apiKey: this.data.apiKey.trim(),
-        upstreamBaseUrl: baseUrl,
-        model: this.data.enrollModel,
-      })
-      try {
-        fxRuntime.restartCore()
-      } catch (error) {
-        errorBus.report(error, { op: 'core-restart', lane: 'ui' })
-      }
-      this.setData({
-        apiKey: '',
-        enrolled: true,
-        enrolledProvider: rec.provider,
-        enrolledBaseUrl: rec.upstreamBaseUrl,
-        enrolledAt: new Date(rec.enrolledAt).toLocaleString(),
-        enrollModel: rec.model,
-      })
-      this.showToast('密钥已注入云端托管', 'success')
-    } catch (error) {
-      this.setData({ enrollError: messageOf(error) })
-      // enrollError 是专属内联面——进 silent 台账供诊断聚合不双弹（MN03-R1）。
-      reportSilent(error, { op: 'enroll-provider', lane: 'ui' })
-    } finally {
-      this.setData({ enrollBusy: false })
-    }
-  },
-
-  async revokeProvider() {
-    const cfg = loadDevConfig()
-    if (cfg === undefined) return
-    try {
-      await revokeEnrollment(resolveRoute(cfg), cfg)
-      try {
-        fxRuntime.restartCore()
-      } catch (error) {
-        errorBus.report(error, { op: 'core-restart', lane: 'ui' })
-      }
-      this.setData({ enrolled: false, enrolledProvider: '', enrolledBaseUrl: '', enrolledAt: '' })
-      this.showToast('已撤回云端密钥记录', 'info')
-    } catch (error) {
-      errorBus.report(error, { op: 'revoke-provider', lane: 'ui' })
-    }
+  /** 通用区「默认模型」行 → 独立模型配置页（业主 MN05-W4）。 */
+  openModelConfig() {
+    wx.navigateTo({ url: '/pages/models/models' })
   },
 
   copyFxLicense() {
@@ -554,14 +413,6 @@ function layoutStyle(metrics: ReturnType<typeof getWindowMetrics>): string {
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : '请求失败'
-}
-
-function safeRoute(cfg: Parameters<typeof resolveRoute>[0] | undefined): { mode: RouteMode; err?: string } {
-  try {
-    return { mode: resolveRoute(cfg ?? {}).mode }
-  } catch (e) {
-    return { mode: 'local', err: e instanceof Error ? e.message : String(e) }
-  }
 }
 
 function isSection(value: string | undefined): value is Section['id'] {

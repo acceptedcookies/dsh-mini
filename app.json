@@ -1,7 +1,8 @@
 {
   "pages": [
     "pages/workspace/workspace",
-    "pages/settings/settings"
+    "pages/settings/settings",
+    "pages/models/models"
   ],
   "subpackages": [
     {
@@ -37,6 +38,10 @@
       "packages": ["subpkg/kernel"]
     },
     "pages/settings/settings": {
+      "network": "all",
+      "packages": ["subpkg/fx"]
+    },
+    "pages/models/models": {
       "network": "all",
       "packages": ["subpkg/fx"]
     }

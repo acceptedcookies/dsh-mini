@@ -42,13 +42,34 @@
   box-shadow: var(--dsw-elevation-prominent);
 }
 
+/* 标题行：页名 + 关闭钮相邻（业主 MN05-W4：裸 × 在远处太隐蔽——
+ *  挪到标题文字右侧并给可视底色）。 */
 .settings-title {
   grid-area: title;
+  display: flex;
+  align-items: center;
+  gap: var(--dsw-space-8);
   padding: 22px var(--dsw-space-12) var(--dsw-space-8) var(--dsw-space-24);
   color: var(--dsw-alias-label-primary);
   font-size: var(--dsw-text-headline);
   line-height: var(--dsw-lh-24);
   font-weight: var(--dsw-weight-medium);
+}
+
+.settings-close {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-specific-sidebar-nav-item-active);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.settings-close:active {
+  background: var(--dsw-alias-interactive-bg-hover);
 }
 
 .settings-header {
@@ -59,22 +80,6 @@
   height: 54px;
   padding: var(--dsw-space-20) var(--dsw-space-14) var(--dsw-space-8) var(--dsw-space-10);
   box-sizing: border-box;
-}
-
-.settings-close {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--dsw-radius-sm);
-  color: var(--dsw-alias-label-primary);
-  font-size: var(--dsw-text-section);
-  line-height: var(--dsw-lh-28);
-}
-
-.settings-close:active {
-  background: var(--dsw-alias-interactive-bg-hover);
 }
 
 .settings-nav {
@@ -334,6 +339,8 @@
     width: 100%;
     max-width: none;
     height: 100%;
+    /* 基类卡片上限 800px 穿透到全屏面板→底部 74px 露出 page 底色（两层色）。 */
+    max-height: none;
     border-radius: 0;
   }
 
