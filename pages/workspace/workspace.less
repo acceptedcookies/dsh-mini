@@ -360,6 +360,8 @@
 /* 双钮并列一排（业主 MN05-W4 修正）：各半宽，中线分隔。 */
 .foot-btns {
   display: flex;
+  gap: var(--dsw-space-8);
+  padding: 0 var(--dsw-space-8);
 }
 
 .foot-row {
@@ -371,6 +373,8 @@
   gap: var(--dsw-space-6);
   height: 32px;
   border-radius: var(--dsw-radius-sm);
+  /* 浅底按钮化：interactive 浅底 token（浅 #f1f3f5 / 深 #2c2c2e），按压仍走 alpha hover。 */
+  background: var(--dsw-alias-interactive-bg-hover-solid);
   color: var(--dsw-alias-label-secondary);
   font-size: var(--dsw-text-label);
 }
