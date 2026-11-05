@@ -165,7 +165,8 @@
     </view>
   </view>
 
-  <!-- 向上弹窗抽屉 upDrawer：窄屏事件详情（壳层规范由 up-drawer 统一）。 -->
+  <!-- 向上弹窗抽屉 upDrawer：窄屏事件详情（壳层规范由 up-drawer 统一）。
+       kind 徽标入 badge 具名槽与标题同行；tab 条用 flush 密度贴槽边。 -->
   <up-drawer
     wx:if="{{!wide}}"
     visible="{{detail !== null}}"
@@ -173,10 +174,10 @@
     theme="{{theme}}"
     bind:close="closeDetail"
   >
+    <view slot="badge" class="traj-kind-tag traj-kind-{{detail.kind}}">{{detail.kindLabel}}</view>
     <view class="upd-fill">
-      <view class="traj-detail-tags">
-        <view class="traj-kind-tag traj-kind-{{detail.kind}}">{{detail.kindLabel}}</view>
-        <dsh-tabs variant="underline" density="compact" tabs="{{detail.tabs}}" active="{{detailTab}}" bind:change="onDetailTab" />
+      <view class="traj-detail-tabs">
+        <dsh-tabs variant="underline" density="flush" tabs="{{detail.tabs}}" active="{{detailTab}}" bind:change="onDetailTab" />
       </view>
       <scroll-view class="traj-details-body traj-sheet-body" scroll-y enhanced show-scrollbar="{{false}}">
       <block wx:if="{{detailTab === 'overview'}}">

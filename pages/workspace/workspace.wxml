@@ -245,7 +245,8 @@
         </view>
       </block>
 
-      <view class="bottom-anchor"></view>
+      <!-- 键盘升起时锚点增 kb 高——尾消息落在键盘上沿之上（dock 手动抬升配套）。 -->
+      <view class="bottom-anchor" style="height: {{24 + kb}}px;"></view>
     </scroll-view>
 
     <view wx:if="{{isWide && turnMarks.length}}" class="turn-rail">
@@ -258,7 +259,7 @@
       ></view>
     </view>
 
-    <view wx:if="{{state.current && !showHero}}" class="composer-dock safe-bottom {{view === 'trajectory' ? 'composer-dock-trajectory' : ''}}">
+    <view wx:if="{{state.current && !showHero}}" class="composer-dock safe-bottom {{view === 'trajectory' ? 'composer-dock-trajectory' : ''}}" style="transform: translateY(-{{kb}}px);">
       <view class="composer-dock-inner">
         <approval-sheet
           wx:if="{{approval !== null}}"
@@ -336,6 +337,7 @@
     bind:close="closeModelPicker"
   />
   <right-panel
+    id="right-panel"
     visible="{{rightOpen}}"
     active="{{rightTab}}"
     tabs="{{rightTabs}}"

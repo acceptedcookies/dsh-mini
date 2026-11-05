@@ -111,4 +111,60 @@
       </view>
     </block>
   </scroll-view>
+
+  <!-- 文件卡片：信息行 + 操作列（标准 dsh-dialog，替原生 ActionSheet/showModal）。 -->
+  <dsh-dialog
+    visible="{{cardPath !== ''}}"
+    title="{{cardTitle}}"
+    theme="{{theme}}"
+    cancelText="关闭"
+    confirmText=""
+    bind:cancel="closeCard"
+  >
+    <view class="fmd-info">
+      <view wx:for="{{cardInfo}}" wx:key="label" class="fmd-row">
+        <text class="fmd-label">{{item.label}}</text>
+        <text class="fmd-value" user-select>{{item.value}}</text>
+      </view>
+    </view>
+    <view class="fmd-actions">
+      <view wx:if="{{cardWritable}}" class="fmd-act" bindtap="onCardRename">
+        <dsh-icon name="edit-outline" tone="tertiary" theme="{{theme}}" size="{{15}}" />
+        <text class="fmd-act-label">重命名</text>
+      </view>
+      <view class="fmd-act" bindtap="onCardCopy">
+        <dsh-icon name="copy-outline" tone="tertiary" theme="{{theme}}" size="{{15}}" />
+        <text class="fmd-act-label">复制路径</text>
+      </view>
+      <view wx:if="{{cardWritable}}" class="fmd-act fmd-act-danger" bindtap="onCardDelete">
+        <dsh-icon name="trash-outline" tone="danger" theme="{{theme}}" size="{{15}}" />
+        <text class="fmd-act-label">删除</text>
+      </view>
+    </view>
+  </dsh-dialog>
+
+  <dsh-dialog
+    visible="{{renameVisible}}"
+    title="重命名"
+    theme="{{theme}}"
+    editable
+    value="{{renameValue}}"
+    placeholder="文件名"
+    cancelText="取消"
+    confirmText="重命名"
+    bind:cancel="onRenameCancel"
+    bind:confirm="onRenameConfirm"
+  />
+
+  <dsh-dialog
+    visible="{{deleteVisible}}"
+    title="删除文件"
+    description="{{deleteDesc}}"
+    theme="{{theme}}"
+    danger
+    cancelText="取消"
+    confirmText="删除"
+    bind:cancel="onDeleteCancel"
+    bind:confirm="onDeleteConfirm"
+  />
 </view>

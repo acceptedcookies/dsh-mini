@@ -1,13 +1,15 @@
 <!-- 向上弹窗抽屉 upDrawer：遮罩 + 固定 1/3 视口高的抽屉壳。 -->
 <view wx:if="{{render}}" class="upd-mask {{closing ? 'upd-mask-out' : ''}}" bindtap="onMask" catchtouchmove="noop"></view>
 <view wx:if="{{render}}" class="upd-sheet theme-{{theme}} {{closing ? 'upd-sheet-out' : ''}}" catchtouchmove="noop">
-  <!-- 关闭钮：居中、带底色、位于横杠之上（业主规范）。 -->
+  <!-- 关闭钮：外置——悬浮于抽屉上缘居中（遮罩之上），带底色圆片（业主规范）。 -->
   <view class="upd-close" bindtap="onClose">
     <dsh-icon name="close-outline" theme="{{theme}}" size="{{14}}" />
   </view>
-  <view class="upd-grab"></view>
   <view wx:if="{{title}}" class="upd-head">
-    <text class="upd-title">{{title}}</text>
+    <view class="upd-head-main">
+      <slot name="badge" />
+      <text class="upd-title">{{title}}</text>
+    </view>
     <text wx:if="{{subtitle}}" class="upd-subtitle">{{subtitle}}</text>
   </view>
   <view class="upd-body"><slot /></view>

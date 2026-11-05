@@ -659,23 +659,25 @@
   flex-direction: column;
 }
 
-/* 抽屉槽内：kind 徽标 + tab 条行（up-drawer 头行已含 location 标题）。 */
-.traj-detail-tags {
+/* 抽屉槽内：tab 条贴槽边（统一 gutter=--dsw-panel-x，与 up-drawer 头行
+ * 同距；dsh-tabs density=flush 无内边距——首个 tab 文字与分隔线都顶 gutter）。 */
+.traj-detail-tabs {
   flex: none;
-  display: flex;
-  flex-direction: column;
-  gap: var(--dsw-space-6);
-  padding: var(--dsw-space-8) var(--dsw-space-16) 0;
-}
-
-/* kind 徽标在列 flex 下自适应内容宽，不拉成全宽横条。 */
-.traj-detail-tags .traj-kind-tag {
-  align-self: flex-start;
+  padding: 0 var(--dsw-panel-x);
 }
 
 .traj-sheet-body {
   flex: 1;
   min-height: 0;
+  padding-top: var(--dsw-space-8);
+}
+
+/* 抽屉内容统一横向槽距（与头行/tab 线同一 gutter）。 */
+.traj-sheet-body .traj-overview-row,
+.traj-sheet-body .traj-preview,
+.traj-sheet-body .traj-pre {
+  padding-left: var(--dsw-panel-x);
+  padding-right: var(--dsw-panel-x);
 }
 
 @media (max-width: 620px) {

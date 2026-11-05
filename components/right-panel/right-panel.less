@@ -376,6 +376,69 @@
   line-height: var(--dsw-lh-20);
 }
 
+/* ── 文件卡片弹窗（dsh-dialog 槽内：信息行 + 操作列）── */
+
+.fmd-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dsw-space-2);
+}
+
+.fmd-row {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr);
+  gap: var(--dsw-space-8);
+  align-items: baseline;
+  min-height: 20px;
+}
+
+.fmd-label {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--dsw-text-caption);
+  line-height: var(--dsw-lh-18);
+}
+
+.fmd-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--dsw-text-caption);
+  line-height: var(--dsw-lh-18);
+}
+
+.fmd-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dsw-space-2);
+  margin-top: var(--dsw-space-14);
+  padding-top: var(--dsw-space-10);
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.fmd-act {
+  display: flex;
+  align-items: center;
+  gap: var(--dsw-space-10);
+  min-height: 40px;
+  padding: 0 var(--dsw-space-10);
+  border-radius: var(--dsw-radius-md);
+  color: var(--dsw-alias-label-primary);
+}
+
+.fmd-act:active {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.fmd-act-label {
+  font-size: var(--dsw-text-body);
+  line-height: var(--dsw-lh-22);
+}
+
+.fmd-act-danger,
+.fmd-act-danger .fmd-act-label {
+  color: var(--dsw-alias-state-error-primary);
+}
+
 @keyframes rp-in {
   from {
     opacity: 0;

@@ -8,6 +8,8 @@
     </view>
   </view>
 
+  <!-- adjust-position：hero 态用原生顶推（卡片居中天然在键盘上方）；
+       docked 态由页面监听键盘高度手动抬 dock——整页不被顶、输入条不被遮。 -->
   <textarea
     class="composer-input"
     value="{{value}}"
@@ -15,6 +17,7 @@
     placeholder-class="composer-placeholder"
     auto-height
     maxlength="-1"
+    adjust-position="{{hero}}"
     cursor-spacing="24"
     confirm-type="send"
     show-confirm-bar="{{false}}"

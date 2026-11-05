@@ -1,6 +1,7 @@
-/* 向上弹窗抽屉 upDrawer —— 壳层排版规范：
+/* 向上弹窗抽屉 upDrawer —— 壳层排版规范（v2）：
+ *   关闭钮：外置圆片，悬浮于抽屉上缘居中（top:-44px → 钮底距壳顶 14px）；
  *   字号层级：标题 label/medium-primary · 副标 micro-tertiary · 内容归消费者；
- *   间距节奏：关闭钮 28px 圆·上下 10px · 横杠 4px·顶 0 底 10 · 头行侧 16px；
+ *   横向槽距：统一 --dsw-panel-x（头行与槽内容同一 gutter，业主规范）；
  *   高度：33.333vh 固定；底部 safe-area + 12px 呼吸量。 */
 
 .upd-mask {
@@ -41,32 +42,28 @@
   animation: upd-sheet-out 160ms ease-in forwards;
 }
 
-/* 居中关闭钮——底色 layer-2，28px 触控圆，置于横杠之上。 */
+/* 外置关闭钮——悬浮于抽屉上缘居中（absolute 出流，落在遮罩上空）；
+ * layer-2 底 + hairline 边 + 投影：深/浅主题在遮罩上都读得出圆片形。 */
 .upd-close {
-  flex: none;
-  align-self: center;
+  position: absolute;
+  top: -44px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  margin-top: var(--dsw-space-10);
+  width: 30px;
+  height: 30px;
+  border: 0.5px solid var(--dsw-alias-border-l3);
   border-radius: var(--dsw-radius-circle, 999px);
   background: var(--dsw-alias-bg-layer-2);
   color: var(--dsw-alias-label-secondary);
+  box-shadow: var(--dsw-elevation-prominent);
 }
 
 .upd-close:active {
   background: var(--dsw-alias-interactive-bg-hover);
-}
-
-.upd-grab {
-  flex: none;
-  width: 32px;
-  height: 4px;
-  margin: var(--dsw-space-6) auto var(--dsw-space-10);
-  border-radius: var(--dsw-radius-hairline);
-  background: var(--dsw-alias-border-l4);
 }
 
 .upd-head {
@@ -74,11 +71,20 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 0 var(--dsw-space-16) var(--dsw-space-10);
-  border-bottom: 0.5px solid var(--dsw-alias-border-l3);
+  padding: var(--dsw-space-16) var(--dsw-panel-x) var(--dsw-space-10);
+}
+
+/* 标题主行：badge 具名槽（kind 徽标）与标题同行——与宽屏 inspector 同构。 */
+.upd-head-main {
+  display: flex;
+  align-items: center;
+  gap: var(--dsw-space-8);
+  min-width: 0;
 }
 
 .upd-title {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   color: var(--dsw-alias-label-primary);
   font-size: var(--dsw-text-label);

@@ -30,7 +30,7 @@
 
     <view class="dialog-footer">
       <view class="dialog-button" bindtap="cancel">{{cancelText}}</view>
-      <view class="dialog-button dialog-button-primary {{danger ? 'dialog-button-danger' : ''}} {{confirmDisabled ? 'dialog-button-disabled' : ''}}" bindtap="confirm">{{confirmText}}</view>
+      <view wx:if="{{confirmText}}" class="dialog-button dialog-button-primary {{danger ? 'dialog-button-danger' : ''}} {{confirmDisabled ? 'dialog-button-disabled' : ''}}" bindtap="confirm">{{confirmText}}</view>
     </view>
   </view>
 </view>

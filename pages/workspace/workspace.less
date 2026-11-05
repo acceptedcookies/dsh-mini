@@ -673,6 +673,8 @@
   flex: none;
   padding: var(--dsw-space-6) var(--dsw-inset-x) calc(var(--dsw-space-6) + env(safe-area-inset-bottom));
   background: var(--dsw-alias-bg-base);
+  /* 键盘升起时由 inline transform 抬升——smooth 随键盘动画。 */
+  transition: transform 120ms ease-out;
 }
 
 /* 条带跟随激活 tab 的内容面——轨迹视图铺 bg-layer-1，接缝即消（浅深双态同规则）。 */
@@ -1022,13 +1024,14 @@
 .engine-scroll {
   flex: 1;
   min-height: 0;
+  padding-top: var(--dsw-space-6);
 }
 
 .engine-option {
   display: flex;
   align-items: center;
   gap: var(--dsw-space-12);
-  margin: 0 var(--dsw-space-12) var(--dsw-space-8);
+  margin: 0 var(--dsw-panel-x) var(--dsw-space-8);
   padding: var(--dsw-space-12) var(--dsw-space-14);
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: var(--dsw-radius-md);

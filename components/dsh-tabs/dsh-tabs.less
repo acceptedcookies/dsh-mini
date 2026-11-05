@@ -101,6 +101,44 @@
   background: var(--dsw-alias-state-business-primary);
 }
 
+/* ── underline · flush：贴槽边——无横向内边距，首个 tab 文字顶容器左缘；
+ *   底部分隔线宽度=容器宽（由消费者 gutter 决定左右边距）。抽屉专用。── */
+.dtabs-underline-flush {
+  height: 36px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+  box-sizing: border-box;
+}
+
+.dtabs-underline-flush .dtab {
+  position: relative;
+  height: 36px;
+  padding: 0 var(--dsw-space-8) 0 0;
+  margin-right: var(--dsw-space-8);
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--dsw-text-label);
+  line-height: var(--dsw-lh-18);
+  box-sizing: border-box;
+}
+
+.dtabs-underline-flush .dtab:active {
+  color: var(--dsw-alias-label-primary);
+}
+
+.dtabs-underline-flush .dtab-on {
+  color: var(--dsw-alias-state-business-primary);
+}
+
+.dtabs-underline-flush .dtab-on::after {
+  content: '';
+  position: absolute;
+  right: var(--dsw-space-8);
+  bottom: -0.5px;
+  left: 0;
+  height: 2px;
+  border-radius: var(--dsw-radius-micro) var(--dsw-radius-micro) 0 0;
+  background: var(--dsw-alias-state-business-primary);
+}
+
 /* ── pill ── */
 .dtabs-pill .dtab {
   gap: var(--dsw-space-4);

@@ -63,6 +63,19 @@ Component({
     fileRows: [] as FileRow[],
     navErr: '',
     navLoading: false,
+    /** 文件卡片弹窗（dsh-dialog 化——信息行 + 操作列，替原生 ActionSheet/showModal）。 */
+    cardPath: '',
+    cardTitle: '',
+    cardInfo: [] as Array<{ label: string; value: string }>,
+    cardWritable: false,
+    /** 重命名弹窗（editable dsh-dialog）。 */
+    renamePath: '',
+    renameValue: '',
+    renameVisible: false,
+    /** 删除确认弹窗（danger dsh-dialog）。 */
+    deletePath: '',
+    deleteDesc: '',
+    deleteVisible: false,
   },
 
   observers: {
@@ -189,76 +202,99 @@ Component({
     onRowTap(event: WechatMiniprogram.TouchEvent) {
       const path = String(event.currentTarget.dataset.path ?? '')
       const kind = String(event.currentTarget.dataset.kind ?? '')
-      if (this.data.connected) {
-        const row = this.data.fileRows.find((r) => r.path === path)
-        if (row !== undefined) this.showDetail(row)
-        return
-      }
-      if (kind === 'dir') {
+      if (!this.data.connected && kind === 'dir') {
         this.loadLocal(path)
         return
       }
       const row = this.data.fileRows.find((r) => r.path === path)
-      if (row !== undefined) this.showDetail(row)
+      if (row !== undefined) this.openCard(row)
     },
 
     onRowMenu(event: WechatMiniprogram.TouchEvent) {
       const path = String(event.currentTarget.dataset.path ?? '')
       const row = this.data.fileRows.find((r) => r.path === path)
-      if (row === undefined) return
-      const canWrite = !this.data.connected && row.kind === 'file' && writableTo(row.path, this.data.sessionId)
-      const items = canWrite
-        ? ['详情', '重命名', '删除', '复制路径']
-        : ['详情', '复制路径']
-      wx.showActionSheet({
-        itemList: items,
-        success: (res) => {
-          const picked = items[res.tapIndex]
-          if (picked === '详情') this.showDetail(row)
-          else if (picked === '重命名') this.askRename(row)
-          else if (picked === '删除') this.askDelete(row)
-          else if (picked === '复制路径') {
-            wx.setClipboardData({ data: row.path })
-          }
-        },
-      })
+      if (row !== undefined) this.openCard(row)
     },
 
-    showDetail(row: FileRow) {
-      const lines = [`路径  ${row.path}`, `类型  ${row.kind === 'dir' ? '目录' : '文件'}`]
+    /** 文件卡片：信息行 + 操作列（详情/重命名/删除/复制路径同卡合一）。 */
+    openCard(row: FileRow) {
+      const info: Array<{ label: string; value: string }> = [
+        { label: '路径', value: row.path },
+        { label: '类型', value: row.kind === 'dir' ? '目录' : '文件' },
+      ]
       const storeRow = this.data.connected ? undefined : vfsStore.getRow(row.path)
       const size = storeRow?.size_bytes
-      if (size !== undefined) lines.push(`大小  ${formatBytes(size)}`)
+      if (size !== undefined) info.push({ label: '大小', value: formatBytes(size) })
       const mime = storeRow?.mime ?? row.mime
-      if (mime !== undefined && mime.length > 0) lines.push(`MIME  ${mime}`)
+      if (mime !== undefined && mime.length > 0) info.push({ label: 'MIME', value: mime })
       const hash = storeRow?.content_hash
-      if (hash !== undefined) lines.push(`SHA256  ${hash.replace(/^sha256:/, '').slice(0, 16)}…`)
+      if (hash !== undefined) info.push({ label: 'SHA256', value: `${hash.replace(/^sha256:/, '').slice(0, 16)}…` })
       const placement = storeRow?.placement
-      if (placement !== undefined) lines.push(`存储  ${placement}`)
-      if (storeRow?.updated_ms !== undefined) lines.push(`修改  ${formatRelative(storeRow.updated_ms)}`)
-      if (row.syncLabel.length > 0) lines.push(`同步  ${row.syncLabel}`)
-      wx.showModal({ title: row.name, content: lines.join('\n'), showCancel: false, confirmText: '关闭' })
+      if (placement !== undefined) info.push({ label: '存储', value: placement })
+      if (storeRow?.updated_ms !== undefined) info.push({ label: '修改', value: formatRelative(storeRow.updated_ms) })
+      if (row.syncLabel.length > 0) info.push({ label: '同步', value: row.syncLabel })
+      const canWrite = !this.data.connected && row.kind === 'file' && writableTo(row.path, this.data.sessionId)
+      this.setData({ cardPath: row.path, cardTitle: row.name, cardInfo: info, cardWritable: canWrite })
     },
 
-    askRename(row: FileRow) {
-      wx.showModal({
-        title: '重命名',
-        editable: true,
-        placeholderText: row.name,
-        content: row.name,
-        success: (res) => {
-          if (!res.confirm) return
-          const name = (res.content ?? '').trim()
-          if (name.length === 0 || name === row.name) return
-          if (/[/\\]|\.\./.test(name)) {
-            wx.showToast({ title: '文件名不能含 / \\ ..', icon: 'none' })
-            return
-          }
-          const dir = row.path.slice(0, row.path.lastIndexOf('/'))
-          const next = `${dir}/${name}`
-          this.renameFile(row.path, next)
-        },
+    closeCard() {
+      this.setData({ cardPath: '' })
+    },
+
+    onCardRename() {
+      const path = this.data.cardPath
+      const name = path.split('/').pop() ?? path
+      this.setData({ cardPath: '', renamePath: path, renameValue: name, renameVisible: true })
+    },
+
+    onCardCopy() {
+      const path = this.data.cardPath
+      this.setData({ cardPath: '' })
+      if (path.length > 0) wx.setClipboardData({ data: path })
+    },
+
+    onCardDelete() {
+      const path = this.data.cardPath
+      const name = this.data.cardTitle
+      this.setData({
+        cardPath: '',
+        deletePath: path,
+        deleteDesc: `确定删除「${name}」？此操作不可撤销。`,
+        deleteVisible: true,
       })
+    },
+
+    onRenameCancel() {
+      this.setData({ renameVisible: false, renamePath: '', renameValue: '' })
+    },
+
+    onRenameConfirm(event: WechatMiniprogram.CustomEvent<{ value?: string }>) {
+      const from = this.data.renamePath
+      const name = String(event.detail?.value ?? '').trim()
+      this.setData({ renameVisible: false, renamePath: '', renameValue: '' })
+      if (from.length === 0 || name.length === 0 || name === from.split('/').pop()) return
+      if (/[/\\]|\.\./.test(name)) {
+        wx.showToast({ title: '文件名不能含 / \\ ..', icon: 'none' })
+        return
+      }
+      const dir = from.slice(0, from.lastIndexOf('/'))
+      this.renameFile(from, `${dir}/${name}`)
+    },
+
+    onDeleteCancel() {
+      this.setData({ deleteVisible: false, deletePath: '' })
+    },
+
+    onDeleteConfirm() {
+      const path = this.data.deletePath
+      this.setData({ deleteVisible: false, deletePath: '' })
+      if (path.length === 0) return
+      try {
+        vfs.remove(path, { sessionId: this.data.sessionId })
+        this.loadLocal(this.data.navPath)
+      } catch (e) {
+        errorBus.report(e, { op: 'vfs-delete', lane: 'ui', path })
+      }
     },
 
     renameFile(from: string, to: string) {
@@ -283,24 +319,6 @@ Component({
       } catch (e) {
         errorBus.report(e, { op: 'vfs-rename', lane: 'ui', path: from })
       }
-    },
-
-    askDelete(row: FileRow) {
-      wx.showModal({
-        title: '删除文件',
-        content: `确定删除 ${row.name}？此操作不可撤销。`,
-        confirmText: '删除',
-        confirmColor: '#e5484d',
-        success: (res) => {
-          if (!res.confirm) return
-          try {
-            vfs.remove(row.path, { sessionId: this.data.sessionId })
-            this.loadLocal(this.data.navPath)
-          } catch (e) {
-            errorBus.report(e, { op: 'vfs-delete', lane: 'ui', path: row.path })
-          }
-        },
-      })
     },
   },
 })

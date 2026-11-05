@@ -2,6 +2,7 @@
   "component": true,
   "styleIsolation": "apply-shared",
   "usingComponents": {
+    "dsh-dialog": "/components/dsh-dialog/dsh-dialog",
     "dsh-icon": "/components/dsh-icon/dsh-icon",
     "dsh-tabs": "/components/dsh-tabs/dsh-tabs"
   }

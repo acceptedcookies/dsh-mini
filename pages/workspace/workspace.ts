@@ -166,6 +166,8 @@ let unsubscribeErr: (() => void) | undefined
 let refreshUnlockFlag: (() => void) | undefined
 let mintListenerBound = false
 let resizeHandler: ((result: WechatMiniprogram.OnWindowResizeListenerResult) => void) | undefined
+/** 键盘高度监听——docked composer 手动抬升（adjust-position=false 下整页不顶推）。 */
+let kbHandler: ((result: WechatMiniprogram.OnKeyboardHeightChangeListenerResult) => void) | undefined
 /** 按会话记住折叠的轮次。页面实例在热重载时会被换掉，所以不挂在 this 上。 */
 const foldedTurns = new Map<string, Set<number>>()
 let runClock: ReturnType<typeof setInterval> | undefined
@@ -207,6 +209,7 @@ Page({
       { id: 'trajectory', label: '轨迹' },
     ],
     atTail: true,
+    kb: 0,
     chatViewportHeight: 0,
     displayItems: [] as DisplayItem[],
     turnMarks: [] as TurnMark[],
@@ -333,6 +336,15 @@ Page({
       })
     }
     wx.onWindowResize(resizeHandler)
+
+    kbHandler = (result) => {
+      const kb = Math.max(0, Math.round(result.height))
+      if (kb === this.data.kb) return
+      this.setData({ kb })
+      // 键盘升起时把会话尾部顶到输入条上沿——保持最新消息可见。
+      if (kb > 0 && this.data.view === 'chat' && !this.data.showHero) this.scrollToBottom()
+    }
+    wx.onKeyboardHeightChange(kbHandler)
   },
 
   onReady() {
@@ -433,6 +445,10 @@ Page({
     if (resizeHandler !== undefined) {
       wx.offWindowResize(resizeHandler)
       resizeHandler = undefined
+    }
+    if (kbHandler !== undefined) {
+      wx.offKeyboardHeightChange(kbHandler)
+      kbHandler = undefined
     }
   },
 
