@@ -1,0 +1,130 @@
+/* 向上弹窗抽屉 upDrawer —— 壳层排版规范：
+ *   字号层级：标题 label/medium-primary · 副标 micro-tertiary · 内容归消费者；
+ *   间距节奏：关闭钮 28px 圆·上下 10px · 横杠 4px·顶 0 底 10 · 头行侧 16px；
+ *   高度：33.333vh 固定；底部 safe-area + 12px 呼吸量。 */
+
+.upd-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: var(--dsw-alias-bg-mask-1, rgba(0, 0, 0, 0.24));
+  animation: upd-mask-in 160ms ease-out;
+}
+
+.upd-mask-out {
+  animation: upd-mask-out 160ms ease-in forwards;
+}
+
+.upd-sheet {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1201;
+  display: flex;
+  flex-direction: column;
+  /* 组件 isolated——app 全局 view{box-sizing:border-box} 进不来，须自补；
+   * 否则 padding-bottom 会叠加到 height 上使抽屉超出 1/3 视口。 */
+  box-sizing: border-box;
+  /* 固定高=视口 1/3——内容超出由消费者自带 scroll-view（.upd-body 只给
+   *  flex 容器，不做全局滚动条以免 tab/头行被卷走）。 */
+  height: 33.333vh;
+  /* iPhone home 条/Android 手势条不重叠：safe-area + 12px 呼吸量。 */
+  padding-bottom: calc(env(safe-area-inset-bottom) + var(--dsw-space-12, 12px));
+  border-radius: var(--dsw-radius-xl) var(--dsw-radius-xl) 0 0;
+  background: var(--dsw-alias-bg-layer-1);
+  box-shadow: var(--dsw-elevation-prominent);
+  animation: upd-sheet-in 200ms cubic-bezier(0.2, 0.9, 0.25, 1);
+}
+
+.upd-sheet-out {
+  animation: upd-sheet-out 160ms ease-in forwards;
+}
+
+/* 居中关闭钮——底色 layer-2，28px 触控圆，置于横杠之上。 */
+.upd-close {
+  flex: none;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-top: var(--dsw-space-10);
+  border-radius: var(--dsw-radius-circle, 999px);
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.upd-close:active {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.upd-grab {
+  flex: none;
+  width: 32px;
+  height: 4px;
+  margin: var(--dsw-space-6) auto var(--dsw-space-10);
+  border-radius: var(--dsw-radius-hairline);
+  background: var(--dsw-alias-border-l4);
+}
+
+.upd-head {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 var(--dsw-space-16) var(--dsw-space-10);
+  border-bottom: 0.5px solid var(--dsw-alias-border-l3);
+}
+
+.upd-title {
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--dsw-text-label);
+  line-height: var(--dsw-lh-20);
+  font-weight: var(--dsw-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upd-subtitle {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--dsw-text-micro);
+  line-height: var(--dsw-lh-16);
+}
+
+/* 内容槽：只提供 flex 容器——长内容须自带 scroll-view 且挂 .upd-fill。 */
+.upd-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.upd-fill {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes upd-mask-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes upd-mask-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes upd-sheet-in {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes upd-sheet-out {
+  from { transform: translateY(0); }
+  to { transform: translateY(100%); }
+}

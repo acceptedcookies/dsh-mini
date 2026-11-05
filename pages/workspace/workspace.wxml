@@ -360,6 +360,41 @@
     bind:close="closeMenu"
     bind:select="onMenuSelect"
   />
+  <!-- 向上弹窗抽屉 upDrawer：新会话 runtime 选择（本地/云端引擎）。 -->
+  <up-drawer
+    visible="{{engineDrawerVisible}}"
+    title="新会话引擎"
+    subtitle="选择下一次新建会话的运行时"
+    theme="{{theme}}"
+    bind:close="closeEngineDrawer"
+  >
+    <view class="upd-fill">
+      <scroll-view class="engine-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+        <view
+          wx:for="{{engineOptions}}"
+          wx:key="id"
+          class="engine-option {{item.disabled ? 'engine-option-disabled' : ''}}"
+          hover-class="{{item.disabled ? '' : 'engine-option-hover'}}"
+          data-id="{{item.id}}"
+          bindtap="onEnginePick"
+        >
+          <view class="engine-option-icon">
+            <dsh-icon name="{{item.icon}}" theme="{{theme}}" size="{{18}}" />
+          </view>
+          <view class="engine-option-text">
+            <view class="engine-option-labelrow">
+              <text class="engine-option-label">{{item.label}}</text>
+              <text wx:if="{{item.badge}}" class="engine-option-badge">{{item.badge}}</text>
+            </view>
+            <text class="engine-option-desc">{{item.description}}</text>
+          </view>
+          <view class="engine-option-check">
+            <dsh-icon wx:if="{{item.checked}}" name="check-outline" theme="{{theme}}" size="{{16}}" />
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+  </up-drawer>
   <feedback-dialog
     visible="{{feedbackVisible}}"
     theme="{{theme}}"

@@ -648,58 +648,34 @@
   line-height: var(--dsw-lh-21);
 }
 
-/* Narrow bottom sheet */
+/* 窄屏事件详情 → 向上弹窗抽屉 upDrawer（壳层=components/up-drawer，1/3vh 固定高） */
 
-.traj-sheet-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 1200;
-  background: var(--dsw-alias-bg-mask-1);
-}
-
-.traj-sheet {
-  position: fixed;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 1201;
+/* 槽内容填充器：slot 内容由本组件样式着色（组件隔离下 up-drawer 的
+ *  .upd-fill 管不到槽内容）——与 .upd-body 的 flex 容器衔接撑满。 */
+.upd-fill {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  max-height: 72vh;
-  padding-bottom: env(safe-area-inset-bottom);
-  border-radius: var(--dsw-radius-xl) var(--dsw-radius-xl) 0 0;
-  background: var(--dsw-alias-bg-layer-1);
-  box-shadow: var(--dsw-elevation-prominent);
 }
 
-.traj-sheet-grab {
+/* 抽屉槽内：kind 徽标 + tab 条行（up-drawer 头行已含 location 标题）。 */
+.traj-detail-tags {
   flex: none;
-  width: 32px;
-  height: 4px;
-  margin: var(--dsw-space-8) auto 0;
-  border-radius: var(--dsw-radius-hairline);
-  background: var(--dsw-alias-border-l4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--dsw-space-6);
+  padding: var(--dsw-space-8) var(--dsw-space-16) 0;
 }
 
-.traj-sheet .traj-details-header {
-  height: 36px;
-  border-bottom: 0;
-  padding-top: 2px;
+/* kind 徽标在列 flex 下自适应内容宽，不拉成全宽横条。 */
+.traj-detail-tags .traj-kind-tag {
+  align-self: flex-start;
 }
 
 .traj-sheet-body {
-  max-height: calc(72vh - 90px);
-}
-
-@keyframes traj-sheet-out {
-  from {
-    transform: translateY(0);
-    opacity: 1;
-  }
-  to {
-    transform: translateY(24px);
-    opacity: 0;
-  }
+  flex: 1;
+  min-height: 0;
 }
 
 @media (max-width: 620px) {

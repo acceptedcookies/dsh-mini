@@ -122,31 +122,41 @@ const SESSION_MENU: MenuItem[] = [
   { id: 'delete', label: '删除会话', icon: 'trash-outline', danger: true },
 ]
 
-/** 工作区菜单（业主 MN03 裁决）：新会话 + 引擎选择——新会话的 runtime 在
- *  此处选（勾选=下一次建会话的引擎，持久跨启动）。设置/诊断移出此菜单
- *  （设置仍在侧栏底部入口；诊断在会话 ⋯ 菜单内）。 */
-function workspaceMenuItems(): MenuItem[] {
+interface EngineOption {
+  id: SessionEngine
+  label: string
+  icon: string
+  description: string
+  checked: boolean
+  disabled?: boolean
+  badge?: string
+}
+
+/** 引擎抽屉选项（业主 MN03）：本地引擎（nano-agent=默认，magpie=dev 指针
+ *  在位才出现）+ 云端引擎（未适配仅展示）。勾选=下一次建会话的 runtime，
+ *  持久跨启动——会话行徽标与诊断面同真源。 */
+function buildEngineOptions(): EngineOption[] {
   const pending = pendingEngine()
-  const items: MenuItem[] = [
-    { id: 'new-session', label: '新会话', icon: 'new-chat-outline' },
+  const options: EngineOption[] = [
     {
-      id: 'engine:nano-agent', label: '本地引擎 · nano-agent', icon: 'layers-outline',
+      id: 'nano-agent', label: '本地引擎', icon: 'layers-outline',
       checked: pending === 'nano-agent',
-      description: '本地运行时 + 你的 BYOK',
+      description: '本地运行时 nano-agent，直连你的 BYOK 上游',
     },
   ]
   if (magpieAvailable()) {
-    items.push({
-      id: 'engine:magpie', label: '本地引擎 · magpie', icon: 'api-outline',
+    options.push({
+      id: 'magpie', label: '本地引擎 · magpie', icon: 'api-outline',
       checked: pending === 'magpie', badge: 'dev',
-      description: '本地运行时 + 本机 magpie 网关',
+      description: '本地运行时，走本机 magpie 网关（开发测试）',
     })
   }
-  items.push({
-    id: 'engine:cloud', label: '云端引擎', icon: 'globe-outline',
-    disabled: true, description: '云端运行时未适配，暂不可选',
+  options.push({
+    id: 'cloud', label: '云端引擎', icon: 'globe-outline',
+    checked: false, disabled: true,
+    description: 'nano-agent 云端运行时——未适配，暂不可选',
   })
-  return items
+  return options
 }
 
 let unsubscribe: (() => void) | undefined
@@ -222,6 +232,8 @@ Page({
     menuStyle: '',
     menuContext: 'session' as MenuContext,
     menuTargetId: '',
+    engineDrawerVisible: false,
+    engineOptions: [] as EngineOption[],
     dialogVisible: false,
     dialogAction: 'rename' as DialogAction,
     dialogTargetId: '',
@@ -1039,9 +1051,22 @@ Page({
     if (question !== null) sessionStore.dismissQuestion(question.id)
   },
 
+  /** 新会话 runtime 选择 → 向上弹窗抽屉 upDrawer（业主 MN03）。 */
   openWorkspaceMenu() {
-    const selector = this.data.showHero ? '#workspace-menu-button' : '#workspace-menu-button-sidebar'
-    this.openMenu(selector, 'workspace', '', workspaceMenuItems(), '工作区')
+    this.setData({ engineDrawerVisible: true, engineOptions: buildEngineOptions() })
+  },
+
+  closeEngineDrawer() {
+    this.setData({ engineDrawerVisible: false })
+  },
+
+  onEnginePick(event: WechatMiniprogram.TouchEvent) {
+    const id = String(event.currentTarget.dataset.id ?? '') as SessionEngine
+    const option = this.data.engineOptions.find((o) => o.id === id)
+    if (option === undefined || option.disabled === true) return
+    setPendingEngine(id)
+    this.setData({ engineDrawerVisible: false })
+    this.showToast(`新会话将使用${engineLabel(id)}`, 'success')
   },
 
   onSessionMenu(event: WechatMiniprogram.TouchEvent) {
@@ -1096,14 +1121,8 @@ Page({
     const targetId = this.data.menuTargetId
     this.setData({ menuVisible: false })
     if (context === 'workspace') {
+      // 工作区芯片已改走 upDrawer 引擎抽屉——此分支仅兜历史入口残留。
       if (id === 'new-session') void this.newSession()
-      if (id.startsWith('engine:')) {
-        // 引擎选择=下一次建会话的 runtime（cloud 在菜单内 disabled 到不了这里）。
-        const engine = id.slice('engine:'.length) as SessionEngine
-        setPendingEngine(engine)
-        this.showToast(`新会话将使用${engineLabel(engine)}`, 'success')
-        return
-      }
       return
     }
     if (context === 'permission') {

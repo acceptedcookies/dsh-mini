@@ -432,10 +432,6 @@ Component({
       const id = String(event.detail?.id ?? 'overview') as DetailTab['id']
       this.setData({ detailTab: id })
     },
-
-    onDetailMask() {
-      this.closeDetail()
-    },
   },
 })
 

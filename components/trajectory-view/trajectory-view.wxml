@@ -165,24 +165,20 @@
     </view>
   </view>
 
-  <view
-    wx:if="{{!wide && detail}}"
-    class="traj-sheet-mask"
-    bindtap="onDetailMask"
-  ></view>
-  <view wx:if="{{!wide && detail}}" class="traj-sheet">
-    <view class="traj-sheet-grab"></view>
-    <view class="traj-details-header">
-      <view class="traj-details-title">
+  <!-- 向上弹窗抽屉 upDrawer：窄屏事件详情（壳层规范由 up-drawer 统一）。 -->
+  <up-drawer
+    wx:if="{{!wide}}"
+    visible="{{detail !== null}}"
+    title="{{detail.location}}"
+    theme="{{theme}}"
+    bind:close="closeDetail"
+  >
+    <view class="upd-fill">
+      <view class="traj-detail-tags">
         <view class="traj-kind-tag traj-kind-{{detail.kind}}">{{detail.kindLabel}}</view>
-        <text class="traj-details-location">{{detail.location}}</text>
+        <dsh-tabs variant="underline" density="compact" tabs="{{detail.tabs}}" active="{{detailTab}}" bind:change="onDetailTab" />
       </view>
-      <view class="traj-details-close" bindtap="closeDetail">
-        <dsh-icon name="close-outline" theme="{{theme}}" size="{{14}}" />
-      </view>
-    </view>
-    <dsh-tabs variant="underline" density="compact" tabs="{{detail.tabs}}" active="{{detailTab}}" bind:change="onDetailTab" />
-    <scroll-view class="traj-details-body traj-sheet-body" scroll-y enhanced show-scrollbar="{{false}}">
+      <scroll-view class="traj-details-body traj-sheet-body" scroll-y enhanced show-scrollbar="{{false}}">
       <block wx:if="{{detailTab === 'overview'}}">
         <view wx:for="{{detail.overview}}" wx:key="label" class="traj-overview-row">
           <text class="traj-overview-label">{{item.label}}</text>
@@ -213,6 +209,7 @@
       <block wx:elif="{{detailTab === 'thinking'}}">
         <text class="traj-pre traj-thinking">{{detail.thinking || '未记录思考'}}</text>
       </block>
-    </scroll-view>
-  </view>
+      </scroll-view>
+    </view>
+  </up-drawer>
 </view>

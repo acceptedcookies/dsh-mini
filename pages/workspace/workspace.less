@@ -1009,3 +1009,92 @@
   display: block;
   width: 100%;
 }
+
+/* 向上弹窗抽屉 upDrawer：引擎选项行（槽内容由页面样式着色——组件隔离下
+ *  up-drawer 的 .upd-fill 管不到槽内容，页面侧自备填充器）。 */
+.upd-fill {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.engine-scroll {
+  flex: 1;
+  min-height: 0;
+}
+
+.engine-option {
+  display: flex;
+  align-items: center;
+  gap: var(--dsw-space-12);
+  margin: 0 var(--dsw-space-12) var(--dsw-space-8);
+  padding: var(--dsw-space-12) var(--dsw-space-14);
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-radius-md);
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.engine-option-hover {
+  background: var(--dsw-alias-bg-layer-3);
+}
+
+.engine-option-disabled {
+  opacity: 0.45;
+}
+
+.engine-option-icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--dsw-radius-md);
+  color: var(--dsw-alias-label-secondary);
+  background: var(--dsw-alias-bg-layer-3);
+}
+
+.engine-option-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.engine-option-labelrow {
+  display: flex;
+  align-items: center;
+  gap: var(--dsw-space-6);
+}
+
+.engine-option-label {
+  font-size: var(--dsw-text-body);
+  line-height: var(--dsw-lh-21);
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary);
+}
+
+.engine-option-badge {
+  font-size: var(--dsw-text-caption);
+  line-height: var(--dsw-lh-16);
+  padding: 0 var(--dsw-space-6);
+  border-radius: var(--dsw-radius-hairline);
+  color: var(--dsw-alias-state-warn-label);
+  background: var(--dsw-alias-state-warn-tertiary);
+}
+
+.engine-option-desc {
+  font-size: var(--dsw-text-label);
+  line-height: var(--dsw-lh-18);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.engine-option-check {
+  flex: none;
+  width: 24px;
+  display: flex;
+  justify-content: center;
+  color: var(--dsw-alias-state-success-primary);
+}

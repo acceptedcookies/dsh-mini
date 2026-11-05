@@ -5,6 +5,7 @@
     "dsh-icon": "/components/dsh-icon/dsh-icon",
     "dsh-tabs": "/components/dsh-tabs/dsh-tabs",
     "markdown-view": "/components/markdown-view/markdown-view",
-    "reasoning-row": "/components/reasoning-row/reasoning-row"
+    "reasoning-row": "/components/reasoning-row/reasoning-row",
+    "up-drawer": "/components/up-drawer/up-drawer"
   }
 }
