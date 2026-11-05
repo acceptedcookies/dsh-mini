@@ -28,6 +28,7 @@ Component({
   properties: {
     toasts: { type: Array, value: [] as ErrorReport[] },
     modal: { type: Object, value: null as ErrorReport | null },
+    pending: { type: Number, value: 0 },
     theme: { type: String, value: 'light' },
   },
 
@@ -54,7 +55,9 @@ Component({
         if (!timers.has(report.id)) {
           const timer = setTimeout(() => {
             timers.delete(report.id)
-            this.triggerEvent('closetoast', { id: report.id })
+            // surface=toast 限定：若用户已「详情」升舱 modal，迟到的自动关
+            // 不得把 modal 关掉（MN03-R1 同帧竞态）。
+            this.triggerEvent('closetoast', { id: report.id, surface: 'toast' })
           }, DURATION[report.severity] ?? 5000)
           timers.set(report.id, timer)
         }
@@ -69,7 +72,7 @@ Component({
     modal(report: ErrorReport | null) {
       if (report === null) {
         if (this.data.modalRows.length > 0 || this.data.modalDetail !== '' || this.data.modalText !== '') {
-          this.setData({ modalRows: [], modalDetail: '', modalText: '' })
+          this.setData({ modalRows: [], modalDetail: '', modalText: '', modalIconName: 'warning-triangle-outline', modalIconTone: 'danger' })
         }
         return
       }
@@ -114,7 +117,7 @@ Component({
 
     onDismissToast(event: WechatMiniprogram.TouchEvent) {
       const id = String(event.currentTarget.dataset.id ?? '')
-      if (id.length > 0) this.triggerEvent('closetoast', { id })
+      if (id.length > 0) this.triggerEvent('closetoast', { id, surface: 'toast' })
     },
 
     onOpenDetail(event: WechatMiniprogram.TouchEvent) {

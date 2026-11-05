@@ -136,6 +136,76 @@ log("page:", await page.path);
   }
 }
 
+// ── I7: toast 手动关 tap（真实元素击面，R1 补 UI 形态断言）─────────────
+{
+  await mini.evaluate(() => { getApp().globalData.__errorBus.clear(); });
+  await mini.evaluate(() => {
+    getApp().globalData.__errorBus.report(new Error("io.llm upstream 429"), { op: "ide-close-probe" });
+  });
+  await new Promise((r) => setTimeout(r, 500));
+  const page = await mini.currentPage();
+  const closeEl = await page.$(".ec-toast-close");
+  check("I7a:toast 关闭钮元素存在", closeEl !== null && closeEl !== undefined);
+  if (closeEl) {
+    await closeEl.tap();
+    await new Promise((r) => setTimeout(r, 400));
+    const toasts = await page.data("errToasts");
+    check("I7b:手动关 tap→errToasts 清空", (toasts ?? []).length === 0, `remaining=${(toasts ?? []).length}`);
+  }
+}
+
+// ── I8: toast 自动关计时（warn=5s 真实计时器）─────────────────────────
+{
+  await mini.evaluate(() => { getApp().globalData.__errorBus.clear(); });
+  await mini.evaluate(() => {
+    getApp().globalData.__errorBus.report(new Error("request:fail timeout"), { op: "ide-auto-probe" });
+  });
+  await new Promise((r) => setTimeout(r, 400));
+  const page = await mini.currentPage();
+  const before = await page.data("errToasts");
+  await new Promise((r) => setTimeout(r, 5800));
+  const after = await page.data("errToasts");
+  check("I8:warn toast 5s 自动关", (before ?? []).length === 1 && (after ?? []).length === 0, `before=${(before ?? []).length} after=${(after ?? []).length}`);
+}
+
+// ── I9: 「详情」tap 升舱 modal + 复制全文真进剪贴板 ──────────────────────
+{
+  await mini.evaluate(() => { getApp().globalData.__errorBus.clear(); });
+  await mini.evaluate(() => {
+    getApp().globalData.__errorBus.report(new Error("io.llm upstream 503: ide-detail"), { op: "ide-probe", sessionId: "ide-s9" });
+  });
+  await new Promise((r) => setTimeout(r, 400));
+  const page = await mini.currentPage();
+  // upstream-503 本就是 modal——先关，再用 toast 形态测升舱
+  await mini.evaluate(() => { getApp().globalData.__errorBus.clear(); });
+  await mini.evaluate(() => {
+    getApp().globalData.__errorBus.report(new Error("request:fail timeout"), { op: "ide-probe", sessionId: "ide-s9" });
+  });
+  await new Promise((r) => setTimeout(r, 400));
+  const detailEl = await page.$(".ec-toast-detail");
+  check("I9a:「详情」入口存在", detailEl !== null && detailEl !== undefined);
+  if (detailEl) {
+    await detailEl.tap();
+    await new Promise((r) => setTimeout(r, 400));
+    const modal = await page.data("errModal");
+    const toasts = await page.data("errToasts");
+    check("I9b:详情 tap→toast 升舱 modal", modal !== null && modal !== undefined && modal.code === "network-timeout" && (toasts ?? []).length === 0, JSON.stringify(modal && modal.code));
+    // 复制全文 → wx.getClipboardData 回读验证（真剪贴板链）
+    const copyBtn = await page.$(".ec-modal-foot dsh-button");
+    if (copyBtn) {
+      await copyBtn.tap();
+      await new Promise((r) => setTimeout(r, 600));
+      const clip = await mini.evaluate(() => new Promise((res) => {
+        wx.getClipboardData({ success: (r2) => res(typeof r2.data === "string" ? r2.data.slice(0, 200) : ""), fail: () => res("") });
+      }));
+      check("I9c:复制全文→剪贴板含 code/session 行", typeof clip === "string" && clip.includes("code: network-timeout") && clip.includes("sessionId: ide-s9"), JSON.stringify((clip ?? "").slice(0, 80)));
+      await mini.evaluate(() => { const m = getApp().globalData.__errorBus.state().modal; if (m) getApp().globalData.__errorBus.dismiss(m.id, "modal"); });
+    } else {
+      check("I9c:modal 复制钮存在", false, "copy button element not found");
+    }
+  }
+}
+
 // ── I6: 错误台账进 diagnostics bundle（同 bus 真源）─────────────────
 {
   const d = await mini.evaluate(() => {

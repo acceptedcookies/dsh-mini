@@ -16,6 +16,7 @@ import type {
   StepDecision,
   SweepResult,
 } from './types'
+import { errorBus } from '../error-report'
 
 const ST = 'dsh-mini/state'
 const CL = 'dsh-mini/claims'
@@ -224,6 +225,11 @@ async function rearmOrDrop(ctx: PumpCtx, key: string, rec: AlarmRecord, reason: 
   const attempts = (Number.isFinite(rec.attempts) ? (rec.attempts as number) : 0) + 1
   if (attempts >= 5) {
     console.warn(`[pump] sweepTick ${rec.sessionId} 重臂 ${attempts} 次仍 ${reason}——alarm 消费放弃（如实止损）`)
+    // 恢复意图真放弃=用户可见事件（MN03-R1）——toast 非静默台账。
+    errorBus.report(
+      { code: 'alarm-abandoned', message: `后台恢复 ${rec.sessionId} 重试 ${attempts} 次仍 ${reason}——已放弃`, retryable: false },
+      { op: 'alarm-rearm', lane: 'background', sessionId: rec.sessionId },
+    )
     await ctx.io.state.del(key)
     return
   }

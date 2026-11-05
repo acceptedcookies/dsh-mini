@@ -1,4 +1,5 @@
 import { markdownSegments, type MarkdownSegment, type MarkdownTheme } from '../../services/markdown'
+import { errorBus } from '../../services/error-report'
 
 const COPIED_MS = 1200
 
@@ -61,6 +62,7 @@ Component({
           }, COPIED_MS)
           this.setData({ copyTimer: next })
         },
+        fail: (err) => errorBus.report(err, { op: 'clipboard', lane: 'ui' }),
       })
     },
   },

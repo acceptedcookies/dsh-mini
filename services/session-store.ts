@@ -268,7 +268,7 @@ class SessionStore {
     try {
       await this.runtime.answerApproval(approvalId, outcome)
     } catch (error) {
-      this.reportError(error, 'answerApproval')
+      this.reportError(error, 'answerApproval', this.state.current?.sessionId)
       this.setState({ error: messageOf(error) })
     }
   }
@@ -278,7 +278,7 @@ class SessionStore {
     try {
       await this.runtime.answerQuestion(questionId, answers)
     } catch (error) {
-      this.reportError(error, 'answerQuestion')
+      this.reportError(error, 'answerQuestion', this.state.current?.sessionId)
       this.setState({ error: messageOf(error) })
     }
   }

@@ -107,6 +107,7 @@ const SESSION_MENU: MenuItem[] = [
 
 const WORKSPACE_MENU: MenuItem[] = [
   { id: 'new-session', label: '新会话', icon: 'new-chat-outline' },
+  { id: 'diagnostics', label: '诊断', icon: 'info-outline' },
   { id: 'settings', label: '设置', icon: 'settings-outline' },
 ]
 
@@ -193,6 +194,7 @@ Page({
     toastTone: 'info',
     errToasts: [] as ErrorReport[],
     errModal: null as ErrorReport | null,
+    errPending: 0,
     runStartedAt: 0,
     runLabel: '深度求索中',
     commandMenuVisible: false,
@@ -242,7 +244,7 @@ Page({
     if (unsubscribe !== undefined) unsubscribe()
     unsubscribe = sessionStore.subscribe((state) => this.apply(state))
     if (unsubscribeErr !== undefined) unsubscribeErr()
-    unsubscribeErr = errorBus.subscribe((bus) => this.setData({ errToasts: bus.toasts, errModal: bus.modal ?? null }))
+    unsubscribeErr = errorBus.subscribe((bus) => this.setData({ errToasts: bus.toasts, errModal: bus.modal ?? null, errPending: bus.pendingCount }))
 
     if (runClock !== undefined) clearInterval(runClock)
     runClock = setInterval(() => {
@@ -948,7 +950,11 @@ Page({
     this.setData({ model, modelLabel, modelPickerVisible: false })
     // fx 车道生效模型在 core 启动时注入 env——不重启则 chip 显示与生效模型
     // 静默不一致（与设置页 selectModel 同构，UI 审查 F9；未启动时为空操作）。
-    fxRuntime.restartCore()
+    try {
+      fxRuntime.restartCore()
+    } catch (error) {
+      errorBus.report(error, { op: 'model-switch', lane: 'ui' })
+    }
   },
 
   onApprovalRespond(event: WechatMiniprogram.CustomEvent<{ approvalId: string; outcome: ApprovalOutcome }>) {
@@ -1022,6 +1028,7 @@ Page({
     this.setData({ menuVisible: false })
     if (context === 'workspace') {
       if (id === 'new-session') void this.newSession()
+      if (id === 'diagnostics') this.exportDiagnostics('')
       if (id === 'settings') this.openSettings()
       return
     }
@@ -1165,8 +1172,8 @@ Page({
 
   // ── error-center 事件面（MN03 G1）──────────────────────────────
 
-  onErrToastClose(event: WechatMiniprogram.CustomEvent<{ id: string }>) {
-    errorBus.dismiss(event.detail.id)
+  onErrToastClose(event: WechatMiniprogram.CustomEvent<{ id: string; surface?: string }>) {
+    errorBus.dismiss(event.detail.id, event.detail.surface === 'toast' ? 'toast' : undefined)
   },
 
   onErrDetail(event: WechatMiniprogram.CustomEvent<{ id: string }>) {
@@ -1175,7 +1182,7 @@ Page({
 
   onErrModalClose() {
     const modal = this.data.errModal
-    if (modal !== null) errorBus.dismiss(modal.id)
+    if (modal !== null) errorBus.dismiss(modal.id, 'modal')
   },
 
   onErrCopied() {

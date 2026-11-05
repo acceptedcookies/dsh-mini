@@ -1,3 +1,5 @@
+import { errorBus } from './error-report'
+
 const THEME_KEY = 'dsh:theme:v2'
 const LAST_SESSION_KEY = 'dsh:last-session:v2'
 const SESSIONS_KEY = 'dsh:sessions:v2'
@@ -15,13 +17,23 @@ function readStorage<T>(key: string): T | undefined {
   return value === '' || value === undefined ? undefined : value
 }
 
+/** 写失败经 errorBus 标准化（quota→storage-quota modal）后吞错——caller 继续
+ *  优雅降级而非未捕获异常；用户经错误面被告知存储满而非静默丢写（MN03-R1）。 */
+function writeSafe(key: string, value: unknown, op: string): void {
+  try {
+    wx.setStorageSync(key, value)
+  } catch (e) {
+    errorBus.report(e, { op: `storage.${op}`, lane: 'ui' })
+  }
+}
+
 export const storage = {
   getTheme(): 'light' | 'dark' | undefined {
     const value = readStorage<'light' | 'dark'>(THEME_KEY)
     return value === 'light' || value === 'dark' ? value : undefined
   },
   setTheme(value: 'light' | 'dark'): void {
-    wx.setStorageSync(THEME_KEY, value)
+    writeSafe(THEME_KEY, value, 'setTheme')
   },
   clearTheme(): void {
     wx.removeStorageSync(THEME_KEY)
@@ -30,7 +42,7 @@ export const storage = {
     return readStorage<string>(LAST_SESSION_KEY)
   },
   setLastSessionId(value: string): void {
-    wx.setStorageSync(LAST_SESSION_KEY, value)
+    writeSafe(LAST_SESSION_KEY, value, 'setLastSessionId')
   },
   clearLastSessionId(): void {
     wx.removeStorageSync(LAST_SESSION_KEY)
@@ -40,25 +52,25 @@ export const storage = {
     return Array.isArray(value) ? value : undefined
   },
   setSessions<T>(value: T[]): void {
-    wx.setStorageSync(SESSIONS_KEY, value)
+    writeSafe(SESSIONS_KEY, value, 'setSessions')
   },
   getModel(): string | undefined {
     return readStorage<string>(MODEL_KEY)
   },
   setModel(value: string): void {
-    wx.setStorageSync(MODEL_KEY, value)
+    writeSafe(MODEL_KEY, value, 'setModel')
   },
   getPermission(): string | undefined {
     return readStorage<string>(PERMISSION_KEY)
   },
   setPermission(value: string): void {
-    wx.setStorageSync(PERMISSION_KEY, value)
+    writeSafe(PERMISSION_KEY, value, 'setPermission')
   },
   getPlanMode(): boolean | undefined {
     return readStorage<boolean>(PLAN_KEY)
   },
   setPlanMode(value: boolean): void {
-    wx.setStorageSync(PLAN_KEY, value)
+    writeSafe(PLAN_KEY, value, 'setPlanMode')
   },
   getGoal(): string | undefined {
     return readStorage<string>(GOAL_KEY)
@@ -71,23 +83,23 @@ export const storage = {
     const ratings = this.getFeedbackRatings()
     if (rating.length === 0) delete ratings[messageId]
     else ratings[messageId] = rating
-    wx.setStorageSync(FEEDBACK_RATINGS_KEY, ratings)
+    writeSafe(FEEDBACK_RATINGS_KEY, ratings, 'setFeedbackRating')
   },
   addFeedback(text: string, meta: { rating?: string; category?: string; messageId?: string } = {}): void {
     const list = readStorage<Array<{ text: string; at: number; rating?: string; category?: string; messageId?: string }>>(FEEDBACK_KEY) ?? []
     const next = [...list, { text, at: Date.now(), ...meta }].slice(-20)
-    wx.setStorageSync(FEEDBACK_KEY, next)
+    writeSafe(FEEDBACK_KEY, next, 'addFeedback')
   },
   setGoal(value: string): void {
     if (value.length === 0) wx.removeStorageSync(GOAL_KEY)
-    else wx.setStorageSync(GOAL_KEY, value)
+    else writeSafe(GOAL_KEY, value, 'setGoal')
   },
   /** BYOK 注入记录（非密：provider/base_url/model/时间，绝不含 api_key）。 */
   getEnrollment<T>(): T | undefined {
     return readStorage<T>(ENROLLMENT_KEY)
   },
   setEnrollment<T>(value: T): void {
-    wx.setStorageSync(ENROLLMENT_KEY, value)
+    writeSafe(ENROLLMENT_KEY, value, 'setEnrollment')
   },
   clearEnrollment(): void {
     wx.removeStorageSync(ENROLLMENT_KEY)

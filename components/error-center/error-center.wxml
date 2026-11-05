@@ -15,6 +15,7 @@
         <dsh-icon name="close-outline" tone="secondary" theme="{{theme}}" size="{{13}}" />
       </view>
     </view>
+    <view wx:if="{{pending > 0}}" class="ec-more">还有 {{pending}} 条错误待显示</view>
   </view>
 
   <view wx:if="{{modal}}" class="ec-modal-layer" catchtouchmove="noop">

@@ -27,6 +27,10 @@ export interface ErrorDiagnostics {
   model?: string
   sessionId?: string
   url?: string
+  /** VFS/远端对象路径或键（remote-sync 失败定位用）。 */
+  path?: string
+  key?: string
+  workspace?: string
   status?: number
   retryable?: boolean
   /** 原始堆栈（复制全文/诊断用）。 */
@@ -105,6 +109,8 @@ const TAXONOMY: Record<string, Taxon> = {
     hint: '上游限流（429）。稍后重试。' },
   'upstream-5xx': { category: 'upstream', severity: 'error', surface: 'modal', title: '上游服务错误', retryable: true,
     hint: '上游 5xx。稍后重试；持续出现请查上游状态。' },
+  'alarm-abandoned': { category: 'runtime', severity: 'warn', surface: 'toast', title: '后台恢复放弃', retryable: false,
+    hint: '挂起的轮次多次恢复失败已止损。重新发送消息可重新开始。' },
   'storage-quota': { category: 'storage', severity: 'error', surface: 'modal', title: '本地存储已满', retryable: false,
     hint: 'wx.storage 配额不足。清理会话/图片后重试。' },
   'vfs-access': { category: 'vfs', severity: 'error', surface: 'modal', title: '文件系统访问被拒', retryable: false },
@@ -119,14 +125,15 @@ const TAXONOMY: Record<string, Taxon> = {
   'unknown-error': { category: 'unknown', severity: 'error', surface: 'modal', title: '未知错误', retryable: true },
 }
 
-const CODE_TABLE: Array<{ pattern: RegExp; code: string }> = [
-  { pattern: /cancelled|已停止|abort/i, code: 'cancelled' },
+/** SPECIFIC 表先行：domain 锚定词（不与 http status/自由文本碰撞）。
+ *  GENERIC 表后置：status 抽取之后——'upstream 503 aborted' 里的 abort/timeout
+ *  属上游返回体内容，不得抢分类（审查 MN03-R1：真错误曾被 abort→cancelled 静默）。 */
+const SPECIFIC_TABLE: Array<{ pattern: RegExp; code: string }> = [
   { pattern: /ticket-required|ticket required/i, code: 'ticket-required' },
   { pattern: /image-resolve-failed/i, code: 'image-resolve-failed' },
   { pattern: /kernel-unavailable|kernel 分包不可加载/i, code: 'kernel-unavailable' },
   { pattern: /claim-denied|fenced|写者冲突/i, code: 'fenced' },
   { pattern: /step-exhausted|步数耗尽/i, code: 'step-exhausted' },
-  { pattern: /killed|被中断/i, code: 'killed' },
   { pattern: /pump-error/i, code: 'pump-error' },
   { pattern: /read-only-path|unsafe-workspace-path|path-not-found/i, code: 'vfs-access' },
   { pattern: /hash-mismatch|bytes-missing|sha256|校验/i, code: 'vfs-integrity' },
@@ -134,10 +141,16 @@ const CODE_TABLE: Array<{ pattern: RegExp; code: string }> = [
   { pattern: /tool-call-failed|tool-requires-local-vfs/i, code: 'tool-call-failed' },
   { pattern: /会话不存在|not found.*session|session.*missing/i, code: 'session-missing' },
   { pattern: /仍在运行|still running/i, code: 'session-busy' },
-  { pattern: /路由解析失败|route|localRuntimeRoute|缺少 upstreamBaseUrl/i, code: 'route-config' },
+  { pattern: /localRuntimeRoute|路由解析失败|缺少 upstreamBaseUrl|route-config/i, code: 'route-config' },
   { pattern: /quota|setStorageSync|存储|exceed.*size/i, code: 'storage-quota' },
+  { pattern: /alarm.*(abandon|放弃)|重臂.*放弃|alarm-abandoned/i, code: 'alarm-abandoned' },
+]
+
+const GENERIC_TABLE: Array<{ pattern: RegExp; code: string }> = [
+  { pattern: /cancelled|已停止|^request:fail abort|user cancell?ed|\babort(ed)?\b/i, code: 'cancelled' },
   { pattern: /timed?\s*out|timeout|超时/i, code: 'network-timeout' },
-  { pattern: /ECONNREFUSED|ENOTFOUND|EAI_AGAIN|ECONNRESET|fetch failed|socket|request:fail|网络|offline|不可达|连接失败|NetworkError/i, code: 'network-error' },
+  { pattern: /ECONNREFUSED|ENOTFOUND|EAI_AGAIN|ECONNRESET|ENETUNREACH|EHOSTUNREACH|no route to host|fetch failed|socket|request:fail|网络|offline|不可达|连接失败|NetworkError/i, code: 'network-error' },
+  { pattern: /killed|被中断/i, code: 'killed' },
   { pattern: /image|图片/i, code: 'image-resolve-failed' },
 ]
 
@@ -152,18 +165,23 @@ function httpStatusOf(message: string): number | undefined {
 function taxonFor(code: string, message: string): { code: string; taxon: Taxon; status?: number } {
   const known = TAXONOMY[code]
   if (known !== undefined) return { code, taxon: known }
-  // message 启发式：先走 code 表（真实码面），再走 http status 抽取。
-  for (const row of CODE_TABLE) {
+  // 序：domain 锚定码 → http status（≥400 才抢分类）→ 自由文本启发式。
+  for (const row of SPECIFIC_TABLE) {
     if (row.pattern.test(code) || row.pattern.test(message)) {
       return { code: row.code, taxon: TAXONOMY[row.code] ?? TAXONOMY['unknown-error'] }
     }
   }
   const status = httpStatusOf(message) ?? httpStatusOf(code)
-  if (status !== undefined) {
+  if (status !== undefined && status >= 400) {
     if (status === 401 || status === 403) return { code: `upstream-${status}`, taxon: TAXONOMY['upstream-auth'], status }
     if (status === 429 || status === 408) return { code: `upstream-${status}`, taxon: TAXONOMY['rate-limit'], status }
     if (status >= 500) return { code: `upstream-${status}`, taxon: TAXONOMY['upstream-5xx'], status }
-    if (status >= 400) return { code: `upstream-${status}`, taxon: TAXONOMY['upstream-4xx'], status }
+    return { code: `upstream-${status}`, taxon: TAXONOMY['upstream-4xx'], status }
+  }
+  for (const row of GENERIC_TABLE) {
+    if (row.pattern.test(code) || row.pattern.test(message)) {
+      return { code: row.code, taxon: TAXONOMY[row.code] ?? TAXONOMY['unknown-error'] }
+    }
   }
   return { code: code.length > 0 ? code : 'unknown-error', taxon: TAXONOMY['unknown-error'] }
 }
@@ -249,6 +267,8 @@ export function reportText(report: ErrorReport): string {
 
 const LOG_CAP = 64
 const TOAST_CAP = 3
+/** 溢出队列上界——错误风暴下队尾丢新（台账仍全记），队列不炸内存（MN03-R1）。 */
+const QUEUE_CAP = 16
 const DEDUPE_MS = 1500
 
 export interface ErrorBusState {
@@ -271,44 +291,60 @@ class ErrorBus {
     const report = input !== null && typeof input === 'object' && 'diagnostics' in (input as Record<string, unknown>)
       ? input as ErrorReport
       : classifyError(input, ctx)
-    // dedupe 同窗：同 code+sessionId 且未关闭 → 计数合并不重复弹。
+    // dedupe：同 code+sessionId 且仍开着 → 计数合并不重复弹（ts 保首现不滑窗——
+    // 持续同错合并到关闭为止，不会再弹新 toast，MN03-R1 修滑动窗漂移）。
     const peer = this.findOpen(report.code, report.diagnostics.sessionId)
-    if (peer !== undefined && report.ts - peer.ts < DEDUPE_MS) {
+    if (peer !== undefined) {
       peer.count += 1
-      peer.ts = report.ts
       this.bumpLog(peer)
       this.publish()
       return peer
     }
+    // silent 面 dedupe：无 open surface 可扫——与最近台账同窗合并，
+    // 防 tool-call-failed 高频流水把 64 行 ring buffer 冲干（MN03-R1）。
+    if (report.surface === 'silent') {
+      const tail = this.logTailPeer(report.code, report.diagnostics.sessionId)
+      if (tail !== undefined && report.ts - tail.ts < DEDUPE_MS) {
+        tail.count += 1
+        this.publish()
+        return tail
+      }
+    }
     this.pushLog(report)
     if (report.surface === 'toast') {
       if (this.toasts.length < TOAST_CAP) this.toasts.push(report)
-      else this.toastQueue.push(report)
+      else if (this.toastQueue.length < QUEUE_CAP) this.toastQueue.push(report)
+      // 队列满→降级 silent（已入台账，诊断可见）——风暴下不无限积压。
     } else if (report.surface === 'modal') {
       if (this.modalActive === undefined) this.modalActive = report
-      else this.modalQueue.push(report)
+      else if (this.modalQueue.length < QUEUE_CAP) this.modalQueue.push(report)
+      // 同上——modal 风暴降级台账。
     }
     // silent → 仅 log（诊断聚合面，不弹）。
     this.publish()
     return report
   }
 
-  /** toast 手动关/自动关；modal 手动关→提拔队列下一个。 */
-  dismiss(id: string): void {
-    const ti = this.toasts.findIndex((r) => r.id === id)
-    if (ti !== -1) {
-      this.toasts.splice(ti, 1)
-      const next = this.toastQueue.shift()
-      if (next !== undefined) this.toasts.push(next)
-      this.publish()
-      return
+  /** toast 手动关/自动关；modal 手动关→提拔队列下一个。
+   *  surface 限定防同帧竞态：toast 的自动关回调不得关掉刚升舱的 modal（R1）。 */
+  dismiss(id: string, surface?: 'toast' | 'modal'): void {
+    if (surface !== 'modal') {
+      const ti = this.toasts.findIndex((r) => r.id === id)
+      if (ti !== -1) {
+        this.toasts.splice(ti, 1)
+        const next = this.toastQueue.shift()
+        if (next !== undefined) this.toasts.push(next)
+        this.publish()
+        return
+      }
+      const qi = this.toastQueue.findIndex((r) => r.id === id)
+      if (qi !== -1) {
+        this.toastQueue.splice(qi, 1)
+        this.publish()
+        return
+      }
     }
-    const qi = this.toastQueue.findIndex((r) => r.id === id)
-    if (qi !== -1) {
-      this.toastQueue.splice(qi, 1)
-      this.publish()
-      return
-    }
+    if (surface === 'toast') return
     if (this.modalActive?.id === id) {
       this.modalActive = this.modalQueue.shift()
       this.publish()
@@ -321,7 +357,7 @@ class ErrorBus {
     }
   }
 
-  /** toast「详情」升 modal：从 toast 面摘除并入 modal 队列头。 */
+  /** toast「详情」升 modal：从 toast 面摘除并入 modal 队尾（FIFO，不抢已在队 modal）。 */
   openDetail(id: string): void {
     const ti = this.toasts.findIndex((r) => r.id === id)
     if (ti === -1) return
@@ -329,7 +365,7 @@ class ErrorBus {
     const next = this.toastQueue.shift()
     if (next !== undefined) this.toasts.push(next)
     if (this.modalActive === undefined) this.modalActive = report
-    else this.modalQueue.unshift(report)
+    else this.modalQueue.push(report)
     this.publish()
   }
 
@@ -364,6 +400,16 @@ class ErrorBus {
     return this.toasts.find(match) ?? this.toastQueue.find(match) ?? (match(this.modalActive) ? this.modalActive : undefined) ?? this.modalQueue.find(match)
   }
 
+  /** silent dedupe 面：只扫台账尾段（近 16 行）——同码同会话的连续流合并计数。 */
+  private logTailPeer(code: string, sessionId: string | undefined): ErrorReport | undefined {
+    const from = Math.max(0, this.log.length - 16)
+    for (let i = this.log.length - 1; i >= from; i -= 1) {
+      const r = this.log[i]
+      if (r.code === code && r.diagnostics.sessionId === sessionId) return r
+    }
+    return undefined
+  }
+
   private pushLog(report: ErrorReport): void {
     this.log.push(report)
     if (this.log.length > LOG_CAP) this.log.splice(0, this.log.length - LOG_CAP)
@@ -384,3 +430,11 @@ class ErrorBus {
 }
 
 export const errorBus = new ErrorBus()
+
+/** 静默台账便捷面：分类后强制 silent 入 bus——后台/best-effort 错误面统一写法
+ *  （有专属 UI 面或不弹窗语义的失败不双弹，诊断聚合仍可见，MN03-R1）。 */
+export function reportSilent(input: unknown, ctx: ErrorDiagnostics = {}): ErrorReport {
+  const report = classifyError(input, ctx)
+  report.surface = 'silent'
+  return errorBus.report(report)
+}

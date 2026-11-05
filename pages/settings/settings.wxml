@@ -442,4 +442,15 @@
     theme="{{theme}}"
     bind:close="closeToast"
   />
+  <error-center
+    toasts="{{errToasts}}"
+    modal="{{errModal}}"
+    pending="{{errPending}}"
+    theme="{{theme}}"
+    bind:closetoast="onErrToastClose"
+    bind:detail="onErrDetail"
+    bind:closemodal="onErrModalClose"
+    bind:copied="onErrCopied"
+    bind:copyfailed="onErrCopyFailed"
+  />
 </view>

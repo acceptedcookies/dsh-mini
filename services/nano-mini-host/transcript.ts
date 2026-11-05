@@ -7,6 +7,7 @@
  * 指针是消费回执不是真源——远端行是真源，指针只记上行水位。
  */
 import { vfsRemoteFor } from '../state/provider'
+import { reportSilent } from '../error-report'
 import { hasFreshTicket } from '../fx/ticket'
 import { encodeUtf8, decodeUtf8 } from '../fx/utf8'
 import type { ChatItem } from '../../types/protocol'
@@ -148,5 +149,6 @@ export async function dropTranscript(sessionId: string): Promise<void> {
     for (const k of keys) await remote.del(k)
   } catch (e) {
     console.warn(`[transcript] drop ${sessionId} 远端行清理失败:`, e instanceof Error ? e.message : e)
+    reportSilent(e, { op: 'transcript-drop', lane: 'background', sessionId })
   }
 }

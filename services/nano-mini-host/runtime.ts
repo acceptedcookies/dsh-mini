@@ -15,6 +15,7 @@ import type {
   SessionSummary,
 } from '../../types/protocol'
 import { markdownToHtml, plainText } from '../markdown'
+import { reportSilent } from '../error-report'
 import { storage } from '../storage'
 import { randomId } from '../../utils/uuid'
 import { ioStateFor, ensureDurableTicket } from '../state/provider'
@@ -433,6 +434,8 @@ export class KernelMiniRuntime {
       return r
     } catch (e) {
       console.warn(`[transcript] sync ${sessionId} 失败（会话不受影响）:`, e instanceof Error ? e.message : e)
+      // 上行失败 fire-and-forget（later settlement 重试）——silent 台账供诊断聚合。
+      reportSilent(e, { op: 'transcript-sync', lane: 'background', sessionId })
       return null
     }
   }

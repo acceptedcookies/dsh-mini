@@ -1,6 +1,6 @@
 // app.ts
 import { getTheme, watchSystemTheme } from './services/theme'
-import { classifyError, errorBus } from './services/error-report'
+import { errorBus, reportSilent } from './services/error-report'
 import { sessionDiagnostics } from './services/diagnostics'
 import { vfs, vfsReadView, vfsStore } from './services/vfs/api'
 import { setVfsMirrorHook } from './services/vfs/vfs'
@@ -27,7 +27,8 @@ function wireRemoteMirror(): void {
       if (rep.failed.length > 0) console.warn('[vfs-mirror] reconcile 残留失败:', rep.failed)
     } catch (e) {
       console.warn('[vfs-mirror] reconcile 失败（远端不可达——写路径仍先推）:', e instanceof Error ? e.message : e)
-      errorBus.report(e, { op: 'vfs-mirror', lane: 'background' })
+      // 后台 reconcile 是 best-effort 兜底——silent 台账不弹（MN03-R1）。
+      reportSilent(e, { op: 'vfs-mirror', lane: 'background' })
     }
   }
   // 后台面铁律：无活票据不碰远端——铸票=SOTER 须用户手势上下文（审查 B8）。
@@ -44,9 +45,7 @@ function wireRemoteMirror(): void {
     p.then(() => reconcile()).catch((e) => {
       console.warn(`[vfs-mirror] ${kind} ${path} 推送失败（reconcile 兜底）:`, e instanceof Error ? e.message : e)
       // 高频面——每次写都可能撞远端不可达，仅入 silent 台账不弹（reconcile 兜底）。
-      const report = classifyError(e, { op: 'vfs-push', lane: 'background' })
-      report.surface = 'silent'
-      errorBus.report(report)
+      reportSilent(e, { op: 'vfs-push', lane: 'background', path })
     })
   })
   onTicketMinted(() => reconcile())
@@ -80,7 +79,7 @@ App<IAppOption>({
     // T-O-9：启动 catch-up（sweep due 闹钟/恢复挂起 turn）——catch 住防 unhandled rejection
     nanoMiniCatchUp().catch((e) => {
       console.warn('[nano-mini] catchUp failed:', e)
-      errorBus.report(e, { op: 'catch-up', lane: 'background' })
+      reportSilent(e, { op: 'catch-up', lane: 'background' })
     })
     wireRemoteMirror()
   },

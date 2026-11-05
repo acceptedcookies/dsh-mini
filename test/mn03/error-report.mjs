@@ -27,8 +27,8 @@ const bundle = async (entry, plugins = []) => {
   return mod.exports
 }
 
-const { classifyError, errorBus, reportText } = await bundle(
-  `import { classifyError, errorBus, reportText } from '${repo}/services/error-report'; export { classifyError, errorBus, reportText }`,
+const { classifyError, errorBus, reportText, reportSilent } = await bundle(
+  `import { classifyError, errorBus, reportText, reportSilent } from '${repo}/services/error-report'; export { classifyError, errorBus, reportText, reportSilent }`,
 )
 
 // ── taxonomy：已知 code 注册表 ─────────────────────────────────────
@@ -91,6 +91,20 @@ const { classifyError, errorBus, reportText } = await bundle(
   check('T9:事件 retryable 覆盖 taxon 默认', ev.diagnostics.retryable === false)
 }
 
+// ── 分类序防误伤（MN03-R1 修复）：status/具体域锚定先于自由文本 ────────────
+{
+  const c1 = classifyError(new Error('io.llm upstream 503 aborted'))
+  check('M1:upstream 503 aborted→upstream-503（不被 abort 吞成 cancelled）', c1.code === 'upstream-503' && c1.surface === 'modal' && c1.category === 'upstream', `code=${c1.code} surface=${c1.surface}`)
+  const c2 = classifyError(new Error('io.llm upstream 504 request timed out'))
+  check('M2:status 抽取先于 timeout 启发式', c2.code === 'upstream-504' && c2.category === 'upstream')
+  const c3 = classifyError(new Error('upstream 429 retry aborted'))
+  check('M3:429+abort→rate-limit toast', c3.code === 'upstream-429' && c3.surface === 'toast')
+  const c4 = classifyError(new Error('request:fail abort'))
+  check('M4:纯用户 abort 仍归 cancelled silent', c4.code === 'cancelled' && c4.surface === 'silent')
+  const c5 = classifyError({ type: 'error', code: 'alarm-abandoned', message: '后台恢复 s1 重试 5 次仍 pump-error——已放弃', retryable: false })
+  check('M5:alarm-abandoned→runtime warn toast', c5.code === 'alarm-abandoned' && c5.category === 'runtime' && c5.surface === 'toast')
+}
+
 // ── bus：surface 路由 + dedupe + cap + 队列 ─────────────────────────
 {
   errorBus.clear()
@@ -107,6 +121,36 @@ const { classifyError, errorBus, reportText } = await bundle(
   const promoted = st2.toasts[0].id
   errorBus.dismiss(promoted)
   check('B3:dismiss 提拔队列 toast', errorBus.state().toasts.length === 3 && errorBus.state().pendingCount === 1)
+  // 非滑窗 dedupe：合并保留首条 report 对象（id/ts 不漂，R1 修复）
+  errorBus.clear()
+  const first = errorBus.report(new Error('request:fail timeout'), { sessionId: 'ns1' })
+  const merged = errorBus.report(new Error('request:fail timeout'), { sessionId: 'ns1' })
+  check('B3b:dedupe 合并保留首条对象（id/ts 不滑窗）', merged.id === first.id && merged.ts === first.ts && merged.count === 2)
+}
+
+// ── bus：surface 限定 dismiss + FIFO openDetail（R1 修复）──────────────
+{
+  errorBus.clear()
+  errorBus.report(new Error('io.llm upstream 500'), { sessionId: 'sd' }) // modal active
+  errorBus.report(new Error('io.llm upstream 502'), { sessionId: 'sd' }) // modal queued
+  errorBus.report(new Error('request:fail timeout'), { sessionId: 'sd' }) // toast
+  const tid = errorBus.state().toasts[0].id
+  errorBus.dismiss(tid, 'modal') // 同 id 指定 modal 面——不得误删 toast
+  check('B3c:surface 限定 dismiss(modal) 不动 toast', errorBus.state().toasts.length === 1)
+  errorBus.openDetail(tid) // 升舱 FIFO：进 modalQueue 尾（modal-502 之后）
+  const st = errorBus.state()
+  check('B3d:openDetail 升舱入队尾（FIFO）', st.toasts.length === 0 && st.pendingCount === 2)
+  errorBus.dismiss(st.modal.id, 'modal')
+  const next = errorBus.state()
+  check('B3e:dismiss modal 提拔 502（升舱的 toast 仍在队尾）', next.modal?.code === 'upstream-502')
+  // toast 自动关回调带 surface=toast——不得关掉 modal（同帧竞态，R1）
+  errorBus.clear()
+  errorBus.report(new Error('request:fail timeout'))
+  const autoTid = errorBus.state().toasts[0].id
+  errorBus.report(new Error('io.llm upstream 503'))
+  errorBus.dismiss(autoTid, 'toast')
+  const st2 = errorBus.state()
+  check('B3f:surface=toast dismiss 不伤 modal', st2.toasts.length === 0 && st2.modal?.code === 'upstream-503')
 }
 
 // ── bus：modal 队列 + openDetail 升舱 ──────────────────────────────
@@ -130,14 +174,38 @@ const { classifyError, errorBus, reportText } = await bundle(
 // ── bus：silent 面 + ring buffer cap + recent ───────────────────────
 {
   errorBus.clear()
+  // 不同 sessionId 破 dedupe 键——70 条相异 silent 才走 cap 面（R1 后同键合并）。
   for (let i = 0; i < 70; i += 1) {
-    const r = classifyError(new Error(`silent-${i}`))
+    const r = classifyError(new Error(`silent-${i}`), { sessionId: `cap${i}` })
     r.surface = 'silent'
     errorBus.report(r)
   }
   const st = errorBus.state()
   check('B7:silent 不弹仅台账 + cap64', st.toasts.length === 0 && st.modal === undefined && errorBus.recent(100).length === 64, `recent=${errorBus.recent(100).length}`)
   check('B8:recent 保尾部序', errorBus.recent(1)[0].message === 'silent-69')
+  // silent dedupe（R1）：同窗同码同会话的连续 silent 合并计数，不冲 ring buffer
+  errorBus.clear()
+  for (let i = 0; i < 30; i += 1) reportSilent(new Error('request:fail timeout'), { sessionId: 'sil1' })
+  const tail = errorBus.recent(10)
+  const same = tail.filter((r) => r.code === 'network-timeout' && r.diagnostics.sessionId === 'sil1')
+  check('B8b:silent 同窗 dedupe 合并计数', same.length === 1 && same[0].count === 30, `entries=${same.length} count=${same[0]?.count}`)
+}
+
+// ── storage.writeSafe：quota 抛错→errorBus 标准化（R1 修复）────────────
+{
+  // 同 bundle 实例外——storage 与 bus 须同模块图
+  const { storage: stg, errorBus: bus3 } = await bundle(
+    `import { storage } from '${repo}/services/storage';
+     import { errorBus } from '${repo}/services/error-report';
+     export { storage, errorBus }`,
+  )
+  bus3.clear()
+  const orig = wx.setStorageSync
+  wx.setStorageSync = () => { throw new Error('setStorageSync:fail exceed storage size limit') }
+  stg.setModel('deepseek-chat')
+  wx.setStorageSync = orig
+  const hits = bus3.recent(10).filter((r) => r.code === 'storage-quota' && r.diagnostics.op === 'storage.setModel')
+  check('S1:writeSafe quota→storage-quota modal + op 落 diagnostics', hits.length === 1 && hits[0].surface === 'modal' && hits[0].category === 'storage', hits.map((r) => `${r.code}@${r.diagnostics.op}`).join(','))
 }
 
 // ── reportText 全文（复制错误全文共享渲染）───────────────────────────

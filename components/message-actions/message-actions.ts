@@ -1,4 +1,5 @@
 import { formatMessageClock } from '../../utils/time'
+import { errorBus } from '../../services/error-report'
 
 const COPY_RESET_MS = 1600
 
@@ -36,13 +37,18 @@ Component({
   methods: {
     copy() {
       if (this.properties.text.length === 0) return
-      wx.setClipboardData({ data: this.properties.text })
-      const timer = this.data.copyTimer as ReturnType<typeof setTimeout> | 0
-      if (timer !== 0) clearTimeout(timer)
-      const next = setTimeout(() => {
-        this.setData({ copied: false, copyTimer: 0 })
-      }, COPY_RESET_MS)
-      this.setData({ copied: true, copyTimer: next })
+      wx.setClipboardData({
+        data: this.properties.text,
+        success: () => {
+          const timer = this.data.copyTimer as ReturnType<typeof setTimeout> | 0
+          if (timer !== 0) clearTimeout(timer)
+          const next = setTimeout(() => {
+            this.setData({ copied: false, copyTimer: 0 })
+          }, COPY_RESET_MS)
+          this.setData({ copied: true, copyTimer: next })
+        },
+        fail: (err) => errorBus.report(err, { op: 'clipboard', lane: 'ui' }),
+      })
     },
 
     like() {

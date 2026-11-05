@@ -18,12 +18,14 @@ function chooseImage(): Promise<string> {
   })
 }
 
-/** 选择一张图片，返回小程序本地临时路径；不经过任何服务器。 */
+/** 选择一张图片，返回小程序本地临时路径；不经过任何服务器。
+ *  仅用户主动取消安静返回——权限拒绝/chooseMedia 失败上抛进 errorBus（MN03-R1）。 */
 export async function pickImage(): Promise<ImageRef | undefined> {
-  try {
-    const path = await chooseImage()
-    return { id: randomId('image'), url: path }
-  } catch {
-    return undefined
-  }
+  const path = await chooseImage().catch((e) => {
+    const msg = e instanceof Error ? e.message : String(e)
+    if (/cancel/i.test(msg)) return undefined
+    throw e
+  })
+  if (path === undefined) return undefined
+  return { id: randomId('image'), url: path }
 }

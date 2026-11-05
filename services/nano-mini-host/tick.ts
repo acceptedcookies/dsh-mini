@@ -10,6 +10,7 @@ import { loadKernelAsync } from './kernel-loader'
 import { sweepTick, type PumpCtx } from './pump'
 import { createIoTool } from './io/tool'
 import { createIoLlm } from './io/llm'
+import { reportSilent } from '../error-report'
 import type { Io } from './types'
 
 const PENDING_KEY = 'dsh:mini:pending-catchup'
@@ -57,9 +58,9 @@ async function doCatchUp(): Promise<string[]> {
 export function nanoMiniStartTick(): void {
   if (timer !== undefined) return
   const pending = wx.getStorageSync(PENDING_KEY) as boolean | '' | undefined
-  if (pending === true) nanoMiniCatchUp().catch((e) => console.warn('[nano-mini] pending catchUp failed:', e))
+  if (pending === true) nanoMiniCatchUp().catch((e) => { console.warn('[nano-mini] pending catchUp failed:', e); reportSilent(e, { op: 'catchUp', lane: 'background' }) })
   timer = setInterval(() => {
-    nanoMiniCatchUp().catch((e) => console.warn('[nano-mini] tick catchUp failed:', e))
+    nanoMiniCatchUp().catch((e) => { console.warn('[nano-mini] tick catchUp failed:', e); reportSilent(e, { op: 'tick', lane: 'background' }) })
   }, TICK_MS)
 }
 

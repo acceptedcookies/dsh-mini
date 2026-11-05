@@ -21,6 +21,7 @@ import {
 } from '../../services/fx/enrollment'
 import { fxRuntime } from '../../services/fx/runtime'
 import { vfsStore } from '../../services/vfs/api'
+import { errorBus, reportSilent, type ErrorReport } from '../../services/error-report'
 import { getWindowMetrics } from '../../utils/window'
 
 type ThemeMode = 'system' | 'light' | 'dark'
@@ -45,6 +46,8 @@ const SECTIONS: Section[] = [
   { id: 'conversations', label: '会话', icon: 'list-pen-outline' },
   { id: 'about', label: '关于', icon: 'info-outline' },
 ]
+
+let unsubscribeErr: (() => void) | undefined
 
 Page({
   data: {
@@ -108,9 +111,14 @@ Page({
     s3Configured: false,
     s3ConfiguredAt: '',
     s3Error: '',
+    errToasts: [] as ErrorReport[],
+    errModal: null as ErrorReport | null,
+    errPending: 0,
   },
 
   onLoad(options: Record<string, string | undefined>) {
+    if (unsubscribeErr !== undefined) unsubscribeErr()
+    unsubscribeErr = errorBus.subscribe((bus) => this.setData({ errToasts: bus.toasts, errModal: bus.modal ?? null, errPending: bus.pendingCount }))
     const section = options.section
     const theme = getTheme()
     applyNavigationBar(theme, 'layer-2')
@@ -163,7 +171,34 @@ Page({
   },
 
   onUnload() {
+    if (unsubscribeErr !== undefined) {
+      unsubscribeErr()
+      unsubscribeErr = undefined
+    }
     applyNavigationBar(getTheme())
+  },
+
+  // ── error-center 事件面（MN03 G1，与 workspace 同构）─────────────
+
+  onErrToastClose(event: WechatMiniprogram.CustomEvent<{ id: string; surface?: string }>) {
+    errorBus.dismiss(event.detail.id, event.detail.surface === 'toast' ? 'toast' : undefined)
+  },
+
+  onErrDetail(event: WechatMiniprogram.CustomEvent<{ id: string }>) {
+    errorBus.openDetail(event.detail.id)
+  },
+
+  onErrModalClose() {
+    const modal = this.data.errModal
+    if (modal !== null) errorBus.dismiss(modal.id, 'modal')
+  },
+
+  onErrCopied() {
+    this.showToast('错误全文已复制', 'success')
+  },
+
+  onErrCopyFailed() {
+    this.showToast('复制失败', 'error')
   },
 
   onPermission(event: WechatMiniprogram.TouchEvent) {
@@ -199,7 +234,11 @@ Page({
     storage.setModel(option.id)
     this.setData({ model: option.id, modelLabel: option.label, injectModelLabel: option.label })
     // 本地 fx 运行时的生效模型在 core 启动时注入 env，切换后需重启生效（未启动时为空操作）
-    fxRuntime.restartCore()
+    try {
+      fxRuntime.restartCore()
+    } catch (error) {
+      errorBus.report(error, { op: 'model-switch', lane: 'ui' })
+    }
   },
 
   async refreshByok() {
@@ -263,7 +302,11 @@ Page({
         upstreamBaseUrl: baseUrl,
         model: this.data.enrollModel,
       })
-      fxRuntime.restartCore()
+      try {
+        fxRuntime.restartCore()
+      } catch (error) {
+        errorBus.report(error, { op: 'core-restart', lane: 'ui' })
+      }
       this.setData({
         apiKey: '',
         enrolled: true,
@@ -275,6 +318,8 @@ Page({
       this.showToast('密钥已注入云端托管', 'success')
     } catch (error) {
       this.setData({ enrollError: messageOf(error) })
+      // enrollError 是专属内联面——进 silent 台账供诊断聚合不双弹（MN03-R1）。
+      reportSilent(error, { op: 'enroll-provider', lane: 'ui' })
     } finally {
       this.setData({ enrollBusy: false })
     }
@@ -285,17 +330,24 @@ Page({
     if (cfg === undefined) return
     try {
       await revokeEnrollment(resolveRoute(cfg), cfg)
-      fxRuntime.restartCore()
+      try {
+        fxRuntime.restartCore()
+      } catch (error) {
+        errorBus.report(error, { op: 'core-restart', lane: 'ui' })
+      }
       this.setData({ enrolled: false, enrolledProvider: '', enrolledBaseUrl: '', enrolledAt: '' })
       this.showToast('已撤回云端密钥记录', 'info')
     } catch (error) {
-      this.showToast(messageOf(error), 'error')
+      errorBus.report(error, { op: 'revoke-provider', lane: 'ui' })
     }
   },
 
   copyFxLicense() {
-    wx.setClipboardData({ data: FX_LICENSE_URL })
-    this.showToast('fx 许可地址已复制（Apache-2.0 · vercel-labs/fx）', 'info')
+    wx.setClipboardData({
+      data: FX_LICENSE_URL,
+      success: () => this.showToast('fx 许可地址已复制（Apache-2.0 · vercel-labs/fx）', 'info'),
+      fail: (err) => errorBus.report(err, { op: 'clipboard', lane: 'ui' }),
+    })
   },
 
   onS3EndpointInput(event: WechatMiniprogram.Input) {
@@ -319,13 +371,25 @@ Page({
       this.setData({ s3Error: 'endpoint 与 bucket 必填' })
       return
     }
-    vfsStore.setS3Config({ endpoint, bucket, region, path_style: true, configured_ms: Date.now() })
+    try {
+      vfsStore.setS3Config({ endpoint, bucket, region, path_style: true, configured_ms: Date.now() })
+    } catch (error) {
+      this.setData({ s3Error: messageOf(error) })
+      reportSilent(error, { op: 's3-config', lane: 'ui' })
+      return
+    }
     this.setData({ s3Configured: true, s3ConfiguredAt: new Date().toLocaleString(), s3Error: '' })
     this.showToast('S3 配置已登记（占位 · 后端未启用）', 'info')
   },
 
   clearS3Config() {
-    vfsStore.clearS3Config()
+    try {
+      vfsStore.clearS3Config()
+    } catch (error) {
+      this.setData({ s3Error: messageOf(error) })
+      reportSilent(error, { op: 's3-config-clear', lane: 'ui' })
+      return
+    }
     this.setData({ s3Endpoint: '', s3Bucket: '', s3Region: '', s3Configured: false, s3ConfiguredAt: '', s3Error: '' })
     this.showToast('已清除 S3 配置', 'info')
   },
@@ -355,11 +419,17 @@ Page({
   },
 
   async onDialogConfirm() {
-    if (this.data.dialogAction === 'clear') {
-      await sessionStore.clearAll()
-    } else {
-      await sessionStore.clearAll()
-      storage.clearAll()
+    try {
+      if (this.data.dialogAction === 'clear') {
+        await sessionStore.clearAll()
+      } else {
+        await sessionStore.clearAll()
+        storage.clearAll()
+      }
+    } catch (error) {
+      this.setData({ dialogVisible: false })
+      errorBus.report(error, { op: this.data.dialogAction === 'clear' ? 'clear-sessions' : 'reset-all', lane: 'ui' })
+      return
     }
     this.setData({ dialogVisible: false })
     wx.reLaunch({ url: '/pages/workspace/workspace' })
@@ -404,6 +474,7 @@ Page({
       this.showToast(this.data.authMode === 'register' ? '账户已创建并连接' : '已连接 nano-agent', 'success')
     } catch (error) {
       this.setData({ authError: messageOf(error) })
+      reportSilent(error, { op: 'email-auth', lane: 'ui' })
     } finally {
       this.setData({ authBusy: false })
     }
@@ -419,14 +490,20 @@ Page({
       this.showToast('已通过微信登录', 'success')
     } catch (error) {
       this.setData({ authError: messageOf(error) })
+      reportSilent(error, { op: 'wechat-auth', lane: 'ui' })
     } finally {
       this.setData({ authBusy: false })
     }
   },
 
   async signOut() {
-    nanoRuntime.signOut()
-    await sessionStore.reinitialize()
+    try {
+      nanoRuntime.signOut()
+      await sessionStore.reinitialize()
+    } catch (error) {
+      errorBus.report(error, { op: 'sign-out', lane: 'ui' })
+      return
+    }
     this.setData({
       nanoConnected: false,
       nanoUser: '',

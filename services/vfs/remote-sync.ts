@@ -18,6 +18,7 @@ import { localObjects } from './objects'
 import { VfsError } from './paths'
 import { sha256Hex } from './sha256'
 import { encodeUtf8, decodeUtf8 } from '../fx/utf8'
+import { reportSilent } from '../error-report'
 import type { RemoteVfs } from './remote'
 
 const SYNC_KEY = 'dsh:vfs:v1:sync'
@@ -151,6 +152,7 @@ export function createVfsSync(remote: RemoteVfs) {
       // 碑写入自身可抛（storage 配额）——删除意图不因此丢失：远端 del 照常，
       // 远端 del 成功即收敛；仅「碑缺席+远端 del 也失败」留复活面（如实 warn，审查五轮）。
       console.warn(`[remote-sync] setTomb 失败 ${path}（复活防护缺席）:`, e instanceof Error ? e.message : e)
+      reportSilent(e, { op: 'vfs-tomb', lane: 'background', path })
     }
     await remote.del(rowKey(path))
     // 远端已删=删除意图落地——碑使命完成即清，否则每删一碑永久积压（审查五轮）。
@@ -178,9 +180,10 @@ export function createVfsSync(remote: RemoteVfs) {
       let row: VfsRow
       try {
         row = JSON.parse(dec(r.bytes)) as VfsRow
-      } catch {
+      } catch (e) {
         // 坏行如实 warn——静默跳过会让毒化行永远缺席且无面可查（审查 B8）。
         console.warn(`[remote-sync] pullRows 跳过坏行 ${key}`)
+        reportSilent(e, { op: 'vfs-pull-rows', lane: 'background', key })
         continue
       }
       const tomb = tombstones()[path]
@@ -190,7 +193,7 @@ export function createVfsSync(remote: RemoteVfs) {
           // 重删成功即清碑（使命完成），失败留碑下轮重试（审查五轮）。
           void remote.del(key)
             .then(() => clearTomb(path))
-            .catch((e) => console.warn(`[remote-sync] 墓碑重删失败 ${key}:`, e instanceof Error ? e.message : e))
+            .catch((e) => { console.warn(`[remote-sync] 墓碑重删失败 ${key}:`, e instanceof Error ? e.message : e); reportSilent(e, { op: 'vfs-tomb-redel', lane: 'background', key }) })
           continue
         }
         clearTomb(path) // 远端行新于墓碑=真重建，LWW 复活
@@ -215,6 +218,7 @@ export function createVfsSync(remote: RemoteVfs) {
     // 否则坏字节永久驻留正确键下，vfs.read 恒 hash-mismatch（审查 B8）。
     if (sha256Hex(new Uint8Array(r.bytes)) !== row.object_key) {
       console.warn(`[remote-sync] hydrate 字节 hash 与 object_key 不符 ${path}`)
+      reportSilent(new Error('hash-mismatch: hydrate 远端字节与 object_key 不符'), { op: 'vfs-hydrate', lane: 'background', path })
       return false
     }
     localObjects.write(row.object_key, r.bytes)
@@ -242,9 +246,10 @@ export function createVfsSync(remote: RemoteVfs) {
       if (cur !== null) {
         try {
           manifest = JSON.parse(dec(cur.bytes)) as typeof manifest
-        } catch {
+        } catch (e) {
           // 坏清单如实 warn——静默重置 sessions:[] 会在下次写时吞掉对手挂载条目（审查三轮）。
           console.warn(`[remote-sync] workspace ${safe} 清单坏行——按空清单合并`)
+          reportSilent(e, { op: 'vfs-manifest', lane: 'background', workspace: safe })
           manifest = { kind: 'workspace', name: safe, sessions: [], created_ms: Date.now() }
         }
       } else {
@@ -287,9 +292,10 @@ export function createVfsSync(remote: RemoteVfs) {
     let sessions: string[] = []
     try {
       sessions = cur !== null ? ((JSON.parse(dec(cur.bytes)) as { sessions?: string[] }).sessions ?? []) : []
-    } catch {
+    } catch (e) {
       // 清单读回坏行不炸挂载流程——行已写、投影按空 sessions 落（审查三轮）。
       console.warn(`[remote-sync] workspace ${safe} 清单读回坏行——投影落空 sessions`)
+      reportSilent(e, { op: 'vfs-manifest-readback', lane: 'background', workspace: safe })
     }
     const mount: MountRow = { name: safe, workspace: safe, sessions, created_ms: vfsStore.getMount(safe)?.created_ms ?? Date.now() }
     vfsStore.putMount(mount)
