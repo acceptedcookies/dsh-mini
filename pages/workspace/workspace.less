@@ -703,7 +703,7 @@
 
 .composer-dock {
   flex: none;
-  padding: var(--dsw-space-6) var(--dsw-inset-x) calc(var(--dsw-space-6) + env(safe-area-inset-bottom));
+  padding: var(--dsw-space-6) var(--dsw-page-x) calc(var(--dsw-space-6) + env(safe-area-inset-bottom));
   background: var(--dsw-alias-bg-base);
   /* 键盘升起时由 inline transform 抬升——smooth 随键盘动画。 */
   transition: transform 120ms ease-out;
@@ -760,7 +760,7 @@
   display: flex;
   align-items: center;
   gap: var(--dsw-space-8);
-  margin: var(--dsw-space-10) var(--dsw-space-12) var(--dsw-space-8);
+  margin: var(--dsw-space-10) var(--dsw-page-x) var(--dsw-space-8);
   padding: var(--dsw-space-10) var(--dsw-space-12);
   border-radius: var(--dsw-radius-md);
   background: var(--dsw-alias-bg-layer-2);
@@ -787,7 +787,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--dsw-space-16);
-  margin: var(--dsw-space-10) var(--dsw-space-12) var(--dsw-space-8);
+  margin: var(--dsw-space-10) var(--dsw-page-x) var(--dsw-space-8);
   padding: var(--dsw-space-8) var(--dsw-space-12);
   border-radius: var(--dsw-radius-md);
   background: var(--dsw-alias-bg-layer-2);
@@ -901,12 +901,14 @@
     padding: 0 var(--dsw-page-x);
   }
 
+  /* 移动端消息流统一槽 = --dsw-page-x（与 composer/横幅/tab 同一条 16px 轨，业主 MN05-W5）；
+   * 宽屏仍用 content-x 配 max-width 居中列。 */
   .chat-column {
-    padding: var(--dsw-space-16) var(--dsw-content-x);
+    padding: var(--dsw-space-16) var(--dsw-page-x);
   }
 
   .trajectory {
-    padding: var(--dsw-space-16) var(--dsw-content-x);
+    padding: var(--dsw-space-16) var(--dsw-page-x);
   }
 
   .composer-dock {
