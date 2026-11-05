@@ -257,7 +257,7 @@
       ></view>
     </view>
 
-    <view wx:if="{{state.current && !showHero}}" class="composer-dock safe-bottom">
+    <view wx:if="{{state.current && !showHero}}" class="composer-dock safe-bottom {{view === 'trajectory' ? 'composer-dock-trajectory' : ''}}">
       <view class="composer-dock-inner">
         <approval-sheet
           wx:if="{{approval !== null}}"
