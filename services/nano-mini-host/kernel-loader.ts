@@ -51,6 +51,10 @@ function tryRequireQuiet(): KernelBundle | undefined {
  * 分包页内同包 require 后挂 globalThis.__dshKernelBundle。
  * 轮询静默探测直至就绪/超时；成功路径写缓存（loadKernel 直读）。
  */
+// 导航闩（模块级）：catchUp/bindRuntime 等并发调用者共用一次引导页跳转——
+// 局部 navigated 闩各 nav 一次会叠两层 kernel 页（真机栈实证）+ 双闪。
+let kernelNavInFlight = false
+
 export async function loadKernelAsync(timeoutMs = 25000): Promise<KernelBundle | undefined> {
   const first = loadKernel()
   if (first !== undefined) return first
@@ -72,12 +76,20 @@ export async function loadKernelAsync(timeoutMs = 25000): Promise<KernelBundle |
       return undefined
     }
     if (Date.now() >= deadline) return undefined
-    if (!navigated && typeof nav?.navigateTo === 'function') {
-      navigated = true
-      try {
-        nav.navigateTo({ url: '/subpkg/kernel/p/index' })
-      } catch {
-        /* 导航冲突静默——轮询兜底 */
+    if (!navigated && !kernelNavInFlight && typeof nav?.navigateTo === 'function') {
+      const top = (globalThis as { getCurrentPages?: () => { route?: string }[] }).getCurrentPages?.()
+      const onKernel = top?.[top.length - 1]?.route === 'subpkg/kernel/p/index'
+      if (!onKernel) {
+        navigated = true
+        kernelNavInFlight = true
+        try {
+          nav.navigateTo({ url: '/subpkg/kernel/p/index' })
+          // 引导页 onReady 即 navigateBack——闩随动画周期释放，防并发重入
+          setTimeout(() => { kernelNavInFlight = false }, 1500)
+        } catch {
+          kernelNavInFlight = false
+          /* 导航冲突静默——轮询兜底 */
+        }
       }
     }
     await new Promise((r) => setTimeout(r, 400))
