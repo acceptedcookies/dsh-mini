@@ -109,6 +109,83 @@ async function wxRequestJson(url: string, headers: Record<string, string>, data:
   })
 }
 
+/** file_* 工具面广告（T-O-4 与 io.tool/runFileTool 分发面同源命名）：
+ *  OpenAI tools 字段是唯一让模型产出 tool_calls 的通道——此前请求从未携带，
+ *  真机轮次退化为纯文本闲聊（模型把 vfs 当成 Linux 内核概念自由发挥）。 */
+const FILE_TOOL_ENVELOPE = [
+  {
+    type: 'function',
+    function: {
+      name: 'file_read',
+      description: '读取会话 VFS 内文件内容',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'VFS 绝对路径' },
+          offset: { type: 'number' },
+          max_bytes: { type: 'number' },
+        },
+        required: ['path'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'file_write',
+      description: '写入（创建或覆盖）会话 VFS 内文件',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'VFS 绝对路径' },
+          content: { type: 'string', description: '完整文件内容' },
+        },
+        required: ['path', 'content'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'file_list',
+      description: '列出会话 VFS 目录条目',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'VFS 目录路径' },
+          cursor: { type: 'string' },
+          limit: { type: 'number' },
+        },
+        required: ['path'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'file_stat',
+      description: '查询会话 VFS 路径元信息（大小/版本/类型）',
+      parameters: {
+        type: 'object',
+        properties: { path: { type: 'string', description: 'VFS 绝对路径' } },
+        required: ['path'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'file_remove',
+      description: '删除会话 VFS 内文件',
+      parameters: {
+        type: 'object',
+        properties: { path: { type: 'string', description: 'VFS 绝对路径' } },
+        required: ['path'],
+      },
+    },
+  },
+] as const
+
 export interface IoLlmDeps {
   /** 测试注入：替换 wx.request 通道（Node harness / 单测用）。 */
   request?: (url: string, headers: Record<string, string>, data: unknown) => Promise<{ status: number; body: unknown }>
@@ -188,6 +265,7 @@ export function createIoLlm(deps: IoLlmDeps = {}): (messages: unknown[]) => Prom
     const res = await request(url, headers, {
       model,
       messages: normalizeMessages(messages),
+      tools: FILE_TOOL_ENVELOPE,
       stream: false,
     })
     if (res.status !== 200) {
