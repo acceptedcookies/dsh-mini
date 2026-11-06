@@ -22,6 +22,18 @@ mkdirSync(`${dir}/shots`, { recursive: true })
 const out = (r) => console.log(JSON.stringify(r, null, 2))
 const fail = (result, reason, extra = {}) => { out({ result, reason, dir, ...extra }); process.exit(result === 'skip' ? 3 : 4) }
 
+// automator 底层健壮性兜底：IDE 广播非 JSON ws 帧时 miniprogram-automator
+// Connection.onMessage 会抛未捕获异常（PITFALL-13）——按 degraded 如实出账而非裸崩。
+process.once('uncaughtException', (e) => {
+  const p = appendPitfall({
+    symptom: (e.message ?? '').slice(0, 120).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') || 'uncaughtException',
+    where: 'device\\.mjs', cause: `automator Connection 底层异常: ${e.message}`,
+    fix: 'IDE remote-debug 广播非 JSON 帧时 automator 库崩——重开 IDE 或升级 miniprogram-automator 后重跑',
+    ownerAction: '升级 DevTools / miniprogram-automator 版本',
+  })
+  fail('degraded', `底层连接异常: ${e.message}`, { pitfall: p?.id })
+})
+
 // ── 1) 通道：automator 是唯一真机道（MCP 不管真机 evaluate）─────────────
 const d = await ProbeDriver.open({ via: 'mcp', needAutomator: true, automatorOpts: {} }).catch((e) => {
   fail('degraded', `IDE 通道不可达: ${e.message}`, { pitfall: e.pitfall?.id })

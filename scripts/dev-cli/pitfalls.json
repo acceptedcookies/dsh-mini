@@ -109,6 +109,15 @@
       "fix": "node scripts/dev-cli/cli.mjs <cmd> 直接调用，勿带 --project",
       "ownerAction": "无",
       "since": "2026-11-06"
+    },
+    {
+      "id": "PITFALL-13",
+      "symptom": "Unexpected token|Connection\\.onMessage|SyntaxError.*JSON",
+      "where": "device\\.mjs|console\\.mjs.*auto|connectIde|remote",
+      "cause": "IDE remote-debug/自动化广播非 JSON ws 帧时 miniprogram-automator Connection.onMessage 硬崩（上游库健壮性缺陷）",
+      "fix": "device.mjs 已接 uncaughtException→degraded；其它场景重开 IDE/升级 automator 版本",
+      "ownerAction": "升级 DevTools / miniprogram-automator",
+      "since": "2026-11-06"
     }
   ]
 }
