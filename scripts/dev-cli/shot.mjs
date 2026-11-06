@@ -5,7 +5,7 @@
 //   node scripts/dev-cli/shot.mjs --sim              → simulator_screenshot（优化长边 1280）
 import { mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { McpClient } from './lib/mcp.mjs'
+import { ProbeDriver } from './lib/probe.mjs'
 import { parseArgs, flagOf } from './lib/args.mjs'
 
 const { flags } = parseArgs()
@@ -18,12 +18,12 @@ const wait = flagOf(flags, 'wait', null)
 const waitFor = flagOf(flags, 'for', null)
 const extra = { ...(wait ? { wait: Number(wait) } : {}), ...(waitFor ? { waitForSelector: waitFor } : {}) }
 
-const c = await McpClient.open({ quiet: true })
+const d = await ProbeDriver.open()
 try {
   const r = sim
-    ? await c.text('simulator_screenshot', { path: out, ...extra })
-    : await c.text('automation_viewport_action', { action: 'screenshot', path: out, ...extra })
+    ? await d.text('simulator_screenshot', { path: out, ...extra })
+    : await d.text('automation_viewport_action', { action: 'screenshot', path: out, ...extra })
   console.log(JSON.stringify(r))
 } finally {
-  c.close()
+  d.close()
 }

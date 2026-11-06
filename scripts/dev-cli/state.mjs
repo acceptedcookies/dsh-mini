@@ -3,7 +3,7 @@
 //   node scripts/dev-cli/state.mjs                → route + 全部 data 顶层键值（截断）
 //   node scripts/dev-cli/state.mjs -k view,theme  → 只取指定键
 //   node scripts/dev-cli/state.mjs --deep input   → 取 data.input 完整值
-import { McpClient } from './lib/mcp.mjs'
+import { ProbeDriver } from './lib/probe.mjs'
 import { parseArgs, flagOf } from './lib/args.mjs'
 
 const { flags } = parseArgs()
@@ -25,9 +25,9 @@ const fnSource = `() => {
   return out
 }`
 
-const c = await McpClient.open({ quiet: true })
+const d = await ProbeDriver.open()
 try {
-  console.log(JSON.stringify(await c.eval(fnSource), null, 2))
+  console.log(JSON.stringify(await d.eval(fnSource), null, 2))
 } finally {
-  c.close()
+  d.close()
 }

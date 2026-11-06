@@ -1,0 +1,78 @@
+{
+  "$schema": "dsh-mini.pitfalls.v1",
+  "note": "踩坑机器真源（T-O-6）：symptom 剪自真实 err.message（禁概述词）；where 匹配调用语境（工具名/通道）；fix=自助解法；ownerAction=须业主亲为的具体动作（格式化为「请业主：…」）；新坑当轮登记不延期。",
+  "pitfalls": [
+    {
+      "id": "PITFALL-1",
+      "symptom": "-32603",
+      "where": "mcp",
+      "cause": "IDE 侧 MCP 授权弹窗处于 pending（每个新 stdio 桥会话可能重新要求批准）",
+      "fix": "重试调用前等待业主在 IDE 侧批准授权弹窗",
+      "ownerAction": "在微信开发者工具中批准 MCP 授权弹窗后重跑命令",
+      "since": "MN06"
+    },
+    {
+      "id": "PITFALL-2",
+      "symptom": "await is only valid",
+      "where": "evaluate",
+      "cause": "automation_evaluate 的 fnSource 禁止顶层 await",
+      "fix": "改写为 promise 链或 () => expr；异步返回用 () => new Promise((res)=>{...})",
+      "ownerAction": null,
+      "since": "MN06"
+    },
+    {
+      "id": "PITFALL-3",
+      "symptom": "timeout waiting for automator",
+      "where": "evaluate|refresh",
+      "cause": "simulator_refresh 触发重编译，编译窗内 evaluate/automator 不响应",
+      "fix": "refresh 后留 5-8s 编译沉降再探；长序列把 refresh 排在动作之间并加 wait",
+      "ownerAction": null,
+      "since": "MN06"
+    },
+    {
+      "id": "PITFALL-4",
+      "symptom": "autoPort",
+      "where": "automator|connectIde",
+      "cause": "cli auto 复用运行中 IDE 时忽略请求的 --auto-port，实际端口以 stdout 上报为准",
+      "fix": "走 connectIde（内建 stdout 解析 actual autoPort），勿自猜 9420/9602",
+      "ownerAction": null,
+      "since": "MN06"
+    },
+    {
+      "id": "PITFALL-5",
+      "symptom": "Invalid arguments",
+      "where": "get_simulator_console|get_simulator_network",
+      "cause": "console/network 工具的 command 参数必须是真 grep 命令串（作用于 IDE 侧日志文件）",
+      "fix": "command 传 'grep -n .'（全量）或 'grep -n -i \"词\"'（过滤）；非 grep 命令（如 cat）被拒",
+      "ownerAction": null,
+      "since": "MN06"
+    },
+    {
+      "id": "PITFALL-6",
+      "symptom": "EROFS",
+      "where": "screenshot|viewport_action|simulator_screenshot",
+      "cause": "截图落盘发生在 IDE 侧，相对路径解析到 IDE 工作目录/根（只读）",
+      "fix": "path 必须传绝对路径（node:path resolve()）",
+      "ownerAction": null,
+      "since": "MN06"
+    },
+    {
+      "id": "PITFALL-7",
+      "symptom": "timeout",
+      "where": "automation_navigate",
+      "cause": "automation_navigate 偶发响应超时但实际已完成跳转（假超时）",
+      "fix": "catch 后回读 getCurrentPages().pop().route 确认实际 route，勿凭响应判失败",
+      "ownerAction": null,
+      "since": "MN06"
+    },
+    {
+      "id": "PITFALL-8",
+      "symptom": "Invalid arguments|missing.*argument|required",
+      "where": "element_action.*scrollTo",
+      "cause": "element_action 的 scrollTo 须同时传 x 与 y，缺一边被拒",
+      "fix": "scrollTo 传 {x:0,y:N} 双参；只滚纵向也显式给 x:0",
+      "ownerAction": null,
+      "since": "MN06"
+    }
+  ]
+}

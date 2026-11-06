@@ -5,7 +5,7 @@
 //   node scripts/dev-cli/visual.mjs --out .anote/shots --prefix ut-
 // 通道：AUTO_PORT env 优先 → 服务端口 ws 直连 → cli auto 拉起（同 connectIde 契约）。
 import { mkdirSync } from 'node:fs'
-import { connectIde } from './lib/ide.mjs'
+import { ProbeDriver } from './lib/probe.mjs'
 import { parseArgs, flagOf } from './lib/args.mjs'
 
 const { flags } = parseArgs()
@@ -16,7 +16,8 @@ mkdirSync(OUT, { recursive: true })
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 const shot = async (mp, name) => { await mp.screenshot({ path: `${OUT}/${name}.png` }); console.log(`  📸 ${name}`) }
 
-const { mp, via, port } = await connectIde({ port: PORT })
+const d = await ProbeDriver.open({ via: 'automator', automatorOpts: { port: PORT } })
+const { mp, via, port } = { mp: d.mp, via: d.mpInfo.via, port: d.mpInfo.port }
 console.log(`automator 已连接 (${via}:${port})`)
 
 // 1. workspace 当前态（浅色基线）
@@ -65,5 +66,5 @@ if (segs2.length >= 2) { await segs2[1].tap(); await wait(500) }
 await shot(mp, `${PRE}06-settings-light-restore`)
 
 console.log('done. shots →', OUT)
-await mp.disconnect()
+await d.close()
 process.exit(0)

@@ -17,8 +17,12 @@
  */
 import { spawn } from 'node:child_process'
 import { PROJECT } from './args.mjs'
+import { wrapError } from './pitfalls.mjs'
 
 export const MCP_TOKEN = process.env.WXIDE_MCP_TOKEN ?? 'gckjyDjGMk0RjhIpXpz706E37mrXw2k8'
+
+/** MCP 桥握手计数（L2 会话复用证据：session 内多动作应=1）。 */
+export let bridgeCount = 0
 
 export class McpClient {
   static async open({ project = PROJECT, token = MCP_TOKEN, quiet = false } = {}) {
@@ -27,6 +31,7 @@ export class McpClient {
     })
     const c = new McpClient(child, project)
     await c.#handshake()
+    bridgeCount++
     return c
   }
 
@@ -70,7 +75,7 @@ export class McpClient {
       setTimeout(() => {
         if (this.#pending.has(id)) {
           this.#pending.delete(id)
-          reject(new Error(`mcp timeout: ${method}`))
+          reject(wrapError(new Error(`mcp timeout: ${method}`), `mcp.${method}`))
         }
       }, timeoutMs)
     })
@@ -91,12 +96,20 @@ export class McpClient {
     return this.#rpc(method, params, timeoutMs)
   }
 
-  /** 原始 tools/call：返回解析后 JSON-RPC 响应。arguments 自动注入 project。 */
-  call(name, args = {}, { timeoutMs = 30000 } = {}) {
-    return this.#rpc('tools/call', {
+  /** 原始 tools/call：返回解析后 JSON-RPC 响应。arguments 自动注入 project。
+   *  r.error → wrapError 抛出（[PITFALL-n] 前缀，T-O-6）。 */
+  async call(name, args = {}, { timeoutMs = 30000 } = {}) {
+    const r = await this.#rpc('tools/call', {
       name,
       arguments: { project: this.#project, ...args },
     }, timeoutMs)
+    if (r?.error) {
+      const e = new Error(r.error.message ?? JSON.stringify(r.error))
+      e.code = r.error.code
+      e.tool = name
+      throw wrapError(e, `mcp.${name}`)
+    }
+    return r
   }
 
   /** 便捷：调用并取 content[0].text（多数工具返回 JSON 字符串）。 */

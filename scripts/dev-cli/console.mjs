@@ -8,8 +8,8 @@
 //   node scripts/dev-cli/console.mjs --via auto --duration 30            监听 30s
 //   node scripts/dev-cli/console.mjs --via auto -e '() => 1+1'           先执行再监听
 //   AUTO_PORT=xx node scripts/dev-cli/console.mjs --via auto             复用真机调试会话
-import { McpClient } from './lib/mcp.mjs'
 import { connectIde, pipeConsole } from './lib/ide.mjs'
+import { ProbeDriver } from './lib/probe.mjs'
 import { parseArgs, flagOf } from './lib/args.mjs'
 
 const { flags } = parseArgs()
@@ -17,14 +17,14 @@ const via = flagOf(flags, 'via', 'mcp')
 const grep = flagOf(flags, 'grep', null)
 
 if (via === 'mcp') {
-  const c = await McpClient.open({ quiet: true })
+  const d = await ProbeDriver.open()
   try {
     // schema: { command } = grep 命令串（作用于 IDE 侧 console 日志文件）
     const command = grep ? `grep -n -i ${JSON.stringify(grep)}` : 'grep -n .'
-    const r = await c.text('get_simulator_console', { command })
+    const r = await d.text('get_simulator_console', { command })
     console.log(typeof r === 'string' ? r : JSON.stringify(r, null, 2))
   } finally {
-    c.close()
+    d.close()
   }
 } else if (via === 'auto') {
   const duration = Number(flagOf(flags, 'duration', '30')) * 1000

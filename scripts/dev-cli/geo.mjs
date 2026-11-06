@@ -3,7 +3,7 @@
 //   node scripts/dev-cli/geo.mjs -s '.chat-column'          单元素
 //   node scripts/dev-cli/geo.mjs -s '.a,.b,.c'              多 selector 各取首个
 //   node scripts/dev-cli/geo.mjs -s '.foot-row' --all       selectAll 全量矩形
-import { McpClient } from './lib/mcp.mjs'
+import { ProbeDriver } from './lib/probe.mjs'
 import { parseArgs, flagOf } from './lib/args.mjs'
 
 const { flags } = parseArgs()
@@ -28,9 +28,9 @@ const fnSource = `() => new Promise((resolve) => {
   }
 })`
 
-const c = await McpClient.open({ quiet: true })
+const d = await ProbeDriver.open()
 try {
-  console.log(JSON.stringify(await c.eval(fnSource), null, 2))
+  console.log(JSON.stringify(await d.eval(fnSource), null, 2))
 } finally {
-  c.close()
+  d.close()
 }

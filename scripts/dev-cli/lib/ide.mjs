@@ -12,6 +12,7 @@
 import { createRequire } from 'node:module'
 import { spawn } from 'node:child_process'
 import { PROJECT } from './args.mjs'
+import { wrapError } from './pitfalls.mjs'
 
 export const CLI_PATH =
   process.env.WXIDE_CLI_PATH ?? '/Applications/wechatwebdevtools.app/Contents/MacOS/cli'
@@ -41,7 +42,7 @@ export async function connectIde({ port = Number(process.env.AUTO_PORT ?? 9420),
     if (proc.exitCode !== null) break
     await new Promise((r) => setTimeout(r, 1000))
   }
-  if (actual == null) throw new Error(`cli auto 未上报 autoPort:\n${out.slice(-800)}`)
+  if (actual == null) throw wrapError(new Error(`cli auto 未上报 autoPort:\n${out.slice(-800)}`), 'automator.connectIde')
   let lastErr = null
   while (Date.now() < deadline) {
     try {
@@ -52,7 +53,7 @@ export async function connectIde({ port = Number(process.env.AUTO_PORT ?? 9420),
       await new Promise((r) => setTimeout(r, 1500))
     }
   }
-  throw lastErr ?? new Error('automation ws 不可达')
+  throw wrapError(lastErr ?? new Error('automation ws 不可达'), 'automator.connectIde')
 }
 
 /** console/exception 事件 → stdout 行（真机与模拟器同此通道）。 */

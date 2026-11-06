@@ -5,7 +5,7 @@
 //   node scripts/dev-cli/eval.mjs -f ./probe.js        （文件体 = 完整 fnSource）
 // 契约：fnSource 禁顶层 await——异步写 promise 链或 () => new Promise(...)。
 import { readFileSync } from 'node:fs'
-import { McpClient } from './lib/mcp.mjs'
+import { ProbeDriver } from './lib/probe.mjs'
 import { parseArgs, flagOf } from './lib/args.mjs'
 
 const { flags } = parseArgs()
@@ -18,10 +18,10 @@ if (!src) {
 const isFn = /^\s*(\(|function|async|() =>|\(\)\s*=>|new\s+Promise)/.test(src)
 if (!isFn) src = `() => (${src})`
 
-const c = await McpClient.open({ quiet: true })
+const d = await ProbeDriver.open()
 try {
-  const r = await c.eval(src)
+  const r = await d.eval(src)
   console.log(JSON.stringify(r, null, 2))
 } finally {
-  c.close()
+  d.close()
 }

@@ -4,7 +4,8 @@
 //   node scripts/dev-cli/nav.mjs reLaunch /pages/workspace/workspace
 //   node scripts/dev-cli/nav.mjs navigateBack [--delta 2]
 // 已知：navigate 偶发 'timeout' 但实际已跳转——脚本会随后读当前 route 如实回报。
-import { McpClient, sleep } from './lib/mcp.mjs'
+import { sleep } from './lib/mcp.mjs'
+import { ProbeDriver } from './lib/probe.mjs'
 import { parseArgs, flagOf } from './lib/args.mjs'
 
 const { flags, positional } = parseArgs()
@@ -16,14 +17,14 @@ if (!ok.has(action)) {
   process.exit(2)
 }
 
-const c = await McpClient.open({ quiet: true })
+const d = await ProbeDriver.open()
 try {
   const args = action === 'navigateBack' ? { action, delta } : { action, url }
-  const r = await c.navigate(action, args.url, action === 'navigateBack' ? { delta } : {}).catch((e) => ({ navTimeout: e.message }))
+  const r = await d.mcp.navigate(action, args.url, action === 'navigateBack' ? { delta } : {}).catch((e) => ({ navTimeout: e.message }))
   if (r?.navTimeout) console.log('nav 响应超时（可能已跳转），回报当前 route…')
   await sleep(800)
-  const route = await c.eval('() => getCurrentPages().pop().route').catch(() => '?')
+  const route = await d.eval('() => getCurrentPages().pop().route').catch(() => '?')
   console.log(JSON.stringify({ nav: r?.navTimeout ?? r, route }))
 } finally {
-  c.close()
+  d.close()
 }
