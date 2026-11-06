@@ -73,6 +73,15 @@
       "fix": "scrollTo 传 {x:0,y:N} 双参；只滚纵向也显式给 x:0",
       "ownerAction": null,
       "since": "MN06"
+    },
+    {
+      "id": "PITFALL-9",
+      "symptom": "timeout waiting for automator response|cant find runtimeid by projectpath",
+      "where": "fx-agentic|vfs-agentic|send\\(\\)|prompt",
+      "cause": "route=cloud 时 ensureDurableTicket 调云代理；代理不可达(http=000)→send()await 挂死→callMethod 超时→sim runtime 拖死",
+      "fix": "先 curl 验 dsh-byok-proxy-*.tcloudbase.com 可达性（http=000 即代理死）；恢复后 cli quit+open 重开项目再跑",
+      "ownerAction": "确认云代理存活（腾讯 tcloudbase 实例在线/网络可达）；死期间 L3 云车道测试记 blocked-environment",
+      "since": "2026-11-06"
     }
   ]
 }
