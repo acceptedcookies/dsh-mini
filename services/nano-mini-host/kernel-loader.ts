@@ -46,26 +46,15 @@ function tryRequireQuiet(): KernelBundle | undefined {
 
 /**
  * 等 kernel 就绪：分包未下载时主包 require 必败；下载完成后主包 require
- * 即可解析（真机实测）。navigateTo 引导页同时承担两个职责：
- *   1) 触发分包下载（wx.loadSubpackage 在 remote-debug 上下文缺席）
- *   2) 分包上下文 require（懒推竞态下比主包路径更早可解析）并挂
- *      globalThis.__dshKernelBundle
- * 轮询期间主包/页两条路径谁先到谁生效；超时或页侧穷尽才记台账。
+ * 即可解析（真机实测）。分包上下文的 require 由常驻不可见组件
+ * subpkg/kernel/boot 承担（挂载即驱动下载、零路由跳变=零闪屏——
+ * 占位页 navigateTo 白闪根因的根治，导航通道已废除）。
+ * 轮询期间主包/组件两条路径谁先到谁生效；超时或组件侧穷尽才记台账。
  */
-// 导航闩（模块级）：catchUp/bindRuntime 等并发调用者共用一次引导页跳转——
-// 局部 navigated 闩各 nav 一次会叠两层 kernel 页（真机栈实证）+ 双闪。
-let kernelNavInFlight = false
-
 export async function loadKernelAsync(timeoutMs = 25000): Promise<KernelBundle | undefined> {
   const first = loadKernel()
   if (first !== undefined) return first
-  const nav = (globalThis as { wx?: { navigateTo?: (o: { url: string }) => void } }).wx
-  let navigated = false
   const deadline = Date.now() + timeoutMs
-  // 静默宽限窗：preloadRule 后台下载通常数秒就绪，remote-debug 懒推亦在窗口内
-  // 流到——先纯轮询，超时仍未就绪才导航引导页。窗口内零路由跳变=零闪屏
-  // （此前 nav 在首轮即触发，引导页转场/换帧必然可见——业主反复投诉根因）。
-  const navEarliest = Date.now() + Math.min(6000, Math.floor(timeoutMs / 3))
   for (;;) {
     const probe = tryRequireQuiet() ?? ((globalThis as Record<string, unknown>).__dshKernelBundle as KernelBundle | undefined)
     if (probe !== undefined) {
@@ -73,33 +62,17 @@ export async function loadKernelAsync(timeoutMs = 25000): Promise<KernelBundle |
       tried = true
       return probe
     }
-    // 引导页 require 硬失败（产物缺失/JSC 不兼容）——继续轮询无意义，早退可观察
+    // boot 组件 require 硬失败（产物缺失/JSC 不兼容）——继续轮询无意义，早退可观察
     const loadErr = (globalThis as Record<string, unknown>).__dshKernelError
     if (loadErr !== undefined) {
-      console.warn('[kernel-loader] 引导页 require 失败:', loadErr)
+      console.warn('[kernel-loader] boot 组件 require 失败:', loadErr)
       reportSilent(loadErr instanceof Error ? loadErr : new Error(String(loadErr)), { op: 'kernel-bootstrap', lane: 'background' })
       return undefined
     }
     if (Date.now() >= deadline) {
-      // 耗尽=真缺席（页侧重试穷尽 + 主包轮询全灭）——此刻才值得记台账
+      // 耗尽=真缺席（组件侧重试穷尽 + 主包轮询全灭）——此刻才值得记台账
       reportSilent(new Error('kernel subpkg 等待超时'), { op: 'kernel-load-timeout', lane: 'background' })
       return undefined
-    }
-    if (Date.now() >= navEarliest && !navigated && !kernelNavInFlight && typeof nav?.navigateTo === 'function') {
-      const top = (globalThis as { getCurrentPages?: () => { route?: string }[] }).getCurrentPages?.()
-      const onKernel = top?.[top.length - 1]?.route === 'subpkg/kernel/p/index'
-      if (!onKernel) {
-        navigated = true
-        kernelNavInFlight = true
-        try {
-          nav.navigateTo({ url: '/subpkg/kernel/p/index' })
-          // 引导页 onReady 即 navigateBack——闩随动画周期释放，防并发重入
-          setTimeout(() => { kernelNavInFlight = false }, 1500)
-        } catch {
-          kernelNavInFlight = false
-          /* 导航冲突静默——轮询兜底 */
-        }
-      }
     }
     await new Promise((r) => setTimeout(r, 400))
   }
@@ -119,7 +92,6 @@ export function kernelUsable(): boolean {
 export function kernelLoaderReset(): void {
   cached = undefined
   tried = false
-  kernelNavInFlight = false
   delete (globalThis as Record<string, unknown>).__dshKernelError
   delete (globalThis as Record<string, unknown>).__dshKernelBundle
 }

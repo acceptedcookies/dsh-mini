@@ -20,6 +20,10 @@
     "dsh-tabs": "/components/dsh-tabs/dsh-tabs",
     "dsh-toast": "/components/dsh-toast/dsh-toast",
     "error-center": "/components/error-center/error-center",
-    "up-drawer": "/components/up-drawer/up-drawer"
+    "up-drawer": "/components/up-drawer/up-drawer",
+    "kernel-boot": "/subpkg/kernel/boot/boot"
+  },
+  "componentPlaceholder": {
+    "kernel-boot": "view"
   }
 }

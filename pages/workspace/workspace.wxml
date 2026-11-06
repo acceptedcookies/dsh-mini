@@ -1,4 +1,7 @@
 <view class="app {{isWide ? 'app-wide' : ''}} theme-{{theme}}" style="{{appStyle}}">
+  <!-- kernel 分包零闪引导：组件挂载即驱动分包下载+分包上下文 require，
+       替代占位页 navigateTo（白闪根因）。display:none，无视觉成本。 -->
+  <kernel-boot id="kernel-boot" style="display:none" />
   <view wx:if="{{!isWide && sidebarOpen}}" class="mask" data-anchor="workspace.mask" bindtap="closeSidebar"></view>
 
   <aside class="sidebar {{sidebarOpen ? 'sidebar-open' : ''}}">
