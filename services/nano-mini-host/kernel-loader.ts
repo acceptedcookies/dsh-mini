@@ -24,11 +24,10 @@ export function loadKernel(): KernelBundle | undefined {
     try {
       installKernelShims()
       cached = require('../../subpkg/kernel/kernel.js') as KernelBundle
-    } catch (e) {
-      // 降级必须可观察（静默回退 fx/demo 的盲区——审查 P2）：console 为 mp 侧唯一通道；
-      // silent 台账让 kernel 缺席在诊断面可见而非仅 console（MN03-R2）。
-      console.warn('[kernel-loader] subpkg/kernel 加载失败，回退 fx/localRuntime:', e)
-      reportSilent(e, { op: 'kernel-load', lane: 'background' })
+    } catch {
+      // 冷启首探失败是常态（分包未下载/未流到即必败）——仅探测不上报，
+      // 真实失败由 loadKernelAsync 耗尽/引导页重试穷尽后统一台账化，
+      // 否则每次冷启都在 errors.all 留一条自愈噪音（真机 dump 实证）。
       cached = undefined
     }
   }
@@ -46,10 +45,12 @@ function tryRequireQuiet(): KernelBundle | undefined {
 }
 
 /**
- * 等 kernel 就绪：主包 require 分包被模块隔离禁止（真机实证：下载完成也
- * module not defined）——导航引导页是唯一合法通道：navigateTo 触发下载，
- * 分包页内同包 require 后挂 globalThis.__dshKernelBundle。
- * 轮询静默探测直至就绪/超时；成功路径写缓存（loadKernel 直读）。
+ * 等 kernel 就绪：分包未下载时主包 require 必败；下载完成后主包 require
+ * 即可解析（真机实测）。navigateTo 引导页同时承担两个职责：
+ *   1) 触发分包下载（wx.loadSubpackage 在 remote-debug 上下文缺席）
+ *   2) 分包上下文 require（懒推竞态下比主包路径更早可解析）并挂
+ *      globalThis.__dshKernelBundle
+ * 轮询期间主包/页两条路径谁先到谁生效；超时或页侧穷尽才记台账。
  */
 // 导航闩（模块级）：catchUp/bindRuntime 等并发调用者共用一次引导页跳转——
 // 局部 navigated 闩各 nav 一次会叠两层 kernel 页（真机栈实证）+ 双闪。
@@ -75,7 +76,11 @@ export async function loadKernelAsync(timeoutMs = 25000): Promise<KernelBundle |
       reportSilent(loadErr instanceof Error ? loadErr : new Error(String(loadErr)), { op: 'kernel-bootstrap', lane: 'background' })
       return undefined
     }
-    if (Date.now() >= deadline) return undefined
+    if (Date.now() >= deadline) {
+      // 耗尽=真缺席（页侧重试穷尽 + 主包轮询全灭）——此刻才值得记台账
+      reportSilent(new Error('kernel subpkg 等待超时'), { op: 'kernel-load-timeout', lane: 'background' })
+      return undefined
+    }
     if (!navigated && !kernelNavInFlight && typeof nav?.navigateTo === 'function') {
       const top = (globalThis as { getCurrentPages?: () => { route?: string }[] }).getCurrentPages?.()
       const onKernel = top?.[top.length - 1]?.route === 'subpkg/kernel/p/index'
@@ -110,5 +115,7 @@ export function kernelUsable(): boolean {
 export function kernelLoaderReset(): void {
   cached = undefined
   tried = false
+  kernelNavInFlight = false
   delete (globalThis as Record<string, unknown>).__dshKernelError
+  delete (globalThis as Record<string, unknown>).__dshKernelBundle
 }

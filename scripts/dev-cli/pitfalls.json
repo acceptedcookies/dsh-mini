@@ -141,9 +141,8 @@
       "id": "PITFALL-16",
       "symptom": "module 'subpkg/kernel/kernel\\.js' is not defined",
       "where": "device|remote-debug|kernel",
-      "cause": "物理设备（remote-debug 构建）上分包 kernel.js 连页内同包 require 都失败→kernel 引导页卡栈→runtime 回落 nano-kernel——真机专属应用侧 bug",
-      "fix": "应用侧待修：检查 remote-debug 构建是否含 subpkg 分包产物 / Android JSC 兼容性；探针面如实登记录 diag.errors.all",
-      "ownerAction": "业主：确认 subpkg/kernel 在真机调试构建产物中的打包与 require 解析",
+      "cause": "冷推竞态：remote-debug 懒推分包文件，引导页起跑早于 kernel.js 流到→页内 require 瞬时失败曾被当终态→整会话回落 nano-kernel。修正后实证：分包下载完成后主包/页内 require 均可解析、bundle 6 导出全可用",
+      "fix": "已修：引导页 onReady 改重试式（12×500ms 覆盖流式窗）+ loadKernelAsync 全局导航闩消双叠 + 冷启首探不再污染 errors.all；wx.loadSubpackage 在 remote-debug 上下文缺席故导航触发仍是唯一通道",
       "since": "2026-11-06"
     }
   ]

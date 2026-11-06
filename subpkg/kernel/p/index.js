@@ -1,13 +1,24 @@
-// 引导页：主包 require 分包文件被模块隔离禁止——导航到此页触发分包下载，
-// 页内同包 require 合法，kernel bundle 挂 globalThis 供主包消费面读取，随即回退。
-// require 失败仍须回退——否则页卡在引导屏且 loadKernelAsync 轮询至超时（UI 审查 F15）。
 Page({
   onReady() {
-    try {
-      globalThis.__dshKernelBundle = require('../kernel.js')
-    } catch (e) {
-      globalThis.__dshKernelError = e
+    // 主包 require 分包文件被模块隔离禁止——本页存在的唯一目的就是
+    // 在分包上下文 require kernel.js 并挂到 globalThis 供主包读取。
+    // 真机/remote-debug 懒推分包：页可跑时 kernel.js 可能尚未流到，
+    // 一次性失败不能当终态（冷推竞态实证）——重试直至超窗再落 error。
+    let attempts = 0
+    const tryLoad = () => {
+      try {
+        globalThis.__dshKernelBundle = require('../kernel.js')
+        wx.navigateBack()
+      } catch (e) {
+        attempts += 1
+        if (attempts >= 12) {
+          globalThis.__dshKernelError = e
+          wx.navigateBack()
+          return
+        }
+        setTimeout(tryLoad, 500)
+      }
     }
-    wx.navigateBack()
+    tryLoad()
   },
 })
