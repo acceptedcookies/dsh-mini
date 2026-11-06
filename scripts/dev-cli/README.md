@@ -97,6 +97,15 @@
 - **组件锚无自动 nav**：`@anchor` 解析仅在 `meta.page` 为 `pages/*` 路由时自动导航；组件类锚（`page:"components/..."`，宿主页记在 `note`）需调用方先 `nav` 到宿主页。
 - **cli.mjs 禁重复 --project**：已内建注入，外部再传 `e.startsWith` TypeError（PITFALL-12）。
 
+### 真机调试操作契约（实测刻死，勿踩）
+
+1. **连接探测先行**：`mp.evaluate(() => wx.getDeviceInfo())`——`brand==='devtools'`/`platform==='devtools'` = 当前对端是模拟器；物理设备（如 `samsung/SM-S9080`）= 真机调试会话已活，`App.*` 调用自动路由真机。**已连状态绝不重发 `Tool.enableRemoteDebug`**——会重置会话让调试窗空转。
+2. **连接信号**：真信号是 `mp.connection.once('Tool.onRemoteDebugConnected')` 事件；`mp.remote(true)` 的 send 响应本身会假超时（`timeout waiting for automator response`），**不要 await 它**，catch 吞掉只等事件。
+3. **remote-debug 会话禁导航**：`reLaunch`/`navigateTo`/`navigateBack` 会把会话打死（`Device disconnected InternalError`）——只操作 `currentPage()` 当前页面。页对象过期报 `page is not on top of page stack`，重取 `currentPage()` 或 `pageStack()`。
+4. **链路抖动**：`game-ios-debug Device disconnected InternalError` 周期性出现（DevTools 日志）；设备掉线后 `enableRemoteDebug` 重触发即可，事件窗口 60-90s。
+5. **inspect ws 端点是易逝的**：日志 `RemoteDebugWindow inspectUrl ws=127.0.0.1:PORT` 的 CDP 端点随窗口生命周期生灭，不持久——别缓存。
+6. **模拟器 vs 真机判定**：截图分辨率（sim iPhone 3x ≈1206px 宽）与 `getDeviceInfo().brand` 双证；`--dump-only` 产物 `source:'attached-lane'` 不证物理。
+
 ## 测试入口
 
 | 套件 | 入口 | 通道 |

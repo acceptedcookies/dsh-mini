@@ -45,31 +45,43 @@ const mp = d.mp
 // 注：--dump-only 对已 attach 通道直接 dump，不校验物理设备在场——产物如实记 source:'attached-lane'。
 if (flags['dump-only'] !== true) {
   const REMOTE_TIMEOUT = Number(flagOf(flags, 'remote-timeout', '45000'))
-  let orphan = null
-  try {
-    // MCP viewport_action remote+auto 优先；不可达/失败降级 mp.remote(true)（automator 原生道）
-    const remoteP = (async () => {
-      try { return await d.remoteDevice() } catch { return await mp.remote(true) }
-    })()
-    remoteP.catch((e) => { orphan = orphan ?? e })   // race 败方吞掉防 unhandled rejection
-    const sleeper = (async () => { await sleep(REMOTE_TIMEOUT); throw new Error('remote-timeout') })()
-    sleeper.catch((e) => { orphan = orphan ?? e })
-    await Promise.race([remoteP, sleeper])
-  } catch (e) {
-    await d.close().catch(() => {})
-    if (e.message === 'remote-timeout') {
-      fail('skip', `物理设备缺席：remote(${REMOTE_TIMEOUT}ms) 无 onRemoteDebugConnected`, { machineReason: 'device-absent' })
+  // 先探当前对端：remote-debug 已连时 App.* 直接路由到真机——brand≠devtools 即是。
+  // 已连状态下重发 enableRemoteDebug 会重置会话致窗口空转（实测坑），只在未连时触发。
+  let dev = await mp.evaluate(() => wx.getDeviceInfo()).catch(() => null)
+  for (let attempt = 0; attempt < 2 && (!dev || dev.brand === 'devtools' || dev.platform === 'devtools'); attempt++) {
+    if (attempt === 1) {
+      // 首轮事件未至：Tool.disableRemoteDebug 复位半开会话（裸 Tool 域命令实测可用）再重试
+      await mp.send('Tool.disableRemoteDebug').catch(() => {})
+      await sleep(1500)
     }
-    // 在场但 remote 失败 → degraded + pitfalls 当轮登记 + AUTO_PORT 降级已由 connectIde 内建
-    const p = appendPitfall({
-      symptom: e.message.slice(0, 120).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
-      where: 'device\\.mjs.*remote', cause: `mp.remote(true) 在场失败: ${e.message}`,
-      fix: '检查设备 USB/真机调试授权、IDE 真机调试开关；随后重跑 device.mjs --remote',
-      ownerAction: '确认真机已在 DevTools 真机调试面板可见后重试',
-    })
-    fail('degraded', `remote 拉起失败（设备在场语义）: ${e.message}`, { pitfall: p.id })
+    try {
+      // 真信号 = Tool.onRemoteDebugConnected 事件；remote() send 响应超时是 IDE 假超时，不 await。
+      mp.remote(true).catch(() => {})
+      await new Promise((res, rej) => {
+        mp.connection.once('Tool.onRemoteDebugConnected', res)
+        setTimeout(() => rej(new Error('remote-timeout')), REMOTE_TIMEOUT)
+      })
+    } catch (e) {
+      if (e.message !== 'remote-timeout') {
+        await d.close().catch(() => {})
+        // 在场但 remote 失败 → degraded + pitfalls 当轮登记
+        const p = appendPitfall({
+          symptom: e.message.slice(0, 120).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+          where: 'device\\.mjs.*remote', cause: `mp.remote(true) 在场失败: ${e.message}`,
+          fix: '检查设备 USB/真机调试授权、IDE 真机调试开关；随后重跑 device.mjs --remote',
+          ownerAction: '确认真机已在 DevTools 真机调试面板可见后重试',
+        })
+        fail('degraded', `remote 拉起失败（设备在场语义）: ${e.message}`, { pitfall: p.id })
+      }
+      console.log(`[device] remote 第${attempt + 1}轮事件未至${attempt === 0 ? '，复位重试' : ''}`)
+    }
+    dev = await mp.evaluate(() => wx.getDeviceInfo()).catch(() => null)
   }
-  out({ result: 'remote-connected', dir })
+  if (!dev || dev.brand === 'devtools' || dev.platform === 'devtools') {
+    await d.close().catch(() => {})
+    fail('skip', `物理设备缺席：两轮 remote(${REMOTE_TIMEOUT}ms) 均无 onRemoteDebugConnected`, { machineReason: 'device-absent' })
+  }
+  out({ result: 'remote-connected', device: `${dev.brand}/${dev.model} ${dev.system}`, dir })
 }
 
 // ── 3) 四件套 dump + 内容断言 ────────────────────────────────────────────

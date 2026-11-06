@@ -118,6 +118,33 @@
       "fix": "device.mjs 已接 uncaughtException→degraded；其它场景重开 IDE/升级 automator 版本",
       "ownerAction": "升级 DevTools / miniprogram-automator",
       "since": "2026-11-06"
+    },
+    {
+      "id": "PITFALL-14",
+      "symptom": "remote-debug.*(spin|转圈|loading)|enableRemoteDebug.*reset",
+      "where": "device\\.mjs|remote|enableRemoteDebug",
+      "cause": "已连/半开状态下重发 Tool.enableRemoteDebug 会重置真机调试会话→调试窗空转转圈",
+      "fix": "先 mp.evaluate(getDeviceInfo) 探对端：brand≠devtools 即已连直接用；半开会话用裸 mp.send('Tool.disableRemoteDebug') 复位后再单次 enable",
+      "ownerAction": "无",
+      "since": "2026-11-06"
+    },
+    {
+      "id": "PITFALL-15",
+      "symptom": "Device disconnected.*InternalError|page is not on top of page stack",
+      "where": "remote-debug|device\\.mjs|reLaunch|navigate",
+      "cause": "remote-debug 会话上执行 reLaunch/navigateTo/navigateBack 会打死真机会话（Device disconnected InternalError）；页对象过期报 page not on top",
+      "fix": "真机只操作 currentPage() 当前页（tap/input/setData/evaluate/screenshot/console），禁导航；页对象过期重取 currentPage/pageStack",
+      "ownerAction": "无",
+      "since": "2026-11-06"
+    },
+    {
+      "id": "PITFALL-16",
+      "symptom": "module 'subpkg/kernel/kernel\\.js' is not defined",
+      "where": "device|remote-debug|kernel",
+      "cause": "物理设备（remote-debug 构建）上分包 kernel.js 连页内同包 require 都失败→kernel 引导页卡栈→runtime 回落 nano-kernel——真机专属应用侧 bug",
+      "fix": "应用侧待修：检查 remote-debug 构建是否含 subpkg 分包产物 / Android JSC 兼容性；探针面如实登记录 diag.errors.all",
+      "ownerAction": "业主：确认 subpkg/kernel 在真机调试构建产物中的打包与 require 解析",
+      "since": "2026-11-06"
     }
   ]
 }
