@@ -17,7 +17,9 @@
   box-shadow: var(--dsw-elevation-drawer);
 }
 
-/* 宽屏 dock：内联列——宿主 flex 机位由页面 .rp-host 给，内部去 fixed/投影。 */
+/* 宽屏 dock：内联列——宿主 flex 机位由页面 .rp-host 给，内部去 fixed/投影。
+ * padding-top 补回 nav 高度：面板纵贯全高，但顶部条必须与主列 header 同
+ * 基线——否则 strip 闯进原生 capsule（.../⊙）的悬停区被挡死。 */
 .right-panel-docked {
   position: relative;
   top: auto;
@@ -26,6 +28,8 @@
   z-index: 1;
   width: 380px;
   height: 100%;
+  padding-top: var(--app-nav-height);
+  box-sizing: border-box;
   box-shadow: none;
   animation: none;
 }
