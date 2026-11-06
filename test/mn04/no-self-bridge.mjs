@@ -9,7 +9,7 @@ const DIR = `${ROOT}/scripts/dev-cli`
 const results = []
 const check = (name, ok, detail = '') => { results.push({ name, ok }); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` — ${detail}` : ''}`) }
 
-const BRIDGE_RE = /McpClient\.open|\bnew\s+McpClient\b|connectIde\s*\(|automator\.(connect|launch)|launchAndConnect|miniprogram-automator|new\s+WebSocket\s*\(|spawn\s*\(|createRequire|import\s*\(\s*['"]miniprogram-automator/
+const BRIDGE_RE = /McpClient\.open|\bnew\s+McpClient\b|connectIde\s*\(|automator\.(connect|launch)|launchAndConnect|['"]miniprogram-automator['"]|new\s+WebSocket\s*\(|spawn\s*\(|createRequire/
 const EXEMPT = new Set(['cli.mjs'])                      // 生命周期 CLI 道本务（spawn 直通无桥语义）
 const EXEMPT_PARTIAL = new Set(['console.mjs'])           // --via auto 段豁免（仅允许 connectIde/pipeConsole 词位）
 
