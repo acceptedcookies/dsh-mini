@@ -1,7 +1,7 @@
-// L1（Node）：桥收编静态闸——scripts/dev-cli/*.mjs 顶层工具不得自建桥。
-// 白名单：lib/、cli.mjs、console.mjs --via auto 段（automator 语义豁免登记）。
-import { readdirSync, readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+// 静态闸：scripts/dev-cli 顶层工具不许自建桥——所有桥构造必须经 lib/probe.mjs。
+// 逃逸道全封：直接构造器/库 import 字面/动态 import/裸 ws/spawn/子目录。
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..')
@@ -9,23 +9,33 @@ const DIR = `${ROOT}/scripts/dev-cli`
 const results = []
 const check = (name, ok, detail = '') => { results.push({ name, ok }); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` — ${detail}` : ''}`) }
 
-const BRIDGE_RE = /McpClient\.open|connectIde\s*\(|automator\.(connect|launch)|launchAndConnect/
-const EXEMPT = new Set(['cli.mjs'])                      // 生命周期 CLI 道本务
-const EXEMPT_PARTIAL = new Set(['console.mjs'])           // --via auto 段豁免（行级判定）
+const BRIDGE_RE = /McpClient\.open|\bnew\s+McpClient\b|connectIde\s*\(|automator\.(connect|launch)|launchAndConnect|miniprogram-automator|new\s+WebSocket\s*\(|spawn\s*\(|createRequire|import\s*\(\s*['"]miniprogram-automator/
+const EXEMPT = new Set(['cli.mjs'])                      // 生命周期 CLI 道本务（spawn 直通无桥语义）
+const EXEMPT_PARTIAL = new Set(['console.mjs'])           // --via auto 段豁免（仅允许 connectIde/pipeConsole 词位）
+
+const walk = (dir, out = []) => {
+  for (const f of readdirSync(dir)) {
+    const p = join(dir, f)
+    if (statSync(p).isDirectory()) { if (f !== 'lib') walk(p, out); continue }
+    if (/\.(mjs|cjs|js)$/.test(f)) out.push(p)
+  }
+  return out
+}
 
 const offenders = []
-for (const f of readdirSync(DIR).filter((x) => x.endsWith('.mjs'))) {
-  if (EXEMPT.has(f)) continue
-  const src = readFileSync(`${DIR}/${f}`, 'utf8')
-  const hits = src.split('\n').map((l, i) => ({ l, i: i + 1 })).filter(({ l }) => BRIDGE_RE.test(l) && !/^\s*(\*|\/\/)/.test(l))
+for (const f of walk(DIR)) {
+  const base = f.split('/').pop()
+  if (EXEMPT.has(base)) continue
+  const src = readFileSync(f, 'utf8')
+  const hits = src.split('\n').map((l, i) => ({ l, i: i + 1 })).filter(({ l }) => BRIDGE_RE.test(l) && !/^\s*(\*|\/\/)/.test(l) && !/^\s*import\s*\{[^}]*\}\s*from\s*['"]\.\/lib\//.test(l))
   if (!hits.length) continue
-  if (EXEMPT_PARTIAL.has(f)) {
-    // 只允许 connectIde 出现在 --via auto 分支语义里（import + via==='auto' 同文件）
-    const illegal = hits.filter(({ l }) => !/connectIde|pipeConsole/.test(l))
-    if (illegal.length) offenders.push(`${f}: ${illegal.map((h) => `${h.i}:${h.l.trim().slice(0, 60)}`).join(' | ')}`)
+  if (EXEMPT_PARTIAL.has(base)) {
+    // --via auto 豁免只允许 connectIde/pipeConsole/ProbeDriver 词位
+    const illegal = hits.filter(({ l }) => !/connectIde|pipeConsole|ProbeDriver/.test(l))
+    if (illegal.length) offenders.push(`${base}: ${illegal.map((h) => `${h.i}:${h.l.trim().slice(0, 60)}`).join(' | ')}`)
     continue
   }
-  offenders.push(`${f}: ${hits.map((h) => `${h.i}:${h.l.trim().slice(0, 60)}`).join(' | ')}`)
+  offenders.push(`${base}: ${hits.map((h) => `${h.i}:${h.l.trim().slice(0, 60)}`).join(' | ')}`)
 }
 check('顶层工具零自建桥（除 cli.mjs / console --via auto）', offenders.length === 0, offenders.join(' ;; '))
 

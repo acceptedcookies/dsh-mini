@@ -23,20 +23,26 @@ const out = (r) => console.log(JSON.stringify(r, null, 2))
 const fail = (result, reason, extra = {}) => { out({ result, reason, dir, ...extra }); process.exit(result === 'skip' ? 3 : 4) }
 
 // ── 1) 通道：automator 是唯一真机道（MCP 不管真机 evaluate）─────────────
-const d = await ProbeDriver.open({ via: 'automator', automatorOpts: {} }).catch((e) => {
-  fail('degraded', `automator 通道不可达: ${e.message}`, { pitfall: e.pitfall?.id })
+const d = await ProbeDriver.open({ via: 'mcp', needAutomator: true, automatorOpts: {} }).catch((e) => {
+  fail('degraded', `IDE 通道不可达: ${e.message}`, { pitfall: e.pitfall?.id })
   throw e
 })
 const mp = d.mp
 
 // ── 2) remote 拉起（--dump-only 跳过）───────────────────────────────────
+// 注：--dump-only 对已 attach 通道直接 dump，不校验物理设备在场——产物如实记 source:'attached-lane'。
 if (flags['dump-only'] !== true) {
   const REMOTE_TIMEOUT = Number(flagOf(flags, 'remote-timeout', '45000'))
+  let orphan = null
   try {
-    await Promise.race([
-      mp.remote(true),
-      (async () => { await sleep(REMOTE_TIMEOUT); throw new Error('remote-timeout') })(),
-    ])
+    // MCP viewport_action remote+auto 优先；不可达/失败降级 mp.remote(true)（automator 原生道）
+    const remoteP = (async () => {
+      try { return await d.remoteDevice() } catch { return await mp.remote(true) }
+    })()
+    remoteP.catch((e) => { orphan = orphan ?? e })   // race 败方吞掉防 unhandled rejection
+    const sleeper = (async () => { await sleep(REMOTE_TIMEOUT); throw new Error('remote-timeout') })()
+    sleeper.catch((e) => { orphan = orphan ?? e })
+    await Promise.race([remoteP, sleeper])
   } catch (e) {
     await d.close().catch(() => {})
     if (e.message === 'remote-timeout') {
@@ -69,7 +75,7 @@ try {
   assertions.diagSections = Boolean(diag?.storage?.all) && Array.isArray(diag?.vfs?.objects) && Array.isArray(diag?.errors?.all)
 
   // storage.json
-  const storageDump = await mp.evaluate(`() => { const i = wx.getStorageInfoSync(); const o = {}; for (const k of i.keys) o[k] = wx.getStorageSync(k); return { keys: i.keys, currentSize: i.currentSize, all: o } }`)
+  const storageDump = await mp.evaluate(`() => { const i = wx.getStorageInfoSync(); const o = {}; for (const k of i.keys) { const s = wx.getStorageSync(k); const j = JSON.stringify(s); o[k] = j.length > 8192 ? j.slice(0, 8192) + '…<truncated>' : s } return { keys: i.keys, currentSize: i.currentSize, all: o } }`)
   writeFileSync(`${dir}/storage.json`, JSON.stringify(storageDump, null, 2))
   assertions.storageKeys = (storageDump?.keys?.length ?? 0) > 0
 
@@ -97,4 +103,5 @@ try {
 await d.close().catch(() => {})
 const failed = Object.entries(assertions).filter(([, v]) => v !== true).map(([k]) => k)
 if (failed.length) fail('degraded', `dump 内容断言未过: ${failed.join(',')}`, { assertions })
-out({ result: 'pass', dir, assertions, files: ['diag.json', 'storage.json', 'console.log', 'shots/'] })
+out({ result: 'pass', source: flags['dump-only'] ? 'attached-lane' : 'remote-connected', dir, assertions, files: ['diag.json', 'storage.json', 'console.log', 'shots/'] })
+process.exit(0)

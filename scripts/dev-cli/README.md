@@ -93,13 +93,16 @@
 - **元素可在视口外**：位移/隐藏容器的 offset 为负值属如实回报——`region` 出屏即报明错，先 `inject`/`act` 使其可见。
 - **诊断 schema**：`__diagnostics(sid)` 默认 v1；`__diagnostics(sid, true)` → v2（+`storage.all`/`vfs.objects`/`errors.all`，`errors.recent` 仍 20 条截断）。`device.mjs` dump 走 v2。
 - **SKIP/degraded**：`device.mjs` exit 3 = 物理设备缺席（唯一合法 skip）；设备在场但 remote/dump 失败 = exit 4 degraded + 当轮 pitfalls 登记。IDE/automation 不可达属环境失败而非设备缺席。
+- **`device.mjs --dump-only`**：对已 attach 通道直接 dump 不校验物理设备在场——产物 `source:'attached-lane'` 如实标注；真机证明以 `--remote` 路径为准。
+- **组件锚无自动 nav**：`@anchor` 解析仅在 `meta.page` 为 `pages/*` 路由时自动导航；组件类锚（`page:"components/..."`，宿主页记在 `note`）需调用方先 `nav` 到宿主页。
+- **cli.mjs 禁重复 --project**：已内建注入，外部再传 `e.startsWith` TypeError（PITFALL-12）。
 
 ## 测试入口
 
 | 套件 | 入口 | 通道 |
 |---|---|---|
 | MN04 L1 | `test/mn04/{anchors,pitfalls,lint,probe-lane,no-self-bridge,diag-v2}.mjs` | Node（无 IDE） |
-| MN04 L2 | `session.mjs -f` 批处理矩阵（见 todo.MN04.md 实测证据） | MCP（单桥复用） |
+| MN04 L2 | `session.mjs -f` 批处理矩阵（实测证据见 AP §11 / `docs/closure/mini-nano/1st-wave/MN04-closure.md`） | MCP（单桥复用） |
 | 错误 UI 探针 | `test/mn03/ide-error-ui.mjs` | automator（经 `connectIde`） |
 | durable 探针 | `test/mn02/ide-durable.mjs` | automator（经 `connectIde`） |
 | agentic turn | `scripts/fx-agentic-test.mjs` `scripts/vfs-agentic-test.mjs` | automator（经 `connectIde`） |

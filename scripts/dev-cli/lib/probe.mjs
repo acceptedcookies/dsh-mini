@@ -52,7 +52,8 @@ export class ProbeDriver {
   via
   stats = { mcpCalls: 0, automatorCalls: 0, actions: 0 }
 
-  static async open({ via, quiet = true, needAutomator = false, automatorOpts = {} } = {}) {
+  static async open({ tool, via, quiet = true, needAutomator = false, automatorOpts = {} } = {}) {
+    if (via === undefined) via = laneFor(tool)
     const d = new ProbeDriver()
     d.via = via
     d.#anchors = loadAnchors()

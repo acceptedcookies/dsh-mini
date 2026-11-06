@@ -49,8 +49,11 @@ if (flags.export !== undefined) {
     console.error(`脚本不存在: ${file}——先 --export ${name}`)
     process.exit(2)
   }
-  // 重跑：脚本模块导出 run(mp) 或裸 automator 语句序列
-  const d = await ProbeDriver.open({ via: flagOf(flags, 'via', 'automator') })
+  // 重跑：双通道——脚本需要 automator mp，终态 route 回读需要 MCP eval。
+  const via = flagOf(flags, 'via')
+  const d = via
+    ? await ProbeDriver.open({ via })
+    : await ProbeDriver.open({ via: 'mcp', needAutomator: true })
   try {
     const mod = await import(pathToFileURL(file).href)
     const before = await d.route().catch(() => null)

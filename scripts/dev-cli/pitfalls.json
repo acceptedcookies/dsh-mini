@@ -68,7 +68,7 @@
     {
       "id": "PITFALL-8",
       "symptom": "Invalid arguments|missing.*argument|required",
-      "where": "element_action.*scrollTo",
+      "where": "element_action",
       "cause": "element_action 的 scrollTo 须同时传 x 与 y，缺一边被拒",
       "fix": "scrollTo 传 {x:0,y:N} 双参；只滚纵向也显式给 x:0",
       "ownerAction": null,
@@ -76,11 +76,38 @@
     },
     {
       "id": "PITFALL-9",
-      "symptom": "timeout waiting for automator response|cant find runtimeid by projectpath",
-      "where": "fx-agentic|vfs-agentic|send\\(\\)|prompt",
+      "symptom": "cant find runtimeid by projectpath",
+      "where": ".*",
       "cause": "route=cloud 时 ensureDurableTicket 调云代理；代理不可达(http=000)→send()await 挂死→callMethod 超时→sim runtime 拖死",
       "fix": "先 curl 验 dsh-byok-proxy-*.tcloudbase.com 可达性（http=000 即代理死）；恢复后 cli quit+open 重开项目再跑",
       "ownerAction": "确认云代理存活（腾讯 tcloudbase 实例在线/网络可达）；死期间 L3 云车道测试记 blocked-environment",
+      "since": "2026-11-06"
+    },
+    {
+      "id": "PITFALL-10",
+      "symptom": "simulator_screenshot|截图.*(窗口|OS)|coordinates.*window",
+      "where": "region|shot|simulator_screenshot",
+      "cause": "automation_simulator_screenshot 截的是 DevTools OS 窗口（受物理屏幕边缘裁切，684x1486≠设备视口），不是页面视口坐标系",
+      "fix": "区域截图用 automation_viewport_action screenshot（视口同坐标系）；校比=imgPx/viewportDp 逐帧实测，勿用 wx.getWindowInfo().pixelRatio",
+      "ownerAction": "无",
+      "since": "2026-11-06"
+    },
+    {
+      "id": "PITFALL-11",
+      "symptom": "元素.*在视口外|left.*-|offset.*negative",
+      "where": "region|elementRect|geo",
+      "cause": "目标元素几何在视口外（负 offset 或超视口高）——折叠侧栏/位移容器导致，非元素不存在",
+      "fix": "先 act 打开容器（如 sidebarOpen）并等过渡完成再取 geo；region 出屏会明错不静默裁切",
+      "ownerAction": "无",
+      "since": "2026-11-06"
+    },
+    {
+      "id": "PITFALL-12",
+      "symptom": "startsWith is not a function",
+      "where": "cli\\.mjs|wechatwebdevtools.*cli",
+      "cause": "cli.mjs 已自动注入 --project 参数；调用方再传 --project 致 DevTools CLI 收到重复参数数组内部崩 TypeError",
+      "fix": "node scripts/dev-cli/cli.mjs <cmd> 直接调用，勿带 --project",
+      "ownerAction": "无",
       "since": "2026-11-06"
     }
   ]

@@ -9,7 +9,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..')
 const results = []
 const check = (name, ok, detail = '') => { results.push({ name, ok }); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` — ${detail}` : ''}`) }
 
-const reg = JSON.parse(readFileSync(`${ROOT}/scripts/dev-cli/anchors.json`, 'utf8'))
+const raw = readFileSync(`${ROOT}/scripts/dev-cli/anchors.json`, 'utf8')
+const reg = JSON.parse(raw)
 check('anchors.json 顶层 schema', reg.$schema === 'dsh-mini.anchors.v1' && typeof reg.anchors === 'object', `schema=${reg.$schema}`)
 
 const anchors = reg.anchors
@@ -20,12 +21,17 @@ let bad = []
 for (const [name, meta] of entries) {
   if (typeof meta.selector !== 'string' || !meta.selector.length) bad.push(`${name}:selector`)
   if (!meta.selector.includes(`data-anchor="${name}"`)) bad.push(`${name}:selector未含自身锚`)
+  if (typeof meta.page !== 'string' || !meta.page.length) bad.push(`${name}:page缺失`)
+  if (typeof meta.kind !== 'string' || !meta.kind.length) bad.push(`${name}:kind缺失`)
   if (meta.disc !== undefined && typeof meta.disc !== 'string') bad.push(`${name}:disc类型`)
 }
-check('每条 {selector 含自身锚, disc 合法}', bad.length === 0, bad.slice(0, 5).join(';'))
+check('每条 {page,selector 含自身锚,kind,disc 合法}', bad.length === 0, bad.slice(0, 5).join(';'))
 
-const nameSet = new Set(entries.map(([n]) => n))
-check('锚名唯一性', nameSet.size === entries.length)
+// 锚名唯一性：JSON.parse 会吞重复键——对原文做键计数才有效
+const keyCount = {}
+for (const m of raw.matchAll(/"([a-zA-Z][\w.\-]*)":\s*\{/g)) keyCount[m[1]] = (keyCount[m[1]] ?? 0) + 1
+const dups = entries.map(([n]) => n).filter((n) => keyCount[n] > 1)
+check('锚名唯一性（原文键计数）', dups.length === 0, dups.join(',') || `${entries.length} 键无重复`)
 
 // lint 桥接：真实树 exit 0 且三段全零
 const out = execFileSync('node', [`${ROOT}/scripts/dev-cli/lint.mjs`], { encoding: 'utf8' })
