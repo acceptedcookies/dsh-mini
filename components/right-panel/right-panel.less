@@ -17,6 +17,19 @@
   box-shadow: var(--dsw-elevation-drawer);
 }
 
+/* 宽屏 dock：内联列——宿主 flex 机位由页面 .rp-host 给，内部去 fixed/投影。 */
+.right-panel-docked {
+  position: relative;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  z-index: 1;
+  width: 380px;
+  height: 100%;
+  box-shadow: none;
+  animation: none;
+}
+
 .rp-strip {
   flex: none;
   display: flex;

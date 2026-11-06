@@ -47,6 +47,8 @@ const FILE_ICON: Record<string, string> = {
 Component({
   properties: {
     visible: { type: Boolean, value: false },
+    /** 宽屏 dock 形态：fixed overlay → 内联列（宿主机位由页面 .rp-host 控制）。 */
+    docked: { type: Boolean, value: false },
     active: { type: String, value: 'files' },
     tabs: { type: Array, value: [] },
     theme: { type: String, value: 'light' },

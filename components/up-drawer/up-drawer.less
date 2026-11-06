@@ -134,3 +134,15 @@
   from { transform: translateY(0); }
   to { transform: translateY(100%); }
 }
+
+/* 宽屏：全宽底抽屉 → 560px 居中浮底抽屉（close 钮挂壳层随动） */
+@media (min-width: 768px) {
+  .upd-sheet {
+    left: 0;
+    right: 0;
+    bottom: var(--dsw-space-24, 24px);
+    margin: 0 auto;
+    max-width: 560px;
+    border-radius: var(--dsw-radius-xl);
+  }
+}

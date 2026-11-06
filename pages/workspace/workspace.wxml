@@ -336,8 +336,6 @@
     </view>
   </main>
 
-  <view wx:if="{{rightOpen && windowWidth >= 1100}}" class="right-reserve"></view>
-
   <command-menu
     id="command-menu"
     visible="{{commandMenuVisible}}"
@@ -360,7 +358,9 @@
   />
   <right-panel
     id="right-panel"
+    class="rp-host"
     visible="{{rightOpen}}"
+    docked="{{isDesktop}}"
     active="{{rightTab}}"
     tabs="{{rightTabs}}"
     theme="{{theme}}"

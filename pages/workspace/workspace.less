@@ -396,12 +396,6 @@
 
 /* Main column — ui-conversation/ConversationRoot.module.css */
 
-.right-reserve {
-  flex: none;
-  width: 420px;
-  height: 100vh;
-}
-
 .main {
   position: relative;
   flex: 1;
@@ -1157,4 +1151,39 @@
   display: flex;
   justify-content: center;
   color: var(--dsw-alias-state-success-primary);
+}
+
+/* ── 宽屏适配（MN06）：悬浮件对齐居中内容列；右栏 dock；操作成组 ──
+ * .app-wide 由 isWide(>=768px) 数据驱动——桌面窗口/横屏 iPad 都走这套。 */
+
+/* unlock-banner：全宽拉伸 → 与 chat-column 同一居中槽位 */
+.app-wide .unlock-banner {
+  left: 50%;
+  right: auto;
+  width: min(920px, calc(100% - 32px));
+  transform: translateX(-50%);
+}
+
+/* turn-rail：贴视口右缘 → 贴内容列右缘（列宽 984 居中） */
+.app-wide .turn-rail {
+  right: calc(max(12px, (100% - 984px) / 2 + 12px));
+}
+
+/* header-actions：两个孤立 glyph → 成组 pill 工具条（与原生 capsule ... 区分） */
+.app-wide .header-actions {
+  padding: var(--dsw-space-2);
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: var(--dsw-radius-pill);
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+/* right-panel 宿主机位：仅真桌面宽（>=1024）占列——768~1023 保留 overlay。
+ * 组件内部形态由 docked 属性换 .right-panel-docked（宿主对页面查询不透明，
+ * 故 flex 机位打在 .rp-host 类上，不用 tag/descendant 选择器）。 */
+@media (min-width: 1024px) {
+  .rp-host {
+    flex: none;
+    display: block;
+    height: 100%;
+  }
 }

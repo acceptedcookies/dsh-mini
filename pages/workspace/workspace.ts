@@ -20,7 +20,7 @@ import {
 } from '../../services/session-engine'
 import { formatRelative } from '../../utils/time'
 import { toolView, type ToolView } from '../../utils/tool-view'
-import { getWindowMetrics, isWideLayout, type WindowMetrics } from '../../utils/window'
+import { getWindowMetrics, isWideLayout, isDesktopLayout, type WindowMetrics } from '../../utils/window'
 import type {
   ApprovalOutcome,
   ApprovalRequest,
@@ -206,6 +206,7 @@ Page({
     appStyle: '',
     windowWidth: 375,
     isWide: false,
+    isDesktop: false,
     sidebarOpen: false,
     currentId: '',
     title: '新会话',
@@ -316,6 +317,7 @@ Page({
       ...layoutData(metrics),
       ...placeholderData(isWide, planMode),
       isWide,
+      isDesktop: isDesktopLayout(metrics.width),
       ...mv,
       engineChipLabel: chipEngineLabel(),
       permission: permission.id,
@@ -354,6 +356,7 @@ Page({
         ...layoutData(metrics),
         ...placeholderData(wide, this.data.planMode),
         isWide: wide,
+        isDesktop: isDesktopLayout(metrics.width),
         sidebarOpen: wide ? false : this.data.sidebarOpen,
       }, () => {
         this.measureChatViewport()
