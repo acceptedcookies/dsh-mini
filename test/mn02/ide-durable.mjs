@@ -4,17 +4,14 @@
 // DevTools 面：wx.startSoterAuthentication 不可用（IDE 无 TEE）→ mp 票据车道属真机面，
 //   B/C/E 记 documented-degradation；E 改走「IDE 真 openid + 节点侧铸票写 alarm → sweeper 认领」。
 // 用法: node test/mn02/ide-durable.mjs   （IDE 已开时 AUTO_PORT=xxxx 复用）
-import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { readFileSync } from "node:fs";
 import crypto from "node:crypto";
+import { connectIde } from "../../scripts/dev-cli/lib/ide.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..", "..");
-const require = createRequire(join(root, "test/spike/package.json"));
-const automator = require("miniprogram-automator");
-const CLI_PATH = "/Applications/wechatwebdevtools.app/Contents/MacOS/cli";
 const DURABLE = "https://dsh-mini.haimang.com.cn";
 const log = (...a) => console.log("[ide-durable]", ...a);
 const results = [];
@@ -39,29 +36,10 @@ const pod = async (oid, ep, body) => {
   return { status: r.status, body: await r.json().catch(() => null) };
 };
 
+// 连接契约收敛至 scripts/dev-cli/lib/ide.mjs：AUTO_PORT/ws9420 → cli auto 回退。
 async function launchAndConnect() {
-  const envPort = process.env.AUTO_PORT;
-  if (envPort) return automator.connect({ wsEndpoint: `ws://127.0.0.1:${envPort}` });
-  const { spawn } = await import("node:child_process");
-  const proc = spawn(CLI_PATH, ["auto", "--project", root, "--auto-port", "9601"], { stdio: ["ignore", "pipe", "pipe"] });
-  let out = "";
-  proc.stdout.on("data", (d) => (out += d));
-  proc.stderr.on("data", (d) => (out += d));
-  const deadline = Date.now() + 240000;
-  let actual = null;
-  while (Date.now() < deadline) {
-    const m = /"autoPort":\s*(\d+)/.exec(out);
-    if (m) { actual = Number(m[1]); break; }
-    if (proc.exitCode !== null) break;
-    await new Promise((r) => setTimeout(r, 1000));
-  }
-  if (actual == null) throw new Error(`cli auto did not report autoPort:\n${out.slice(-800)}`);
-  let lastErr = null;
-  while (Date.now() < deadline) {
-    try { return await automator.connect({ wsEndpoint: `ws://127.0.0.1:${actual}` }); }
-    catch (e) { lastErr = e; await new Promise((r) => setTimeout(r, 1500)); }
-  }
-  throw lastErr;
+  const { mp } = await connectIde({ project: root });
+  return mp;
 }
 
 const callFunction = (mini2, name, data) => mini2.evaluate((args) => {

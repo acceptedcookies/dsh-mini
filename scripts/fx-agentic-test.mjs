@@ -2,16 +2,12 @@
 // 路径：page.setData(input) + page.callMethod('send') —— 与 composer send 同一入口。
 // --enroll-first：先经设置页走真云同构注入（bio 门禁负例 → bio on 注入 → manual 源轮次）。
 // 用法: node scripts/fx-agentic-test.mjs [--text-only] [--enroll-first]
-import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { connectIde } from "./dev-cli/lib/ide.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
-const require = createRequire(join(root, "test/spike/package.json"));
-const automator = require("miniprogram-automator");
-
-const CLI_PATH = "/Applications/wechatwebdevtools.app/Contents/MacOS/cli";
 const SIM_BASE = process.env.SIM_BASE ?? "http://127.0.0.1:3426";
 const textOnly = process.argv.includes("--text-only");
 const enrollFirst = process.argv.includes("--enroll-first");
@@ -64,41 +60,10 @@ async function sendPrompt(getPage, text) {
   await page.callMethod("send");
 }
 
-// cli auto 复用运行中 IDE 时会忽略 --auto-port 请求值；从 cli stdout 解析实际 autoPort 再 connect。
+// 连接契约收敛至 scripts/dev-cli/lib/ide.mjs：AUTO_PORT/ws9420 → cli auto 回退。
 async function launchAndConnect() {
-  const envPort = process.env.AUTO_PORT;
-  if (envPort) {
-    return automator.connect({ wsEndpoint: `ws://127.0.0.1:${envPort}` });
-  }
-  const { spawn } = await import("node:child_process");
-  const port = 9600;
-  const proc = spawn(CLI_PATH, ["auto", "--project", root, "--auto-port", String(port)], { stdio: ["ignore", "pipe", "pipe"] });
-  let out = "";
-  proc.stdout.on("data", (d) => (out += d));
-  proc.stderr.on("data", (d) => (out += d));
-  const deadline = Date.now() + 240000;
-  let actual = null;
-  while (Date.now() < deadline) {
-    const m = /"autoPort":\s*(\d+)/.exec(out);
-    if (m) {
-      actual = Number(m[1]);
-      break;
-    }
-    if (proc.exitCode !== null) break;
-    await new Promise((r) => setTimeout(r, 1000));
-  }
-  if (actual == null) throw new Error(`cli auto did not report autoPort:\n${out.slice(-800)}`);
-  // 等自动化 ws 就绪
-  let lastErr = null;
-  while (Date.now() < deadline) {
-    try {
-      return await automator.connect({ wsEndpoint: `ws://127.0.0.1:${actual}` });
-    } catch (e) {
-      lastErr = e;
-      await new Promise((r) => setTimeout(r, 1500));
-    }
-  }
-  throw lastErr ?? new Error("automation ws not reachable");
+  const { mp } = await connectIde({ project: root });
+  return mp;
 }
 
 /**
