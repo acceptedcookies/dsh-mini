@@ -13,6 +13,11 @@ globalThis.wx = {
   getStorageSync: (k) => (store.has(k) ? store.get(k) : ''),
   setStorageSync: (k, v) => void store.set(k, v),
   removeStorageSync: (k) => void store.delete(k),
+  getStorageInfoSync: () => ({
+    keys: [...store.keys()],
+    currentSize: [...store.values()].reduce((n, v) => n + JSON.stringify(v).length, 0),
+    limitSize: 10240,
+  }),
   arrayBufferToBase64: (buf) => Buffer.from(buf).toString('base64'),
   base64ToArrayBuffer: (b64) => {
     const b = Buffer.from(b64, 'base64')

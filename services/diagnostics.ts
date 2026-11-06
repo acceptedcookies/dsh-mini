@@ -16,6 +16,7 @@ import { APP_VERSION } from './config'
 import type { ChatItem, SessionSummary } from '../types/protocol'
 
 export const DIAG_SCHEMA = 'dsh-mini.diag.v1'
+export const DIAG_SCHEMA_V2 = 'dsh-mini.diag.v2'
 
 export interface SessionDiagnostics {
   schema: string
@@ -51,12 +52,16 @@ export interface SessionDiagnostics {
   vfs: {
     mounts: Array<{ name: string; sessions: string[] }>
     sessionRows: Array<{ path: string; size: number | undefined; mime: string | undefined }>
+    /** v2(full) 才出现：全部 vfs 行（不侧 session、不截 40）。 */
+    objects?: Array<{ path: string; size: number | undefined; mime: string | undefined }>
   }
   errors: {
     recent: ErrorReport[]
     openToasts: number
     openModal?: string
     pending: number
+    /** v2(full) 才出现：errorBus 全量 log（recent 仍 20 条截断）。 */
+    all?: ErrorReport[]
   }
   env: {
     version: string
@@ -66,11 +71,24 @@ export interface SessionDiagnostics {
   }
 }
 
+/** full:true 的 v2 增量段——默认调用保持 v1 契约不变（MN04 模式分派，非直改）。 */
+export interface SessionDiagnosticsV2 extends SessionDiagnostics {
+  schema: typeof DIAG_SCHEMA_V2
+  storage: {
+    /** wx.getStorageInfoSync().keys 全键值表（值经 JSON 化，超限截断标注）。 */
+    all: Record<string, unknown>
+    currentSize: number
+    limitSize: number
+  }
+}
+
 const LAST_ITEMS_CAP = 20
 const SESSION_ROWS_CAP = 40
+const STORAGE_VALUE_CAP = 4096
 
-/** sid 缺席=当前会话（store.current），仍缺席→无 session 段的整体诊断。 */
-export function sessionDiagnostics(sessionId?: string): SessionDiagnostics {
+/** sid 缺席=当前会话（store.current），仍缺席→无 session 段的整体诊断。
+ *  full=true → v2 契约（storage.all / vfsExtra.objects / errorsExtra.all 增量段）。 */
+export function sessionDiagnostics(sessionId?: string, full = false): SessionDiagnostics | SessionDiagnosticsV2 {
   const state = sessionStore.getState()
   const route = currentRoute()
   const routeErr = lastRouteError()
@@ -90,8 +108,25 @@ export function sessionDiagnostics(sessionId?: string): SessionDiagnostics {
         .slice(0, SESSION_ROWS_CAP)
         .map((row) => ({ path: row.virtual_path, size: row.size_bytes, mime: row.mime }))
 
+  const extra = full
+    ? (() => {
+        const info = wx.getStorageInfoSync()
+        const all: Record<string, unknown> = {}
+        for (const k of info.keys) {
+          const v = wx.getStorageSync(k) as unknown
+          const s = typeof v === 'string' ? v : JSON.stringify(v)
+          all[k] = typeof s === 'string' && s.length > STORAGE_VALUE_CAP ? `${s.slice(0, STORAGE_VALUE_CAP)}…<truncated ${s.length}B>` : v
+        }
+        return {
+          storage: { all, currentSize: info.currentSize, limitSize: info.limitSize },
+          vfsObjects: vfsStore.allRows().map((row) => ({ path: row.virtual_path, size: row.size_bytes, mime: row.mime })),
+          errorsAll: errorBus.recent(Number.MAX_SAFE_INTEGER),
+        }
+      })()
+    : null
+
   return {
-    schema: DIAG_SCHEMA,
+    schema: full ? DIAG_SCHEMA_V2 : DIAG_SCHEMA,
     ts: Date.now(),
     runtime: {
       lane: sessionStore.runtimeLane(),
@@ -141,12 +176,14 @@ export function sessionDiagnostics(sessionId?: string): SessionDiagnostics {
     vfs: {
       mounts: vfsStore.allMounts().map((m) => ({ name: m.name, sessions: [...m.sessions] })),
       sessionRows,
+      ...(extra !== null ? { objects: extra.vfsObjects } : {}),
     },
     errors: {
       recent: errorBus.recent(20),
       openToasts: busState.toasts.length,
       ...(busState.modal !== undefined ? { openModal: busState.modal.code } : {}),
       pending: busState.pendingCount,
+      ...(extra !== null ? { all: extra.errorsAll } : {}),
     },
     env: {
       version: APP_VERSION,
@@ -154,5 +191,6 @@ export function sessionDiagnostics(sessionId?: string): SessionDiagnostics {
       model: storage.getModel(),
       planMode: storage.getPlanMode() === true,
     },
+    ...(extra !== null ? { storage: extra.storage } : {}),
   }
 }

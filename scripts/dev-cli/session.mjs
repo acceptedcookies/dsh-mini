@@ -112,7 +112,11 @@ async function runLine(line) {
     }
     case 'nav': return out(await d.nav(rest[0] ?? 'reLaunch', rest[1], flags.delta !== undefined ? { delta: Number(flags.delta) } : {}))
     case 'refresh': return out(await d.refresh(Number(flagOf(flags, 'wait', '6000'))))
-    case 'reset': return out(await d.clearCache(flagOf(flags, 'type', 'cleanStorageCache')))
+    case 'reset': {
+      const MAP = { storage: 'cleanStorageCache', file: 'cleanFileCache', session: 'clearSession', auth: 'clearAuth', webview: 'cleanWebViewCache', compile: 'cleanCompileCache', filelist: 'cleanProjectFileListCache', allsim: 'cleanAllSimulatorCache', all: 'cleanAll' }
+      const t = flagOf(flags, 'type', 'storage')
+      return out(await d.clearCache(MAP[t] ?? (Object.values(MAP).includes(t) ? t : (() => { throw new Error(`--type ∈ ${Object.keys(MAP).join('|')}`) })())))
+    }
     case 'scene': {
       const mode = rest[0]
       if (mode === 'dark' || mode === 'light' || mode === 'system') {
@@ -129,11 +133,20 @@ async function runLine(line) {
         }
         return out({ mocked: Object.keys(patch), registered: d.pendingMocks })
       }
+      if (flags.read === true) {
+        return out(await d.eval(`() => ({ theme: wx.getStorageSync('dsh:theme:v2') ?? '', win: { w: wx.getWindowInfo().windowWidth, h: wx.getWindowInfo().windowHeight, pr: wx.getWindowInfo().pixelRatio } })`))
+      }
+      if (flags.page !== undefined) {
+        const params = { page: flagOf(flags, 'page', '') }
+        if (flags.scene !== undefined) params.scene = Number(flags.scene)
+        if (flags.query !== undefined) params.query = flags.query
+        return out(await d.call('simulator_open_page', params))
+      }
       if (flags.restore === true) {
         for (const m of [...d.pendingMocks]) await d.restoreWx(m)
         return out({ restored: 'all', pending: d.pendingMocks })
       }
-      return out('scene dark|light|system | --sysinfo \'{..}\' | --restore')
+      return out('scene dark|light|system | --sysinfo \'{..}\' | --page p | --read | --restore')
     }
     case 'region': {
       const target = rest[0]

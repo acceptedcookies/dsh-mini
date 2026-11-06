@@ -38,7 +38,9 @@ const BUILTIN_TAGS = new Set([
 ])
 
 function* walkWxml(dir) {
-  for (const name of readdirSync(dir)) {
+  let names
+  try { names = readdirSync(dir) } catch { return }
+  for (const name of names) {
     const p = join(dir, name)
     const st = statSync(p)
     if (st.isDirectory()) yield* walkWxml(p)

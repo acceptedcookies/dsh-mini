@@ -1,7 +1,7 @@
 // dev-cli · pitfalls 机器匹配（T-O-6）：pitfalls.json 为唯一真源。
 // matchPitfall(err.message, where) → 命中条目；wrapError 产出带 [PITFALL-n]
 // 解法或「请业主：{ownerAction}」前缀的 Error。symptom/where 均为正则。
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { REPO_ROOT } from './args.mjs'
 
 export const PITFALLS_PATH = `${REPO_ROOT}/scripts/dev-cli/pitfalls.json`
@@ -27,6 +27,19 @@ export function matchPitfall(message, where = '', list = loadPitfalls()) {
     return p
   }
   return undefined
+}
+
+/** degraded 当轮登记新坑（P4-02）：追加到 pitfalls.json 真源并失效缓存。 */
+export function appendPitfall({ symptom, where, cause, fix, ownerAction }) {
+  const reg = JSON.parse(readFileSync(PITFALLS_PATH, 'utf8'))
+  const list = reg.pitfalls ?? []
+  const id = `PITFALL-${Math.max(0, ...list.map((p) => Number(String(p.id).replace(/\D/g, '')))) + 1}`
+  const entry = { id, symptom, where, cause, ...(fix !== undefined ? { fix } : {}), ...(ownerAction !== undefined ? { ownerAction } : {}), since: new Date().toISOString().slice(0, 10) }
+  list.push(entry)
+  reg.pitfalls = list
+  writeFileSync(PITFALLS_PATH, JSON.stringify(reg, null, 2) + '\n')
+  _cache = null
+  return entry
 }
 
 /** 包错误：命中 → `[PITFALL-n] {fix}` 或 `请业主：{ownerAction}` 前缀 Error；未命中原样。 */

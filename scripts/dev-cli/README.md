@@ -13,10 +13,31 @@
 | 文件 | 职责 |
 |---|---|
 | `lib/args.mjs` | `--flag value` / `--flag=v` / 位置参数解析；`REPO_ROOT`、`PROJECT` |
-| `lib/mcp.mjs` | `McpClient`：stdio 握手 + `call/text/eval/shot/navigate/refresh/runtimeInfo` |
+| `lib/mcp.mjs` | `McpClient`：stdio 握手 + `call/text/eval/shot/navigate/refresh/runtimeInfo`；`bridgeCount` 计数 |
 | `lib/ide.mjs` | `connectIde`：AUTO_PORT → ws:9420 → `cli auto` 回退（stdout 解析实际 autoPort）；`pipeConsole`；`CLI_PATH` |
+| `lib/pitfalls.mjs` | `matchPitfall`/`wrapError`/`appendPitfall`——错误出口统一 [PITFALL-n] 前缀，真源 `pitfalls.json` |
+| `lib/probe.mjs` | **ProbeDriver**：单一驱动层。择路（模拟器→MCP/真机→automator/生命周期→CLI）、锚解析（`@anchor`/`--id` 动态行）、hook 白名单、mock 配对 restore、桥复用 |
+| `lib/region-run.mjs` | region 三步合成：element geo → viewport 截图 → jimp 裁切（实测校比=图px/视口dp，≠wx pr） |
 
-## 工具面（按通道）
+`anchors.json` = 一级交互锚点注册真源（`data-anchor="scope.action"`；`disc` 字段管 wx:for 动态行）。`pitfalls.json` = 机器可读踩坑真源（symptom 正则 → fix/ownerAction）。
+
+## 工具面（ProbeDriver 薄壳）
+
+全部工具经 `ProbeDriver` 复用同一桥会话；**禁止在顶层脚本自建桥**（`test/mn04/no-self-bridge.mjs` 静态闸；例外：`cli.mjs` 生命周期道、`console.mjs --via auto` automator 语义段）。
+
+### 锚点/探针/注入面（MN04）
+
+| 脚本 | 用法 | 说明 |
+|---|---|---|
+| `act.mjs` | `act.mjs <@anchor\|sel> <action> [--id v] [--v val] [--x --y] [--wait s] [--for sel]` | element_action 18 动作；@anchor 注册表解析，--id 拼 `[disc="v"]` |
+| `inject.mjs` | `--data '{k:v}' \| --call m [--args '[]'] \| --hook H --fn src \| --mock-wx m [--result j\|--fn src] \| --restore [m]` | 四键互斥三分流：page.data / callMethod / globalData 白名单 / wx mock 配对 |
+| `region.mjs` | `region.mjs <@anchor\|sel> [-o out.png] [--id v]` | 元素几何 → viewport 截图 → jimp 裁切 → `region.png`+`.json` 元数据 |
+| `scene.mjs` | `scene.mjs dark\|light\|system \| --sysinfo '{..}' \| --page p [--scene n --query q] \| --read` | 主题走 settings onThemeMode 用户路径；sysinfo 为 JS 层 mock（rpx 布局不可改） |
+| `reset.mjs` | `reset.mjs [--type storage\|file\|session\|auth\|webview\|compile\|filelist\|allsim\|all]` | debug_clear_cache 9 类透传 |
+| `session.mjs` | `session.mjs [-f steps.txt]` | REPL/批处理会话载体——单桥跑整组动作（冷启 ~8s 摊一次） |
+| `device.mjs` | `device.mjs --remote [--seconds s] [--dump-only]` | 真机拉起 + 四件套 dump `.anote/device/<ts>/`；exit 3=skip 设备缺席、4=degraded |
+| `replay.mjs` | `replay.mjs --export <name> \| --run <name> [--via auto] \| --list` | generate_script 导出 → `test/replay/*.mjs`；重跑带 route 终态回读 |
+| `lint.mjs` | `lint.mjs [--json]` | 锚点双向对账：未锚交互/烂锚/未注册锚 三段检出 + 存活率 |
 
 ### A · MCP 通道 —— `McpClient` 封装
 
@@ -58,6 +79,8 @@
 
 ## 通道边界与已知坑（实测登记）
 
+> 机器可读真源 = `pitfalls.json`（`lib/pitfalls.mjs` wrapError 在错误出口自动命中 → `[PITFALL-n]` 前缀）。下表为人读索引，与 json 同步维护。
+
 - **MCP 授权**：tools/call 返回 `-32603 Bad Request` = IDE 侧授权弹窗待批准，批准后重试。
 - **evaluate 禁顶层 await**：fnSource 写 promise 链；`eval.mjs` 对裸表达式自动包 `() => (expr)`。
 - **refresh 后编译窗口**：`simulator_refresh` 触发重编译期间 evaluate 超时——`refresh.mjs --wait` 沉降后再探。
@@ -66,11 +89,17 @@
 - **cli auto 端口漂移**：复用运行中 IDE 时 `--auto-port` 请求值会被忽略，实际端口从 stdout `"autoPort":N` 解析——`connectIde` 已内建。
 - **nav 假超时**：`automation_navigate` 偶发响应超时但实际已跳转——`nav.mjs` 后读当前 route 如实回报。
 - **auto_preview 授权**：IDE 内弹推送授权，需手动批准；`preview.mjs` 轮询任务态。
+- **截图坐标系**：`simulator_screenshot` 截 OS 窗口（可被屏幕边缘裁切）；viewport_action screenshot 与 element offset 同设备坐标系，但像素密度=实测校比（图px/视口dp ≈1.465），**不是** `wx.getWindowInfo().pixelRatio`——`region.mjs`/`lib/region-run.mjs` 已内建校比解算。
+- **元素可在视口外**：位移/隐藏容器的 offset 为负值属如实回报——`region` 出屏即报明错，先 `inject`/`act` 使其可见。
+- **诊断 schema**：`__diagnostics(sid)` 默认 v1；`__diagnostics(sid, true)` → v2（+`storage.all`/`vfs.objects`/`errors.all`，`errors.recent` 仍 20 条截断）。`device.mjs` dump 走 v2。
+- **SKIP/degraded**：`device.mjs` exit 3 = 物理设备缺席（唯一合法 skip）；设备在场但 remote/dump 失败 = exit 4 degraded + 当轮 pitfalls 登记。IDE/automation 不可达属环境失败而非设备缺席。
 
-## 测试入口（既有套件沿用）
+## 测试入口
 
 | 套件 | 入口 | 通道 |
 |---|---|---|
+| MN04 L1 | `test/mn04/{anchors,pitfalls,lint,probe-lane,no-self-bridge,diag-v2}.mjs` | Node（无 IDE） |
+| MN04 L2 | `session.mjs -f` 批处理矩阵（见 todo.MN04.md 实测证据） | MCP（单桥复用） |
 | 错误 UI 探针 | `test/mn03/ide-error-ui.mjs` | automator（经 `connectIde`） |
 | durable 探针 | `test/mn02/ide-durable.mjs` | automator（经 `connectIde`） |
 | agentic turn | `scripts/fx-agentic-test.mjs` `scripts/vfs-agentic-test.mjs` | automator（经 `connectIde`） |
