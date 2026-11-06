@@ -83,3 +83,59 @@
   white-space: pre;
   word-break: normal;
 }
+
+/* ── 表格段 ── */
+.md-table {
+  margin: 0 0 var(--dsw-space-16);
+  overflow: hidden;
+  border: 0.5px solid var(--dsw-alias-border-l1);
+  border-radius: var(--dsw-radius-sm);
+}
+
+.md-table-scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.md-t {
+  display: inline-block;
+  min-width: 100%;
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--dsw-text-caption);
+}
+
+.md-tr {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l1);
+}
+
+.md-tr:last-child {
+  border-bottom: none;
+}
+
+.md-th {
+  background: var(--dsw-alias-markdown-code-block-banner);
+}
+
+.md-tr-alt {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.md-td {
+  flex: none;
+  min-width: 64px;
+  padding: var(--dsw-space-6) var(--dsw-space-12);
+  line-height: var(--dsw-lh-20);
+  white-space: nowrap;
+  color: var(--dsw-alias-label-primary);
+}
+
+.md-td-h {
+  font-weight: 600;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.md-td rich-text {
+  white-space: nowrap;
+}

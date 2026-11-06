@@ -1,5 +1,24 @@
 <block wx:for="{{segments}}" wx:key="index">
   <rich-text wx:if="{{item.kind === 'html'}}" class="md" nodes="{{item.html}}"></rich-text>
+  <view wx:elif="{{item.kind === 'table'}}" class="md-table theme-{{theme}}">
+    <scroll-view scroll-x enhanced show-scrollbar="{{false}}" class="md-table-scroll">
+      <view class="md-t">
+        <view wx:if="{{item.header}}" class="md-tr md-th">
+          <view wx:for="{{item.header}}" wx:for-item="cell" wx:key="index"
+            class="md-td md-td-h" style="text-align:{{item.aligns[index] || 'left'}}">
+            <rich-text nodes="{{cell}}"></rich-text>
+          </view>
+        </view>
+        <view wx:for="{{item.rows}}" wx:for-item="row" wx:key="index"
+          class="md-tr {{rowIndex % 2 === 1 ? 'md-tr-alt' : ''}}" wx:for-index="rowIndex">
+          <view wx:for="{{row}}" wx:for-item="cell" wx:key="index"
+            class="md-td" style="text-align:{{item.aligns[index] || 'left'}}">
+            <rich-text nodes="{{cell}}"></rich-text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
   <view wx:else class="code-card theme-{{theme}}">
     <view class="code-head">
       <text class="code-lang">{{item.lang || '代码'}}</text>
