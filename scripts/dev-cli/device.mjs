@@ -6,8 +6,10 @@
 //
 // 产物: .anote/device/<ts>/{diag.json, storage.json, console.log, shots/*.png}
 // 出口: 0=pass  3=skip(物理设备缺席，机器可读 reason)  4=degraded(设备在场但 remote/dump 失败)
-import { mkdirSync, writeFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { mkdirSync, writeFileSync, readdirSync, statSync, readFileSync, existsSync } from 'node:fs'
+import { resolve, join } from 'node:path'
+import { connect } from 'node:net'
+import { homedir } from 'node:os'
 import { ProbeDriver } from './lib/probe.mjs'
 import { appendPitfall } from './lib/pitfalls.mjs'
 import { parseArgs, flagOf } from './lib/args.mjs'
@@ -43,11 +45,45 @@ const mp = d.mp
 
 // ── 2) remote 拉起（--dump-only 跳过）───────────────────────────────────
 // 注：--dump-only 对已 attach 通道直接 dump，不校验物理设备在场——产物如实记 source:'attached-lane'。
+//
+// 调试窗存活守卫（PITFALL-18）：enableRemoteDebug 让手机进「等调试器」长等态，
+// IDE 侧 remote-debug 调试窗不在听时手机永远卡 logo。窗口在开的可探测证据 =
+// 最新 WeappLog 里 ws=127.0.0.1:PORT 桥端口仍存活（TCP 可连）。桥不在→拒发 remote。
+async function remoteDebugBridgeAlive() {
+  try {
+    const logRoot = join(homedir(), 'Library/Application Support/微信开发者工具')
+    let latestFile = null, latestM = 0
+    for (const e of readdirSync(logRoot)) {
+      const ld = join(logRoot, e, 'WeappLog/logs')
+      if (!existsSync(ld)) continue
+      for (const f of readdirSync(ld)) {
+        const fp = join(ld, f)
+        const m = statSync(fp).mtimeMs
+        if (m > latestM) { latestM = m; latestFile = fp }
+      }
+    }
+    if (latestFile === null) return false
+    const hits = [...readFileSync(latestFile, 'utf8').matchAll(/ws=127\.0\.0\.1:(\d+)/g)]
+    if (hits.length === 0) return false
+    const port = Number(hits[hits.length - 1][1])
+    return await new Promise((res) => {
+      const s = connect({ host: '127.0.0.1', port }, () => { s.end(); res(true) })
+      s.on('error', () => res(false))
+      setTimeout(() => { s.destroy(); res(false) }, 3000)
+    })
+  } catch { return false }
+}
+
 if (flags['dump-only'] !== true) {
   const REMOTE_TIMEOUT = Number(flagOf(flags, 'remote-timeout', '45000'))
   // 先探当前对端：remote-debug 已连时 App.* 直接路由到真机——brand≠devtools 即是。
   // 已连状态下重发 enableRemoteDebug 会重置会话致窗口空转（实测坑），只在未连时触发。
   let dev = await mp.evaluate(() => wx.getDeviceInfo()).catch(() => null)
+  const needRemote = !dev || dev.brand === 'devtools' || dev.platform === 'devtools'
+  if (needRemote && !(await remoteDebugBridgeAlive())) {
+    await d.close().catch(() => {})
+    fail('skip', 'remote-debug 调试窗不在听（WeappLog 无存活 ws 桥）——发 enableRemoteDebug 只会把手机吊进 logo 等待态。请先在 DevTools 开真机调试窗再重跑', { machineReason: 'debugger-window-absent' })
+  }
   for (let attempt = 0; attempt < 2 && (!dev || dev.brand === 'devtools' || dev.platform === 'devtools'); attempt++) {
     if (attempt === 1) {
       // 首轮事件未至：Tool.disableRemoteDebug 复位半开会话（裸 Tool 域命令实测可用）再重试
@@ -78,6 +114,8 @@ if (flags['dump-only'] !== true) {
     dev = await mp.evaluate(() => wx.getDeviceInfo()).catch(() => null)
   }
   if (!dev || dev.brand === 'devtools' || dev.platform === 'devtools') {
+    // 解救：失败的 enable 可能已把手机吊进「等调试器」长等态——退出前 disable 放回
+    await mp.send('Tool.disableRemoteDebug').catch(() => {})
     await d.close().catch(() => {})
     fail('skip', `物理设备缺席：两轮 remote(${REMOTE_TIMEOUT}ms) 均无 onRemoteDebugConnected`, { machineReason: 'device-absent' })
   }
