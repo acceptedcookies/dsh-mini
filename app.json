@@ -46,6 +46,7 @@
       "packages": ["subpkg/fx"]
     }
   },
+  "cloud": true,
   "dsh": {
     "localRuntimeRoute": "cloud"
   },

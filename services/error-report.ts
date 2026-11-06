@@ -146,7 +146,7 @@ const SPECIFIC_TABLE: Array<{ pattern: RegExp; code: string }> = [
   { pattern: /tool-call-failed|tool-requires-local-vfs/i, code: 'tool-call-failed' },
   { pattern: /会话不存在|not found.*session|session.*missing/i, code: 'session-missing' },
   { pattern: /仍在运行|still running/i, code: 'session-busy' },
-  { pattern: /localRuntimeRoute|路由解析失败|缺少 upstreamBaseUrl|route-config/i, code: 'route-config' },
+  { pattern: /localRuntimeRoute|路由解析失败|缺少 upstreamBaseUrl|route-config|wx\.cloud 不可用|云开发基础库|callContainer 不可用/i, code: 'route-config' },
   // wx errMsg/存储词锚定在 SPECIFIC（status 之前）；裸 quota/size 在 GENERIC
   // （status 之后）——上游 429/402 body 'insufficient_quota/quota exceeded'
   // 须先归 rate-limit/upstream，不得被 quota 抢成「本地存储已满」（MN03-R2 C-1）。

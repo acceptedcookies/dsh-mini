@@ -144,6 +144,14 @@
       "cause": "冷推竞态：remote-debug 懒推分包文件，引导页起跑早于 kernel.js 流到→页内 require 瞬时失败曾被当终态→整会话回落 nano-kernel。修正后实证：分包下载完成后主包/页内 require 均可解析、bundle 6 导出全可用",
       "fix": "已修：引导页 onReady 改重试式（12×500ms 覆盖流式窗）+ loadKernelAsync 全局导航闩消双叠 + 冷启首探不再污染 errors.all；wx.loadSubpackage 在 remote-debug 上下文缺席故导航触发仍是唯一通道",
       "since": "2026-11-06"
+    },
+    {
+      "id": "PITFALL-17",
+      "symptom": "真机 BYOK 轮次零 LLM 请求→会话静默 error（全历史会话 status:error）",
+      "where": "device|byok|io\\.llm|ticket",
+      "cause": "app.json 缺 \"cloud\": true → wx.cloud undefined → CloudTicketProvider.issueChallenge→callCloud('unlock') 首跳抛 'wx.cloud 不可用（需云开发基础库）'，且该链全走 wx.cloud/SOTER，wx.request 钩子与 console 面均不可见；'不可用' 不命中 GENERIC 分类→unknown-error",
+      "fix": "app.json 加 \"cloud\": true 启用 wx.cloud 面（unlock 函数 + callContainer 数据面依赖）；error-report SPECIFIC 增云开发基础库缺失→route-config 映射（不私增错误码，公共合同）",
+      "since": "2026-11-06"
     }
   ]
 }
