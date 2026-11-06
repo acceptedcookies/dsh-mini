@@ -62,6 +62,10 @@ export async function loadKernelAsync(timeoutMs = 25000): Promise<KernelBundle |
   const nav = (globalThis as { wx?: { navigateTo?: (o: { url: string }) => void } }).wx
   let navigated = false
   const deadline = Date.now() + timeoutMs
+  // 静默宽限窗：preloadRule 后台下载通常数秒就绪，remote-debug 懒推亦在窗口内
+  // 流到——先纯轮询，超时仍未就绪才导航引导页。窗口内零路由跳变=零闪屏
+  // （此前 nav 在首轮即触发，引导页转场/换帧必然可见——业主反复投诉根因）。
+  const navEarliest = Date.now() + Math.min(6000, Math.floor(timeoutMs / 3))
   for (;;) {
     const probe = tryRequireQuiet() ?? ((globalThis as Record<string, unknown>).__dshKernelBundle as KernelBundle | undefined)
     if (probe !== undefined) {
@@ -81,7 +85,7 @@ export async function loadKernelAsync(timeoutMs = 25000): Promise<KernelBundle |
       reportSilent(new Error('kernel subpkg 等待超时'), { op: 'kernel-load-timeout', lane: 'background' })
       return undefined
     }
-    if (!navigated && !kernelNavInFlight && typeof nav?.navigateTo === 'function') {
+    if (Date.now() >= navEarliest && !navigated && !kernelNavInFlight && typeof nav?.navigateTo === 'function') {
       const top = (globalThis as { getCurrentPages?: () => { route?: string }[] }).getCurrentPages?.()
       const onKernel = top?.[top.length - 1]?.route === 'subpkg/kernel/p/index'
       if (!onKernel) {
