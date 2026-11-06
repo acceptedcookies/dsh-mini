@@ -255,6 +255,7 @@ Page({
       { id: 'team', label: '团队', icon: 'users-outline' },
     ],
     needUnlock: false,
+    unlocking: false,
     menuVisible: false,
     menuItems: [] as MenuItem[],
     menuTitle: '',
@@ -448,8 +449,11 @@ Page({
     if (needUnlock !== this.data.needUnlock) this.setData({ needUnlock })
   },
 
-  /** 横幅点击=用户手势上下文，合规走 challenge→SOTER→unlock 铸票。 */
+  /** 横幅点击=用户手势上下文，合规走 challenge→SOTER→unlock 铸票。
+   *  期间箭头换持续 loading——SOTER 唤醒耗时，给用户明确反馈。 */
   async onUnlockSync() {
+    if (this.data.unlocking) return
+    this.setData({ unlocking: true })
     try {
       await ensureDurableTicket()
       this.refreshUnlock()
@@ -457,6 +461,8 @@ Page({
     } catch (e) {
       errorBus.report(e, { op: 'unlock-sync', lane: 'ui' })
       this.refreshUnlock()
+    } finally {
+      this.setData({ unlocking: false })
     }
   },
 

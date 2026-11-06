@@ -89,7 +89,7 @@
   </aside>
 
   <main class="main">
-    <header class="header {{showHero ? 'header-blank' : ''}}" style="padding-top: {{statusBarHeight}}px; padding-right: {{capsuleInsetRight}}px;">
+    <header class="header {{showHero ? 'header-blank' : ''}}" style="padding-top: {{statusBarHeight}}px; padding-right: {{capsuleInsetRight}}px; position: relative;">
       <view class="header-row" style="height: {{navBarContentHeight}}px;">
         <view class="header-leading">
           <dsh-button wx:if="{{!isWide}}" class="header-menu" variant="icon" icon="panel-left-outline" iconSize="{{16}}" theme="{{theme}}" data-anchor="workspace.header.menu" bind:tap="toggleSidebar" />
@@ -120,13 +120,20 @@
       </view>
 
       <dsh-tabs wx:if="{{!showHero}}" variant="underline" tabs="{{viewTabs}}" active="{{view}}" data-anchor="workspace.tabs" bind:change="onViewChange" />
-    </header>
 
-    <view wx:if="{{needUnlock}}" class="unlock-banner" data-anchor="banner.unlock" bindtap="onUnlockSync">
-      <dsh-icon name="warning-triangle-outline" tone="warn" theme="{{theme}}" size="{{14}}" />
-      <text class="unlock-banner-text">云端同步未解锁，点此验证以恢复同步</text>
-      <dsh-icon name="chevron-right-outline" theme="{{theme}}" size="{{12}}" />
-    </view>
+      <view wx:if="{{needUnlock}}" class="unlock-banner" data-anchor="banner.unlock" bindtap="onUnlockSync">
+        <dsh-icon name="warning-triangle-outline" tone="warn" theme="{{theme}}" size="{{14}}" />
+        <text class="unlock-banner-text">云端同步未解锁，点此验证以恢复同步</text>
+        <dsh-icon
+          wx:if="{{unlocking}}"
+          class="unlock-banner-spin"
+          name="loading-outline"
+          theme="{{theme}}"
+          size="{{14}}"
+        />
+        <dsh-icon wx:else name="chevron-right-outline" theme="{{theme}}" size="{{12}}" />
+      </view>
+    </header>
 
     <trajectory-view
       wx:if="{{!showHero && view === 'trajectory'}}"

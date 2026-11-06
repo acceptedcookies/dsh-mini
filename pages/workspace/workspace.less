@@ -766,18 +766,24 @@
 
 /* Unlock banner (W2 BL-5 C 半：云端 durable 无活票据时的手势解锁入口)
  * 业主 MN05-W6：layer-2 灰卡在双主题都不显眼 → warn 警示色板高亮
- * （琥珀底 tertiary + 琥珀字 label，浅 #fef5e7/#dd8629，深 #2a241a/#dd8629）。 */
+ * （琥珀底 tertiary + 琥珀字 label，浅 #fef5e7/#dd8629，深 #2a241a/#dd8629）。
+ * 悬浮覆层：absolute 钉在 header 底缘，不占流——解锁后消失不致内容抖动。 */
 
 .unlock-banner {
-  flex: none;
+  position: absolute;
+  top: 100%;
+  left: var(--dsw-page-x);
+  right: var(--dsw-page-x);
+  z-index: 6;
   display: flex;
   align-items: center;
   gap: var(--dsw-space-8);
-  margin: var(--dsw-space-10) var(--dsw-page-x) var(--dsw-space-8);
+  margin-top: var(--dsw-space-8);
   padding: var(--dsw-space-10) var(--dsw-space-12);
   border-radius: var(--dsw-radius-md);
   background: var(--dsw-alias-state-warn-tertiary);
   border: 0.5px solid var(--dsw-alias-state-warn-secondary);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   color: var(--dsw-alias-state-warn-label);
   font-size: var(--dsw-text-caption);
   line-height: var(--dsw-lh-18);
@@ -791,6 +797,17 @@
 .unlock-banner-text {
   flex: 1;
   min-width: 0;
+}
+
+/* 点击后箭头换持续旋转 loading——让用户感知 SOTER 指纹组件在唤醒。 */
+.unlock-banner-spin {
+  animation: unlock-banner-spin 0.9s linear infinite;
+}
+
+@keyframes unlock-banner-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Error */
