@@ -1,5 +1,5 @@
 <view class="app {{isWide ? 'app-wide' : ''}} theme-{{theme}}" style="{{appStyle}}">
-  <view wx:if="{{!isWide && sidebarOpen}}" class="mask" bindtap="closeSidebar"></view>
+  <view wx:if="{{!isWide && sidebarOpen}}" class="mask" data-anchor="workspace.mask" bindtap="closeSidebar"></view>
 
   <aside class="sidebar {{sidebarOpen ? 'sidebar-open' : ''}}">
     <view class="sidebar-top" style="padding-top: {{statusBarHeight}}px;">
@@ -8,10 +8,10 @@
           <image class="brand-fish" src="{{theme === 'dark' ? '/assets/fish-white.png' : '/assets/fish.png'}}" mode="aspectFit" />
           <text class="brand-name">DeepSeek Harness</text>
         </view>
-        <dsh-button class="sidebar-toggle" variant="icon" icon="panel-left-outline" iconSize="{{16}}" theme="{{theme}}" bind:tap="toggleSidebar" />
+        <dsh-button class="sidebar-toggle" variant="icon" icon="panel-left-outline" iconSize="{{16}}" theme="{{theme}}" data-anchor="workspace.sidebar.toggle" bind:tap="toggleSidebar" />
       </view>
 
-      <view class="new-session" bindtap="newSession">
+      <view class="new-session" data-anchor="workspace.newSession" bindtap="newSession">
         <dsh-icon name="new-chat-outline" theme="{{theme}}" size="{{18}}" />
         <text class="new-session-label">新会话</text>
       </view>
@@ -19,7 +19,7 @@
 
     <!-- 搜索行不随会话列表滚动——永远钉在顶图层（业主 MN05）。 -->
     <view class="search-bar">
-      <view class="search-filter sort-{{sortDesc ? 'desc' : 'asc'}}" bindtap="onSortToggle">
+      <view class="search-filter sort-{{sortDesc ? 'desc' : 'asc'}}" data-anchor="workspace.sort.toggle" bindtap="onSortToggle">
         <dsh-icon name="clock-outline" theme="{{theme}}" size="{{15}}" />
         <view class="sort-caret"></view>
       </view>
@@ -27,6 +27,7 @@
         <dsh-icon class="search-icon" name="search-outline" theme="{{theme}}" size="{{14}}" />
         <input
           class="search-input"
+          data-anchor="workspace.search.input"
           value="{{query}}"
           placeholder="搜索{{sessionCount}}会话"
           placeholder-class="search-placeholder"
@@ -44,6 +45,7 @@
             wx:for="{{rows}}"
             wx:key="id"
             class="session-row {{item.id === currentId ? 'session-selected' : ''}}"
+            data-anchor="session.row"
             data-id="{{item.id}}"
             bindtap="openSession"
           >
@@ -58,6 +60,7 @@
             <view
               id="session-more-{{item.id}}"
               class="row-more"
+              data-anchor="session.row.more"
               data-id="{{item.id}}"
               catchtap="onSessionMenu"
             >
@@ -72,11 +75,11 @@
 
     <view class="sidebar-foot">
       <view class="foot-btns">
-        <view class="foot-row" bindtap="openAccountSettings">
+        <view class="foot-row" data-anchor="workspace.sidebar.accountSettings" bindtap="openAccountSettings">
           <dsh-icon name="user-outline" theme="{{theme}}" size="{{16}}" />
           <text>账户设置</text>
         </view>
-        <view class="foot-row" bindtap="openModelConfig">
+        <view class="foot-row" data-anchor="workspace.sidebar.modelConfig" bindtap="openModelConfig">
           <dsh-icon name="layers-outline" theme="{{theme}}" size="{{16}}" />
           <text>模型配置</text>
         </view>
@@ -89,7 +92,7 @@
     <header class="header {{showHero ? 'header-blank' : ''}}" style="padding-top: {{statusBarHeight}}px; padding-right: {{capsuleInsetRight}}px;">
       <view class="header-row" style="height: {{navBarContentHeight}}px;">
         <view class="header-leading">
-          <dsh-button wx:if="{{!isWide}}" class="header-menu" variant="icon" icon="panel-left-outline" iconSize="{{16}}" theme="{{theme}}" bind:tap="toggleSidebar" />
+          <dsh-button wx:if="{{!isWide}}" class="header-menu" variant="icon" icon="panel-left-outline" iconSize="{{16}}" theme="{{theme}}" data-anchor="workspace.header.menu" bind:tap="toggleSidebar" />
           <view wx:if="{{!showHero}}" class="crumbs">
             <text wx:if="{{isWide}}" class="crumb">{{workspaceName}}</text>
             <text wx:if="{{isWide}}" class="crumb-sep">/</text>
@@ -98,7 +101,7 @@
         </view>
 
         <view class="header-actions">
-          <dsh-button variant="icon" bind:tap="toggleRightPanel">
+          <dsh-button variant="icon" data-anchor="workspace.rightPanel.toggle" bind:tap="toggleRightPanel">
             <view class="flip-horizontal">
               <dsh-icon name="panel-left-outline" theme="{{theme}}" size="{{16}}" />
             </view>
@@ -110,15 +113,16 @@
             icon="ellipsis-outline"
             iconSize="{{16}}"
             theme="{{theme}}"
+            data-anchor="workspace.sessionMenu"
             bind:tap="openHeaderSessionMenu"
           />
         </view>
       </view>
 
-      <dsh-tabs wx:if="{{!showHero}}" variant="underline" tabs="{{viewTabs}}" active="{{view}}" bind:change="onViewChange" />
+      <dsh-tabs wx:if="{{!showHero}}" variant="underline" tabs="{{viewTabs}}" active="{{view}}" data-anchor="workspace.tabs" bind:change="onViewChange" />
     </header>
 
-    <view wx:if="{{needUnlock}}" class="unlock-banner" bindtap="onUnlockSync">
+    <view wx:if="{{needUnlock}}" class="unlock-banner" data-anchor="banner.unlock" bindtap="onUnlockSync">
       <dsh-icon name="warning-triangle-outline" tone="warn" theme="{{theme}}" size="{{14}}" />
       <text class="unlock-banner-text">云端同步未解锁，点此验证以恢复同步</text>
       <dsh-icon name="chevron-right-outline" theme="{{theme}}" size="{{12}}" />
@@ -142,6 +146,7 @@
       show-scrollbar="{{false}}"
       scroll-into-view="{{scrollTarget}}"
       scroll-with-animation
+      data-anchor="chat.scroll"
       bindscroll="onChatScroll"
     >
       <view wx:if="{{!state.current && !showHero}}" class="hero">
@@ -159,7 +164,7 @@
           </view>
 
           <view class="hero-body">
-            <view id="workspace-menu-button" class="workspace-chip" bindtap="openWorkspaceMenu">
+            <view id="workspace-menu-button" class="workspace-chip" data-anchor="workspace.engineChip" bindtap="openWorkspaceMenu">
               <dsh-icon name="folder-open-outline" theme="{{theme}}" size="{{16}}" />
               <text class="workspace-chip-label">{{engineChipLabel}}</text>
               <dsh-icon name="chevron-down-outline" theme="{{theme}}" size="{{12}}" />
@@ -226,6 +231,7 @@
             <view
               wx:if="{{item.turnLabel}}"
               class="turn-process {{item.turnCollapsible && !item.turnCollapsed ? 'turn-process-open' : ''}}"
+              data-anchor-exempt="fold"
               data-turn="{{item.turnCollapsible ? item.turn : 0}}"
               catchtap="toggleTurn"
             >
@@ -262,6 +268,7 @@
         wx:for="{{turnMarks}}"
         wx:key="turn"
         class="turn-mark {{item.active ? 'turn-mark-active' : ''}} {{item.active && state.current && state.current.status === 'running' ? 'turn-mark-busy' : ''}}"
+        data-anchor="turnrail.mark"
         data-target="{{item.target}}"
         bindtap="jumpToTurn"
       ></view>
@@ -315,7 +322,7 @@
         />
         </view>
         </view>
-        <view wx:if="{{!showHero && view === 'chat' && !atTail}}" class="to-bottom" bindtap="scrollToBottom">
+        <view wx:if="{{!showHero && view === 'chat' && !atTail}}" class="to-bottom" data-anchor="workspace.toBottom" bindtap="scrollToBottom">
           <dsh-icon name="chevron-down-outline" tone="primary" theme="{{theme}}" size="{{16}}" />
         </view>
       </view>
@@ -385,6 +392,7 @@
           wx:key="id"
           class="engine-option {{item.disabled ? 'engine-option-disabled' : ''}}"
           hover-class="{{item.disabled ? '' : 'engine-option-hover'}}"
+          data-anchor="engine.option"
           data-id="{{item.id}}"
           bindtap="onEnginePick"
         >
@@ -431,7 +439,7 @@
     bind:cancel="closeDialog"
   >
     <view wx:if="{{dialogAction === 'permission-auto'}}" class="dialog-risk">
-      <dsh-switch checked="{{riskAck}}" bind:change="onRiskAck" />
+      <dsh-switch checked="{{riskAck}}" data-anchor="dialog.riskAck" bind:change="onRiskAck" />
       <text class="dialog-risk-text">我已了解自动审查的风险</text>
     </view>
   </dsh-dialog>

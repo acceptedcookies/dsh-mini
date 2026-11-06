@@ -6,10 +6,10 @@
     <text class="goal-label">进行中的目标</text>
     <text class="goal-objective">{{goal}}</text>
     <view class="goal-actions">
-      <view class="goal-icon" bindtap="startEdit">
+      <view class="goal-icon" data-anchor="goal.edit" bindtap="startEdit">
         <dsh-icon name="edit-outline" theme="{{theme}}" size="{{14}}" />
       </view>
-      <view class="goal-icon" bindtap="clear">
+      <view class="goal-icon" data-anchor="goal.clear" bindtap="clear">
         <dsh-icon name="trash-outline" theme="{{theme}}" size="{{14}}" />
       </view>
     </view>
@@ -26,13 +26,13 @@
       show-confirm-bar="{{false}}"
       placeholder="描述目标"
       placeholder-class="goal-placeholder"
-      bindinput="onInput"
+      data-anchor="goal.input" bindinput="onInput"
     />
     <view class="goal-actions">
-      <view class="goal-icon" bindtap="save">
+      <view class="goal-icon" data-anchor="goal.save" bindtap="save">
         <dsh-icon name="check-outline" theme="{{theme}}" size="{{14}}" />
       </view>
-      <view class="goal-icon" bindtap="cancel">
+      <view class="goal-icon" data-anchor="goal.cancel" bindtap="cancel">
         <dsh-icon name="close-outline" theme="{{theme}}" size="{{14}}" />
       </view>
     </view>

@@ -1,5 +1,5 @@
 <view class="reasoning">
-  <view class="reasoning-head" bindtap="toggle">
+  <view class="reasoning-head" data-anchor-exempt="fold" bindtap="toggle">
     <view class="reasoning-leading">
       <dsh-icon
         tone="tertiary"

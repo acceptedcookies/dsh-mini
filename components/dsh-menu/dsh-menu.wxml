@@ -1,11 +1,12 @@
-<view wx:if="{{render}}" class="menu-layer" catchtap="close" catchtouchmove="noop">
-  <view class="menu-surface theme-{{theme}} {{closing ? 'menu-closing' : ''}}" style="{{surfaceStyle}}" catchtap="noop">
+<view wx:if="{{render}}" class="menu-layer" data-anchor="menu.mask" catchtap="close" catchtouchmove="noop">
+  <view class="menu-surface theme-{{theme}} {{closing ? 'menu-closing' : ''}}" style="{{surfaceStyle}}" data-anchor-exempt="gesture-shield" catchtap="noop">
     <view wx:if="{{title}}" class="menu-title">{{title}}</view>
     <scroll-view class="menu-scroll" scroll-y>
       <view
         wx:for="{{items}}"
         wx:key="id"
         class="menu-item {{item.danger ? 'menu-danger' : ''}} {{item.disabled ? 'menu-disabled' : ''}}"
+        data-anchor="menu.item"
         data-id="{{item.id}}"
         bindtap="onSelect"
       >

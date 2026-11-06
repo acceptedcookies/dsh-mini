@@ -1,11 +1,11 @@
 <view class="settings-page {{theme}}" style="{{appStyle}}">
   <view class="settings-overlay">
-    <view class="settings-mask" bindtap="back"></view>
+    <view class="settings-mask" data-anchor="models.mask" bindtap="back"></view>
 
     <view class="settings-panel">
       <view class="settings-title">
         <text>模型配置</text>
-        <view class="settings-close" bindtap="back">
+        <view class="settings-close" data-anchor="models.close" bindtap="back">
           <dsh-icon name="close-outline" theme="{{theme}}" size="{{13}}" />
         </view>
       </view>
@@ -18,6 +18,7 @@
             wx:for="{{sections}}"
             wx:key="id"
             class="nav-cell {{activeId === item.id ? 'nav-cell-active' : ''}}"
+            data-anchor="models.nav.item"
             data-id="{{item.id}}"
             bindtap="selectSection"
           >
@@ -38,6 +39,7 @@
             wx:for="{{models}}"
             wx:key="id"
             class="model-row {{model === item.id ? 'model-row-active' : ''}}"
+            data-anchor="models.row"
             data-id="{{item.id}}"
             bindtap="selectModel"
           >
@@ -93,7 +95,7 @@
                 <view class="field-label">注入信息</view>
                 <view class="field-hint">模型 {{enrollModel}} · {{enrolledAt}} · 密钥密文仅存云端，本机不留明文</view>
               </view>
-              <view class="field action-row" bindtap="revokeProvider">
+              <view class="field action-row" data-anchor="models.revokeProvider" bindtap="revokeProvider">
                 <view class="field-copy">
                   <view class="field-label">撤回注入</view>
                   <view class="field-hint">删除云端密钥记录并清除本机登记</view>
@@ -107,6 +109,7 @@
                 <view class="field-hint">密钥经 TLS 上行后信封加密存于云端（按 openid 隔离），本机不留存明文。生效模型：{{injectModelLabel}}（在「模型」中切换）。无生物识别时禁止注入。</view>
                 <input
                   class="settings-input"
+                  data-anchor="models.enroll.baseUrl"
                   value="{{baseUrl}}"
                   placeholder="供应商地址（base_url）"
                   placeholder-class="settings-placeholder"
@@ -115,6 +118,7 @@
                 />
                 <input
                   class="settings-input"
+                  data-anchor="models.enroll.apiKey"
                   value="{{apiKey}}"
                   password
                   placeholder="API Key（供应商无鉴权时可留空）"
@@ -122,7 +126,7 @@
                   bindinput="onApiKeyInput"
                 />
                 <view class="auth-actions">
-                  <dsh-button class="auth-submit {{(!bioOk || enrollBusy) ? 'auth-busy' : ''}}" variant="primary" label="{{enrollBusy ? '注入中…' : (bioOk ? '生物验证并注入' : '生物识别不可用')}}" bind:tap="submitEnroll" />
+                  <dsh-button class="auth-submit {{(!bioOk || enrollBusy) ? 'auth-busy' : ''}}" variant="primary" label="{{enrollBusy ? '注入中…' : (bioOk ? '生物验证并注入' : '生物识别不可用')}}" data-anchor="models.enroll.submit" bind:tap="submitEnroll" />
                 </view>
                 <view wx:if="{{enrollError}}" class="auth-error">{{enrollError}}</view>
               </view>
@@ -152,6 +156,7 @@
             <view class="field-hint">合约先行：登记 endpoint/bucket 后，后续版本可将 /root 与 /data 行的 placement 升级为 s3-pinned。密钥不落本机——access key 将走供应商同一条云端托管管道。当前配置不产生任何网络请求。</view>
             <input
               class="settings-input"
+              data-anchor="models.s3.endpoint"
               value="{{s3Endpoint}}"
               placeholder="endpoint（如 s3.example.com）"
               placeholder-class="settings-placeholder"
@@ -160,6 +165,7 @@
             />
             <input
               class="settings-input"
+              data-anchor="models.s3.bucket"
               value="{{s3Bucket}}"
               placeholder="bucket"
               placeholder-class="settings-placeholder"
@@ -168,6 +174,7 @@
             />
             <input
               class="settings-input"
+              data-anchor="models.s3.region"
               value="{{s3Region}}"
               placeholder="region（可选，默认 auto）"
               placeholder-class="settings-placeholder"
@@ -175,13 +182,13 @@
               bindinput="onS3RegionInput"
             />
             <view class="auth-actions">
-              <dsh-button class="auth-submit" variant="primary" label="登记配置" bind:tap="saveS3Config" />
+              <dsh-button class="auth-submit" variant="primary" label="登记配置" data-anchor="models.s3.save" bind:tap="saveS3Config" />
             </view>
             <view wx:if="{{s3Error}}" class="auth-error">{{s3Error}}</view>
             <view wx:if="{{s3Configured}}" class="field-hint">已登记 · {{s3ConfiguredAt}} · 后端仍未启用（s3-pinned 写入将返回 backend-unavailable）</view>
           </view>
 
-          <view wx:if="{{s3Configured}}" class="field action-row" bindtap="clearS3Config">
+          <view wx:if="{{s3Configured}}" class="field action-row" data-anchor="models.s3.clear" bindtap="clearS3Config">
             <view class="field-copy">
               <view class="field-label">清除 S3 配置</view>
               <view class="field-hint">移除登记的 endpoint/bucket/region</view>

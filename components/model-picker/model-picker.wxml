@@ -1,11 +1,12 @@
-<view wx:if="{{render}}" class="picker-layer" catchtap="close" catchtouchmove="noop">
-  <view class="picker-menu theme-{{theme}} {{closing ? 'picker-closing' : ''}}" style="{{surfaceStyle}}" catchtap="noop">
+<view wx:if="{{render}}" class="picker-layer" data-anchor="picker.mask" data-anchor-exempt="gesture-shield" catchtap="close" catchtouchmove="noop">
+  <view class="picker-menu theme-{{theme}} {{closing ? 'picker-closing' : ''}}" style="{{surfaceStyle}}" data-anchor-exempt="gesture-shield" catchtap="noop">
     <view class="picker-group">{{providerLabel}}</view>
     <scroll-view class="picker-list" scroll-y enhanced show-scrollbar="{{false}}">
       <view
         wx:for="{{models}}"
         wx:key="id"
         class="picker-option {{item.id === current ? 'picker-selected' : ''}}"
+        data-anchor="picker.item"
         data-id="{{item.id}}"
         bindtap="select"
       >

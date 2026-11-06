@@ -1,7 +1,7 @@
 <view wx:if="{{visible && request.id && current}}" class="question-card">
   <view class="question-head">
     <text class="question-title">{{current.text}}</text>
-    <view class="question-close" bindtap="close">
+    <view class="question-close" data-anchor="question.close" bindtap="close">
       <dsh-icon name="close-outline" theme="{{theme}}" size="{{14}}" />
     </view>
   </view>
@@ -12,6 +12,7 @@
       wx:key="id"
       wx:for-index="optionIndex"
       class="option {{item.selected ? 'option-selected' : ''}}"
+      data-anchor="question.option"
       data-oid="{{item.id}}"
       bindtap="onOptionTap"
     >
@@ -45,25 +46,25 @@
         cursor-spacing="24"
         adjust-position="{{false}}"
         show-confirm-bar="{{false}}"
-        bindinput="onCustom"
+        data-anchor="question.customInput" bindinput="onCustom"
       />
     </view>
   </scroll-view>
 
   <view class="question-footer">
     <view wx:if="{{view.length > 1}}" class="question-pager">
-      <view class="pager-button {{index === 0 ? 'pager-button-disabled' : ''}}" bindtap="previous">
+      <view class="pager-button {{index === 0 ? 'pager-button-disabled' : ''}}" data-anchor="question.prev" bindtap="previous">
         <dsh-icon name="chevron-left-outline" tone="tertiary" theme="{{theme}}" size="{{14}}" />
       </view>
       <text class="pager-progress">{{progress}}</text>
-      <view class="pager-button {{index === view.length - 1 ? 'pager-button-disabled' : ''}}" bindtap="next">
+      <view class="pager-button {{index === view.length - 1 ? 'pager-button-disabled' : ''}}" data-anchor="question.next" bindtap="next">
         <dsh-icon name="chevron-right-outline" tone="tertiary" theme="{{theme}}" size="{{14}}" />
       </view>
     </view>
     <text class="question-error">{{error}}</text>
     <view class="question-actions">
-      <view class="question-action question-skip" bindtap="skip">跳过</view>
-      <view class="question-action question-primary {{primaryDisabled ? 'question-primary-disabled' : ''}}" bindtap="continueFlow">{{primaryLabel}}</view>
+      <view class="question-action question-skip" data-anchor="question.skip" bindtap="skip">跳过</view>
+      <view class="question-action question-primary {{primaryDisabled ? 'question-primary-disabled' : ''}}" data-anchor="question.continue" bindtap="continueFlow">{{primaryLabel}}</view>
     </view>
   </view>
 </view>

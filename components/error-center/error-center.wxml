@@ -6,28 +6,28 @@
       class="ec-toast ec-toast-{{item.severity}}"
     >
       <dsh-icon class="ec-toast-icon" name="{{item.iconName}}" tone="{{item.iconTone}}" theme="{{theme}}" size="{{16}}" />
-      <view class="ec-toast-body" data-id="{{item.id}}" catchtap="onOpenDetail">
+      <view class="ec-toast-body" data-anchor="error.toast.body" data-id="{{item.id}}" catchtap="onOpenDetail">
         <text class="ec-toast-title">{{item.title}}</text>
         <text class="ec-toast-msg">{{item.message}}{{item.count > 1 ? '（×' + item.count + '）' : ''}}</text>
       </view>
-      <view class="ec-toast-detail" data-id="{{item.id}}" catchtap="onOpenDetail">详情</view>
-      <view class="ec-toast-close" data-id="{{item.id}}" catchtap="onDismissToast">
+      <view class="ec-toast-detail" data-anchor="error.toast.detail" data-id="{{item.id}}" catchtap="onOpenDetail">详情</view>
+      <view class="ec-toast-close" data-anchor="error.toast.close" data-id="{{item.id}}" catchtap="onDismissToast">
         <dsh-icon name="close-outline" tone="secondary" theme="{{theme}}" size="{{13}}" />
       </view>
     </view>
     <view wx:if="{{pending > 0}}" class="ec-more">还有 {{pending}} 条错误待显示</view>
   </view>
 
-  <view wx:if="{{modal}}" class="ec-modal-layer" catchtouchmove="noop">
-    <view class="ec-modal-mask" bindtap="onCloseModal"></view>
-    <view class="ec-modal-card" catchtap="noop">
+  <view wx:if="{{modal}}" class="ec-modal-layer" catchtouchmove="noop" data-anchor-exempt="gesture-shield">
+    <view class="ec-modal-mask" data-anchor="error.modal.mask" bindtap="onCloseModal"></view>
+    <view class="ec-modal-card" data-anchor-exempt="gesture-shield" catchtap="noop">
       <view class="ec-modal-head">
         <view class="ec-modal-title">
           <dsh-icon name="{{modalIconName}}" tone="{{modalIconTone}}" theme="{{theme}}" size="{{18}}" />
           <text class="ec-modal-title-text">{{modal.title}}</text>
           <text class="ec-modal-code">{{modal.code}}</text>
         </view>
-        <view class="ec-modal-close" bindtap="onCloseModal">
+        <view class="ec-modal-close" data-anchor="error.modal.close" bindtap="onCloseModal">
           <dsh-icon name="close-outline" tone="secondary" theme="{{theme}}" size="{{14}}" />
         </view>
       </view>
@@ -46,8 +46,8 @@
       </scroll-view>
 
       <view class="ec-modal-foot">
-        <dsh-button variant="default" size="sm" icon="copy-outline" iconSize="{{14}}" label="复制错误全文" theme="{{theme}}" bind:tap="onCopy" />
-        <dsh-button variant="primary" size="sm" label="关闭" theme="{{theme}}" bind:tap="onCloseModal" />
+        <dsh-button variant="default" size="sm" icon="copy-outline" iconSize="{{14}}" label="复制错误全文" theme="{{theme}}" data-anchor="error.modal.copy" bind:tap="onCopy" />
+        <dsh-button variant="primary" size="sm" label="关闭" theme="{{theme}}" data-anchor="error.modal.closeButton" bind:tap="onCloseModal" />
       </view>
     </view>
   </view>

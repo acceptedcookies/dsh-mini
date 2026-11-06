@@ -6,6 +6,7 @@
     wx:for="{{tabs}}"
     wx:key="id"
     class="dtab {{active === item.id ? 'dtab-on' : ''}}"
+    data-anchor="tabs.item"
     data-id="{{item.id}}"
     bindtap="onSelect"
   >
@@ -24,6 +25,7 @@
     wx:for="{{tabs}}"
     wx:key="id"
     class="dtab {{active === item.id ? 'dtab-on' : ''}}"
+    data-anchor="tabs.item"
     data-id="{{item.id}}"
     bindtap="onSelect"
   >

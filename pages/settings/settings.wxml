@@ -1,11 +1,11 @@
 <view class="settings-page theme-{{theme}}" style="{{appStyle}}">
   <view class="settings-overlay">
-    <view class="settings-mask" bindtap="back"></view>
+    <view class="settings-mask" data-anchor="settings.mask" bindtap="back"></view>
 
     <view class="settings-panel">
       <view class="settings-title">
         <text>账户设置</text>
-        <view class="settings-close" bindtap="back">
+        <view class="settings-close" data-anchor="settings.close" bindtap="back">
           <dsh-icon name="close-outline" theme="{{theme}}" size="{{13}}" />
         </view>
       </view>
@@ -18,6 +18,7 @@
             wx:for="{{sections}}"
             wx:key="id"
             class="nav-cell {{activeId === item.id ? 'nav-cell-active' : ''}}"
+            data-anchor="settings.nav.item"
             data-id="{{item.id}}"
             bindtap="selectSection"
           >
@@ -37,9 +38,9 @@
           <view class="field">
             <view class="field-label">主题</view>
             <view class="segmented">
-              <view class="segment {{themeMode === 'system' ? 'segment-active' : ''}}" data-mode="system" bindtap="onThemeMode">跟随系统</view>
-              <view class="segment {{themeMode === 'light' ? 'segment-active' : ''}}" data-mode="light" bindtap="onThemeMode">浅色</view>
-              <view class="segment {{themeMode === 'dark' ? 'segment-active' : ''}}" data-mode="dark" bindtap="onThemeMode">深色</view>
+              <view class="segment {{themeMode === 'system' ? 'segment-active' : ''}}" data-anchor="settings.theme.system" data-mode="system" bindtap="onThemeMode">跟随系统</view>
+              <view class="segment {{themeMode === 'light' ? 'segment-active' : ''}}" data-anchor="settings.theme.light" data-mode="light" bindtap="onThemeMode">浅色</view>
+              <view class="segment {{themeMode === 'dark' ? 'segment-active' : ''}}" data-anchor="settings.theme.dark" data-mode="dark" bindtap="onThemeMode">深色</view>
             </view>
             <view class="field-hint">浅色与深色对应 dsh Web 的两套设计令牌。</view>
           </view>
@@ -51,6 +52,7 @@
                 wx:for="{{permissions}}"
                 wx:key="id"
                 class="permission-option {{permission === item.id ? 'permission-option-active' : ''}}"
+                data-anchor="settings.permission.option"
                 data-id="{{item.id}}"
                 bindtap="onPermission"
               >
@@ -69,7 +71,7 @@
               <view class="field-label">默认模型</view>
               <view class="field-hint">{{modelLabel}}</view>
             </view>
-            <view class="field-chevron" bindtap="openModelConfig">
+            <view class="field-chevron" data-anchor="settings.modelConfig" bindtap="openModelConfig">
               <dsh-icon name="chevron-right-outline" theme="{{theme}}" size="{{14}}" />
             </view>
           </view>
@@ -106,7 +108,7 @@
               <view class="field-label">运行模式</view>
               <view class="field-hint">nano-agent orchestrator · WebSocket 流式事件</view>
             </view>
-            <view class="field action-row" bindtap="signOut">
+            <view class="field action-row" data-anchor="settings.signOut" bindtap="signOut">
               <view class="field-copy">
                 <view class="field-label">退出登录</view>
                 <view class="field-hint">清除本机保存的 access / refresh token</view>
@@ -130,6 +132,7 @@
               <view class="field-hint">使用邮箱密码或微信登录。凭证只保存在本机。</view>
               <input
                 class="settings-input"
+                data-anchor="settings.auth.email"
                 value="{{email}}"
                 placeholder="邮箱"
                 placeholder-class="settings-placeholder"
@@ -138,6 +141,7 @@
               />
               <input
                 class="settings-input"
+                data-anchor="settings.auth.password"
                 value="{{password}}"
                 password
                 placeholder="密码"
@@ -147,19 +151,20 @@
               <input
                 wx:if="{{authMode === 'register'}}"
                 class="settings-input"
+                data-anchor="settings.auth.displayName"
                 value="{{displayName}}"
                 placeholder="显示名（可选）"
                 placeholder-class="settings-placeholder"
                 bindinput="onDisplayNameInput"
               />
               <view class="auth-actions">
-                <dsh-button class="auth-submit {{authBusy ? 'auth-busy' : ''}}" variant="primary" label="{{authBusy ? '连接中…' : (authMode === 'login' ? '登录' : '注册并登录')}}" bind:tap="submitEmailAuth" />
-                <view class="auth-toggle" bindtap="toggleAuthMode">
+                <dsh-button class="auth-submit {{authBusy ? 'auth-busy' : ''}}" variant="primary" label="{{authBusy ? '连接中…' : (authMode === 'login' ? '登录' : '注册并登录')}}" data-anchor="settings.auth.submit" bind:tap="submitEmailAuth" />
+                <view class="auth-toggle" data-anchor="settings.auth.toggle" bindtap="toggleAuthMode">
                   {{authMode === 'login' ? '没有账户？注册' : '已有账户？登录'}}
                 </view>
               </view>
               <view class="auth-divider"><text>或</text></view>
-              <dsh-button class="auth-wechat {{authBusy ? 'auth-busy' : ''}}" variant="default" label="微信登录" bind:tap="wechatLogin" />
+              <dsh-button class="auth-wechat {{authBusy ? 'auth-busy' : ''}}" variant="default" label="微信登录" data-anchor="settings.auth.wechat" bind:tap="wechatLogin" />
               <view wx:if="{{authError}}" class="auth-error">{{authError}}</view>
             </view>
           </block>
@@ -220,7 +225,7 @@
             </view>
           </view>
 
-          <view class="field action-row" bindtap="clearConversations">
+          <view class="field action-row" data-anchor="settings.clearConversations" bindtap="clearConversations">
             <view class="field-copy">
               <view class="field-label">清空所有会话</view>
               <view class="field-hint">删除本机保存的会话与消息</view>
@@ -228,7 +233,7 @@
             <text class="action-danger">清空</text>
           </view>
 
-          <view class="field action-row" bindtap="resetAll">
+          <view class="field action-row" data-anchor="settings.resetAll" bindtap="resetAll">
             <view class="field-copy">
               <view class="field-label">恢复初始状态</view>
               <view class="field-hint">同时清除主题与模型偏好</view>
@@ -248,7 +253,7 @@
           <view class="kv-row"><text class="kv-key">运行方式</text><text class="kv-value">小程序原生客户端</text></view>
           <view class="kv-row"><text class="kv-key">本地会话</text><text class="kv-value">{{sessionCount}} 个</text></view>
 
-          <view class="field action-row" bindtap="copyFxLicense">
+          <view class="field action-row" data-anchor="settings.copyFxLicense" bindtap="copyFxLicense">
             <view class="field-copy">
               <view class="field-label">fx 本地运行时许可</view>
               <view class="field-hint">Apache-2.0 · vercel-labs/fx — 点击复制 GitHub 许可地址</view>

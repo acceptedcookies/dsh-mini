@@ -1,7 +1,7 @@
-<view wx:if="{{visible}}" class="right-panel theme-{{theme}}" catchtap="noop">
+<view wx:if="{{visible}}" class="right-panel theme-{{theme}}" data-anchor-exempt="gesture-shield" catchtap="noop">
   <view class="rp-strip">
     <dsh-tabs class="rp-tabs" variant="pill" tabs="{{tabs}}" active="{{active}}" theme="{{theme}}" bind:change="select" />
-    <view class="rp-close" bindtap="close">
+    <view class="rp-close" data-anchor="rp.close" bindtap="close">
       <dsh-icon name="close-outline" theme="{{theme}}" size="{{14}}" />
     </view>
   </view>
@@ -9,14 +9,14 @@
   <scroll-view class="rp-body" scroll-y enhanced show-scrollbar="{{false}}">
     <block wx:if="{{active === 'files'}}">
       <view class="rp-nav">
-        <view wx:if="{{!connected && navPath !== '/'}}" class="rp-action rp-back" bindtap="onNavBack">
+        <view wx:if="{{!connected && navPath !== '/'}}" class="rp-action rp-back" data-anchor="rp.back" bindtap="onNavBack">
           <dsh-icon name="chevron-left-outline" theme="{{theme}}" size="{{16}}" />
         </view>
         <view class="rp-nav-main">
           <text class="rp-nav-path mono">{{connected ? 'workspace' : navPath}}</text>
           <text class="rp-nav-lane">{{connected ? '云端 nano 工作区 · 只读' : '本地 VFS · 五根'}}</text>
         </view>
-        <view class="rp-action" bindtap="refresh">
+        <view class="rp-action" data-anchor="rp.refresh" bindtap="refresh">
           <dsh-icon name="refresh-outline" theme="{{theme}}" size="{{14}}" />
         </view>
       </view>
@@ -31,6 +31,7 @@
           wx:for="{{fileRows}}"
           wx:key="path"
           class="fm-row"
+          data-anchor="rp.row"
           data-path="{{item.path}}"
           data-kind="{{item.kind}}"
           bindtap="onRowTap"
@@ -44,6 +45,7 @@
           <view
             wx:if="{{item.kind === 'file'}}"
             class="fm-menu"
+            data-anchor="rp.rowMenu"
             data-path="{{item.path}}"
             catchtap="onRowMenu"
           >
@@ -57,7 +59,7 @@
     <block wx:elif="{{active === 'terminal'}}">
       <view class="rp-head">
         <text class="rp-title">终端</text>
-        <view class="rp-action" bindtap="noop">
+        <view class="rp-action" data-anchor-exempt="noop" bindtap="noop">
           <dsh-icon name="plus-outline" theme="{{theme}}" size="{{14}}" />
         </view>
       </view>
@@ -128,15 +130,15 @@
       </view>
     </view>
     <view class="fmd-actions">
-      <view wx:if="{{cardWritable}}" class="fmd-act" bindtap="onCardRename">
+      <view wx:if="{{cardWritable}}" class="fmd-act" data-anchor="rp.cardRename" bindtap="onCardRename">
         <dsh-icon name="edit-outline" tone="tertiary" theme="{{theme}}" size="{{15}}" />
         <text class="fmd-act-label">重命名</text>
       </view>
-      <view class="fmd-act" bindtap="onCardCopy">
+      <view class="fmd-act" data-anchor="rp.cardCopy" bindtap="onCardCopy">
         <dsh-icon name="copy-outline" tone="tertiary" theme="{{theme}}" size="{{15}}" />
         <text class="fmd-act-label">复制路径</text>
       </view>
-      <view wx:if="{{cardWritable}}" class="fmd-act fmd-act-danger" bindtap="onCardDelete">
+      <view wx:if="{{cardWritable}}" class="fmd-act fmd-act-danger" data-anchor="rp.cardDelete" bindtap="onCardDelete">
         <dsh-icon name="trash-outline" tone="danger" theme="{{theme}}" size="{{15}}" />
         <text class="fmd-act-label">删除</text>
       </view>

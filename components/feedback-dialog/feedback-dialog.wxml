@@ -1,9 +1,9 @@
-<view wx:if="{{render}}" class="feedback-layer theme-{{theme}} {{closing ? 'feedback-closing' : ''}}" style="{{kb > 0 ? 'padding-bottom: calc(' + kb + 'px + 16px)' : ''}}" catchtouchmove="noop">
-  <view class="feedback-mask" bindtap="cancel"></view>
-  <view class="feedback-card" catchtap="noop">
+<view wx:if="{{render}}" class="feedback-layer theme-{{theme}} {{closing ? 'feedback-closing' : ''}}" style="{{kb > 0 ? 'padding-bottom: calc(' + kb + 'px + 16px)' : ''}}" catchtouchmove="noop" data-anchor-exempt="gesture-shield">
+  <view class="feedback-mask" data-anchor="feedback.mask" bindtap="cancel"></view>
+  <view class="feedback-card" data-anchor-exempt="gesture-shield" catchtap="noop">
     <view class="feedback-header">
       <text class="feedback-title">提交反馈</text>
-      <view class="feedback-close" bindtap="cancel">
+      <view class="feedback-close" data-anchor="feedback.close" bindtap="cancel">
         <dsh-icon name="close-outline" theme="{{theme}}" size="{{14}}" />
       </view>
     </view>
@@ -13,6 +13,7 @@
         wx:for="{{categories}}"
         wx:key="id"
         class="feedback-chip {{category === item.id ? 'feedback-chip-active' : ''}}"
+        data-anchor="feedback.category"
         data-id="{{item.id}}"
         bindtap="selectCategory"
       >{{item.label}}</view>
@@ -28,12 +29,12 @@
       cursor-spacing="24"
       adjust-position="{{false}}"
       show-confirm-bar="{{false}}"
-      bindinput="onInput"
+      data-anchor="feedback.input" bindinput="onInput"
     />
 
     <view
       class="feedback-submit {{submitting ? 'feedback-submit-disabled' : ''}}"
-      bindtap="submit"
+      data-anchor="feedback.submit" bindtap="submit"
     >{{submitting ? '提交中…' : '提交'}}</view>
   </view>
 </view>

@@ -1,17 +1,17 @@
 <view class="actions" data-clock="{{clock}}">
   <text wx:if="{{clock === 'start' && clockText}}" class="time time-start">{{clockText}}</text>
-  <view class="action" bindtap="copy">
+  <view class="action" data-anchor="message.action.copy" bindtap="copy">
     <dsh-icon name="{{copied ? 'check-outline' : 'copy-outline'}}" tone="tertiary" theme="{{theme}}" size="{{clock === 'end' ? 17 : 15}}" />
   </view>
   <block wx:if="{{feedback}}">
-    <view class="action {{rating === 'positive' ? 'action-active' : ''}}" bindtap="like">
+    <view class="action {{rating === 'positive' ? 'action-active' : ''}}" data-anchor="message.action.like" bindtap="like">
       <dsh-icon name="{{rating === 'positive' ? 'like-fill' : 'like-outline'}}" tone="tertiary" theme="{{theme}}" size="{{clock === 'end' ? 17 : 15}}" />
     </view>
-    <view class="action {{rating === 'negative' ? 'action-active' : ''}}" bindtap="dislike">
+    <view class="action {{rating === 'negative' ? 'action-active' : ''}}" data-anchor="message.action.dislike" bindtap="dislike">
       <dsh-icon name="{{rating === 'negative' ? 'dislike-fill' : 'dislike-outline'}}" tone="tertiary" theme="{{theme}}" size="{{clock === 'end' ? 17 : 15}}" />
     </view>
   </block>
-  <view wx:if="{{branch}}" class="action {{branchUnavailable ? 'action-unavailable' : ''}}" bindtap="branch">
+  <view wx:if="{{branch}}" class="action {{branchUnavailable ? 'action-unavailable' : ''}}" data-anchor="message.action.branch" bindtap="branch">
     <dsh-icon name="branch-outline" tone="tertiary" theme="{{theme}}" size="{{clock === 'end' ? 17 : 15}}" />
   </view>
   <text wx:if="{{clock === 'end' && clockText}}" class="time time-end">{{clockText}}</text>

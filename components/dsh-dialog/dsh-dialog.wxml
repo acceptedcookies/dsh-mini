@@ -1,12 +1,12 @@
-<view wx:if="{{render}}" class="dialog-layer theme-{{theme}} {{closing ? 'dialog-closing' : ''}}" style="{{kb > 0 ? 'padding-bottom: calc(' + kb + 'px + 16px)' : ''}}" catchtouchmove="noop">
-  <view class="dialog-mask" bindtap="cancel"></view>
-  <view class="dialog-card dialog-{{tone}}" catchtap="noop">
+<view wx:if="{{render}}" class="dialog-layer theme-{{theme}} {{closing ? 'dialog-closing' : ''}}" style="{{kb > 0 ? 'padding-bottom: calc(' + kb + 'px + 16px)' : ''}}" catchtouchmove="noop" data-anchor-exempt="gesture-shield">
+  <view class="dialog-mask" data-anchor="dialog.mask" bindtap="cancel"></view>
+  <view class="dialog-card dialog-{{tone}}" data-anchor-exempt="gesture-shield" catchtap="noop">
     <view class="dialog-header">
       <view class="dialog-title">
         <dsh-icon wx:if="{{tone === 'warning'}}" name="warning-outline" tone="warn" theme="{{theme}}" size="{{18}}" />
         <text>{{title}}</text>
       </view>
-      <view class="dialog-close" bindtap="cancel">
+      <view class="dialog-close" data-anchor="dialog.close" bindtap="cancel">
         <dsh-icon name="close-outline" tone="secondary" theme="{{theme}}" size="{{14}}" />
       </view>
     </view>
@@ -17,6 +17,7 @@
       <input
         wx:if="{{editable && !multiline}}"
         class="dialog-input"
+        data-anchor="dialog.input"
         value="{{draft}}"
         focus="{{visible && editable}}"
         placeholder="{{placeholder}}"
@@ -29,6 +30,7 @@
       <textarea
         wx:elif="{{editable && multiline}}"
         class="dialog-input dialog-textarea"
+        data-anchor="dialog.textarea"
         value="{{draft}}"
         focus="{{visible && editable}}"
         placeholder="{{placeholder}}"
@@ -43,8 +45,8 @@
     </view>
 
     <view class="dialog-footer">
-      <view class="dialog-button" bindtap="cancel">{{cancelText}}</view>
-      <view wx:if="{{confirmText}}" class="dialog-button dialog-button-primary {{danger ? 'dialog-button-danger' : ''}} {{confirmDisabled ? 'dialog-button-disabled' : ''}}" bindtap="confirm">{{confirmText}}</view>
+      <view class="dialog-button" data-anchor="dialog.cancel" bindtap="cancel">{{cancelText}}</view>
+      <view wx:if="{{confirmText}}" data-anchor="dialog.confirm" class="dialog-button dialog-button-primary {{danger ? 'dialog-button-danger' : ''}} {{confirmDisabled ? 'dialog-button-disabled' : ''}}" bindtap="confirm">{{confirmText}}</view>
     </view>
   </view>
 </view>

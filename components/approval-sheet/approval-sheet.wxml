@@ -8,7 +8,7 @@
     <view wx:if="{{request.callId}}" class="approval-command">{{request.callId}}</view>
   </view>
   <view class="approval-actions">
-    <view class="approval-action approval-reject {{answered ? 'approval-action-disabled' : ''}}" bindtap="reject">拒绝</view>
-    <view class="approval-action approval-allow {{answered ? 'approval-action-disabled' : ''}}" bindtap="allow">允许一次</view>
+    <view class="approval-action approval-reject {{answered ? 'approval-action-disabled' : ''}}" data-anchor="approval.reject" bindtap="reject">拒绝</view>
+    <view class="approval-action approval-allow {{answered ? 'approval-action-disabled' : ''}}" data-anchor="approval.allow" bindtap="allow">允许一次</view>
   </view>
 </view>

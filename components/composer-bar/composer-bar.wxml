@@ -2,7 +2,7 @@
   <view wx:if="{{images.length}}" class="composer-attachments">
     <view wx:for="{{images}}" wx:key="id" class="composer-attachment">
       <image class="composer-attachment-image" src="{{item.url}}" mode="aspectFill" />
-      <view class="composer-attachment-remove" data-index="{{index}}" bindtap="onRemoveImage">
+      <view class="composer-attachment-remove" data-anchor="composer.imageRemove" data-index="{{index}}" bindtap="onRemoveImage">
         <dsh-icon name="close-fill" tone="inverse" theme="{{theme}}" size="{{10}}" />
       </view>
     </view>
@@ -12,6 +12,7 @@
        docked 态由页面监听键盘高度手动抬 dock——整页不被顶、输入条不被遮。 -->
   <textarea
     class="composer-input"
+    data-anchor="composer.input"
     value="{{value}}"
     placeholder="{{placeholder}}"
     placeholder-class="composer-placeholder"
@@ -27,10 +28,10 @@
 
   <view class="composer-row">
     <view class="composer-tools">
-      <view class="composer-add" bindtap="onAttach">
+      <view class="composer-add" data-anchor="composer.attach" bindtap="onAttach">
         <dsh-icon name="plus-outline" theme="{{theme}}" size="{{14}}" />
       </view>
-      <view class="composer-chip composer-chip-permission" bindtap="onPermission">
+      <view class="composer-chip composer-chip-permission" data-anchor="composer.permission" bindtap="onPermission">
         <dsh-icon name="shield-outline" theme="{{theme}}" size="{{14}}" />
         <text class="composer-chip-label">{{permissionLabel}}</text>
         <dsh-icon name="chevron-down-outline" tone="caption" theme="{{theme}}" size="{{16}}" />
@@ -41,17 +42,18 @@
       </view>
     </view>
     <view class="composer-trailing">
-      <view class="composer-model" bindtap="onModel">
+      <view class="composer-model" data-anchor="composer.model" bindtap="onModel">
         <view class="composer-model-icon"><dsh-icon name="layers-outline" theme="{{theme}}" size="{{14}}" /></view>
         <text class="composer-model-label">{{modelLabel}}</text>
         <dsh-icon name="chevron-down-outline" tone="tertiary" theme="{{theme}}" size="{{12}}" />
       </view>
-      <view wx:if="{{running}}" class="composer-send composer-stop" bindtap="onStop">
+      <view wx:if="{{running}}" class="composer-send composer-stop" data-anchor="composer.stop" bindtap="onStop">
         <dsh-icon name="stop-fill" tone="inverse" theme="{{theme}}" size="{{14}}" />
       </view>
       <view
         wx:else
         class="composer-send {{(sending || (!value && images.length === 0)) ? 'composer-send-disabled' : ''}}"
+        data-anchor="composer.send"
         bindtap="onSend"
       >
         <view wx:if="{{sending}}" class="composer-spinner"></view>

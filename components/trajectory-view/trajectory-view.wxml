@@ -2,15 +2,15 @@
   <view class="traj-toolbar">
     <view class="traj-toolbar-inner">
       <view class="traj-toolbar-actions">
-        <view class="traj-toggle {{duration ? 'traj-toggle-on' : ''}}" bindtap="toggleDuration">
+        <view class="traj-toggle {{duration ? 'traj-toggle-on' : ''}}" data-anchor="traj.duration" bindtap="toggleDuration">
           <dsh-icon name="clock-outline" theme="{{theme}}" size="{{12}}" />
           <text>时长</text>
         </view>
-        <view class="traj-action" bindtap="toggleAllTurns">
+        <view class="traj-action" data-anchor="traj.expandTurns" bindtap="toggleAllTurns">
           <view class="traj-fold {{allTurnsCollapsed ? 'traj-fold-plus' : 'traj-fold-minus'}}"></view>
           <text>轮次</text>
         </view>
-        <view class="traj-action" bindtap="toggleAllCalls">
+        <view class="traj-action" data-anchor="traj.expandCalls" bindtap="toggleAllCalls">
           <view class="traj-fold {{callsCollapsed ? 'traj-fold-plus' : 'traj-fold-minus'}}"></view>
           <text>调用</text>
         </view>
@@ -28,7 +28,7 @@
           placeholder-class="traj-search-placeholder"
           confirm-type="search"
           adjust-position="{{false}}"
-          bindinput="onSearch"
+          data-anchor="traj.search" bindinput="onSearch"
         />
       </view>
     </view>
@@ -52,6 +52,7 @@
         wx:key="index"
         class="traj-timeline-span traj-span-{{item.kind}} {{item.selected ? 'traj-span-selected' : ''}} {{item.dimmed ? 'traj-span-dimmed' : ''}} {{item.isError ? 'traj-span-error' : ''}}"
         style="left: {{item.left}}; width: {{item.width}}; top: {{item.lane * 14 + 7}}px;"
+        data-anchor="traj.timeline"
         data-index="{{item.index}}"
         bindtap="onTimelineTap"
       ></view>
@@ -88,6 +89,7 @@
             class="traj-row {{item.turnStart ? 'traj-turn-start' : ''}} {{item.selected ? 'traj-row-selected' : ''}} {{item.isError ? 'traj-row-error' : ''}} {{item.type !== 'cell' ? 'traj-row-summary' : ''}} {{item.turnActive ? 'traj-row-turn-active' : ''}}"
             data-key="{{item.key}}"
             data-index="{{item.index}}"
+            data-anchor="traj.row"
             data-type="{{item.type}}"
             data-turn="{{item.turn}}"
             bindtap="onRowTap"
@@ -126,7 +128,7 @@
           <view class="traj-kind-tag traj-kind-{{detail.kind}}">{{detail.kindLabel}}</view>
           <text class="traj-details-location">{{detail.location}}</text>
         </view>
-        <view class="traj-details-close" bindtap="closeDetail">
+        <view class="traj-details-close" data-anchor="traj.detailClose" bindtap="closeDetail">
           <dsh-icon name="close-outline" theme="{{theme}}" size="{{14}}" />
         </view>
       </view>

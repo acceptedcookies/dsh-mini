@@ -4,7 +4,7 @@
     <view class="code-head">
       <text class="code-lang">{{item.lang || '代码'}}</text>
       <view class="code-actions">
-        <view class="code-copy" data-index="{{index}}" catchtap="toggleWrap">
+        <view class="code-copy" data-index="{{index}}" data-anchor-exempt="fold" catchtap="toggleWrap">
           <dsh-icon
             name="{{item.wrap === false ? 'wrap-fill' : 'nowrap-fill'}}"
             tone="tertiary"
@@ -12,7 +12,7 @@
             size="{{14}}"
           />
         </view>
-        <view class="code-copy" data-index="{{index}}" catchtap="copyCode">
+        <view class="code-copy" data-index="{{index}}" data-anchor="markdown.code.copy" catchtap="copyCode">
           <dsh-icon
             name="{{copiedIndex === index ? 'check-outline' : 'copy-outline'}}"
             tone="tertiary"

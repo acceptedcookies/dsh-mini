@@ -23,7 +23,7 @@
             src="{{item.url}}"
             mode="aspectFill"
             data-url="{{item.url}}"
-            bindtap="onPreview"
+            data-anchor-exempt="image-preview" bindtap="onPreview"
           />
         </view>
         <view wx:elif="{{item.images && item.images.length}}" class="images">
@@ -34,7 +34,7 @@
             src="{{item.url}}"
             mode="aspectFill"
             data-url="{{item.url}}"
-            bindtap="onPreview"
+            data-anchor-exempt="image-preview" bindtap="onPreview"
           />
         </view>
         <view wx:if="{{item.text}}" class="bubble user-bubble">
