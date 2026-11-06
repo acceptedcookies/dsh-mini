@@ -152,6 +152,14 @@
       "cause": "app.json 缺 \"cloud\": true → wx.cloud undefined → CloudTicketProvider.issueChallenge→callCloud('unlock') 首跳抛 'wx.cloud 不可用（需云开发基础库）'，且该链全走 wx.cloud/SOTER，wx.request 钩子与 console 面均不可见；'不可用' 不命中 GENERIC 分类→unknown-error",
       "fix": "app.json 加 \"cloud\": true 启用 wx.cloud 面（unlock 函数 + callContainer 数据面依赖）；error-report SPECIFIC 增云开发基础库缺失→route-config 映射（不私增错误码，公共合同）",
       "since": "2026-11-06"
+    },
+    {
+      "id": "PITFALL-18",
+      "symptom": "真机卡 logo/loading 进不了小程序",
+      "where": "device|remote-debug|enable",
+      "cause": "IDE 重启后 remote-debug 调试窗未拉起时发 enableRemoteDebug→手机进入「等待调试器接入」长等态；调试窗缺席则永不接通→手机卡死",
+      "fix": "先确认 remote-debug 调试窗已在 IDE 侧开启（auto 配置或手动点真机调试）再发 enable；卡死时 Tool.disableRemoteDebug 可释放手机等待态",
+      "since": "2026-11-06"
     }
   ]
 }
