@@ -21,6 +21,7 @@ import {
 import { formatRelative } from '../../utils/time'
 import { toolView, type ToolView } from '../../utils/tool-view'
 import { getWindowMetrics, isWideLayout, isDesktopLayout, type WindowMetrics } from '../../utils/window'
+import { modelMeta } from '../../services/fx/dev-config'
 import type {
   ApprovalOutcome,
   ApprovalRequest,
@@ -240,6 +241,7 @@ Page({
     chatViewportHeight: 0,
     displayItems: [] as DisplayItem[],
     turnMarks: [] as TurnMark[],
+    statsDock: undefined as StatsDock | undefined,
     rightOpen: false,
     rightLoading: false,
     rightError: '',
@@ -550,6 +552,7 @@ Page({
         : items.length === 0 && state.streaming === undefined && !state.loadingSession,
       displayItems: turns.items,
       turnMarks: turns.marks,
+      statsDock: deriveStatsDock(state.current?.items ?? [], this.data.model),
       runStartedAt,
       runLabel,
     })
@@ -1448,6 +1451,62 @@ interface TurnMeta {
   end: number
   hasContent: boolean
   failed: boolean
+}
+
+/** composer dock 统计行（dsh StatsPills + ContextMeter 的 mini 投影）：
+ *  activity=轮·步·tok/s 读数；usage=全会话 token 总量；contextPercent=
+ *  末次请求 prompt tokens 占模型 context_window 比。缺席字段即隐段。 */
+interface StatsDock {
+  activity: string
+  usage?: string
+  contextPercent?: number
+}
+
+/** 紧凑 token 计数：999 内原值，千级 X.XK，百万级 X.XM。 */
+function formatCompactTokens(value: number): string {
+  if (value < 1000) return String(Math.round(value))
+  const scaled = (n: number): string => n >= 100 ? String(Math.round(n)) : String(Math.round(n * 10) / 10)
+  if (value < 1_000_000) return `${scaled(value / 1000)}K`
+  return `${scaled(value / 1_000_000)}M`
+}
+
+function deriveStatsDock(items: ChatItem[], model: string): StatsDock | undefined {
+  let turns = 0
+  let steps = 0
+  let input = 0
+  let output = 0
+  let decodeMs = 0
+  let lastInput: number | undefined
+  for (const item of items) {
+    if (item.kind === 'user_message') {
+      turns += 1
+      continue
+    }
+    if (item.kind !== 'assistant_message') continue
+    const calls = item.llmCalls ?? []
+    // 无计量的旧条目按 1 步计——llmCalls 是本字段引入后新落的账本。
+    steps += Math.max(calls.length, 1)
+    for (const call of calls) {
+      input += call.inputTokens ?? 0
+      output += call.outputTokens ?? 0
+      decodeMs += call.decodeMs ?? 0
+      if (typeof call.inputTokens === 'number') lastInput = call.inputTokens
+    }
+  }
+  if (turns === 0) return undefined
+  const activity = [`${turns} 轮`, `${steps} 步`]
+  const speed = decodeMs > 0 && output > 0 ? output / (decodeMs / 1000) : 0
+  if (speed > 0) activity.push(`${speed.toFixed(1)} tok/s`)
+  const total = input + output
+  const window = (modelMeta as Record<string, { context_window: number }>)[model]?.context_window
+    ?? modelMeta.unknown.context_window
+  return {
+    activity: activity.join(' · '),
+    ...(total > 0 ? { usage: formatCompactTokens(total) } : {}),
+    ...(lastInput !== undefined && window > 0
+      ? { contextPercent: Math.min(100, Math.max(1, Math.round((lastInput / window) * 100))) }
+      : {}),
+  }
 }
 
 function buildTurns(

@@ -332,6 +332,25 @@
         <view wx:if="{{!showHero && view === 'chat' && !atTail}}" class="to-bottom" data-anchor="workspace.toBottom" bindtap="scrollToBottom">
           <dsh-icon name="chevron-down-outline" tone="primary" theme="{{theme}}" size="{{16}}" />
         </view>
+        <!-- stats dock：dsh composer.dock 投影——左统计 pill，右上下文占比环。 -->
+        <view wx:if="{{statsDock && view === 'chat'}}" class="stats-dock" data-anchor="stats.dock">
+          <view class="stats-pills">
+            <view class="stats-pill" data-anchor="stats.activity">
+              <dsh-icon name="gauge-outline" tone="tertiary" theme="{{theme}}" size="{{12}}" />
+              <text class="stats-pill-label">{{statsDock.activity}}</text>
+            </view>
+            <view wx:if="{{statsDock.usage}}" class="stats-pill stats-pill-usage" data-anchor="stats.usage">
+              <dsh-icon name="api-outline" tone="tertiary" theme="{{theme}}" size="{{12}}" />
+              <text class="stats-pill-label">{{statsDock.usage}}</text>
+            </view>
+          </view>
+          <view wx:if="{{statsDock.contextPercent !== undefined}}" class="stats-context" data-anchor="stats.context">
+            <view class="stats-ring" style="background: conic-gradient(var(--dsw-alias-label-tertiary) {{statsDock.contextPercent * 3.6}}deg, var(--dsw-alias-border-l3) 0);">
+              <view class="stats-ring-hole theme-{{theme}}"></view>
+            </view>
+            <text class="stats-context-label">{{statsDock.contextPercent}}%</text>
+          </view>
+        </view>
       </view>
     </view>
   </main>

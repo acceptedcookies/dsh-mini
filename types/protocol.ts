@@ -38,6 +38,9 @@ export type ChatItem = ChatItemBase & (
       text: string
       html: string
       thinking?: string
+      /** 本轮各 llm_call 步计量（usage=provider 计费 tokens，decodeMs=调用墙钟）——
+       *  composer dock 统计 pill/上下文计数的真源；旧条目缺席→统计退隐。 */
+      llmCalls?: Array<{ inputTokens?: number; outputTokens?: number; decodeMs?: number }>
     }
   | {
       kind: 'tool_call'

@@ -747,6 +747,79 @@
   background: var(--dsw-alias-button-floating-hover);
 }
 
+/* ── stats dock：dsh conversation.composer.dock 投影 ────────────────────
+ * composer 卡下沿一行：左统计 pill（轮·步·tok/s、用量），右上下文占比环。
+ * 全 tertiary 墨水 + tabular-nums，与参考 StatsPills/ContextMeter 同肤。 */
+.stats-dock {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dsw-space-8);
+  margin-top: 4px;
+  padding: 0 var(--dsw-space-6);
+  font-size: var(--dsw-text-caption);
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.stats-pills {
+  display: flex;
+  align-items: center;
+  gap: var(--dsw-space-2);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.stats-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding: 1px 6px;
+  border-radius: var(--dsw-radius-sm);
+  white-space: nowrap;
+}
+
+.stats-pill-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stats-context {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+
+.stats-ring {
+  position: relative;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.stats-ring-hole {
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background: var(--dsw-alias-bg-base);
+}
+
+.stats-context-label {
+  white-space: nowrap;
+}
+
+/* 窄屏收缩：用量 pill 先让位，保留 轮·步·tok/s 与上下文环（参考 compact
+ * 模式同理——保速度与占比两个核心读数）。 */
+@media (max-width: 560px) {
+  .stats-pill-usage {
+    display: none;
+  }
+}
+
 @keyframes to-bottom-in {
   from {
     opacity: 0;

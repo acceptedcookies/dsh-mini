@@ -336,6 +336,9 @@ export class KernelMiniRuntime {
     let assistantText = ''
     let deltaIndex = 0
     const attemptId = randomId('attempt')
+    // 本轮各 llm_call 步计量账本：usage=provider 计费 tokens、decodeMs=调用墙钟
+    // ——composer dock 统计 pill（轮/步/tok·s/上下文占比）唯一真源。
+    const callStats: Array<{ inputTokens?: number; outputTokens?: number; decodeMs?: number }> = []
     const io: Io = {
       // durable lane 按会话引擎裁决：nano-agent→remoteCas（POD1），magpie→localCas
       state: ioStateFor(engine),
@@ -344,7 +347,13 @@ export class KernelMiniRuntime {
         // 只装当前 turn，历史由宿主从 UI 转录本临时前置、不回写 kernel buffer。
         // noMint：铸票已在 drive 手势面完成——轮中票据过期的 ready() 会在
         // 后台上下文弹 SOTER（审查十四轮 L2），如实 401→host-error 更诚实。
+        const t0 = Date.now()
         const out = await createIoLlm({ noMint: true, engine })([...historyMessages(s), ...messages])
+        callStats.push({
+          inputTokens: out.usage?.inputTokens,
+          outputTokens: out.usage?.outputTokens,
+          decodeMs: Date.now() - t0,
+        })
         if (typeof out.text === 'string' && out.text.length > 0) {
           assistantText += out.text
           // assistant.delta：io.llm 非流式 → delta 粒度=llm_call 步（诚实粒度，
@@ -407,7 +416,7 @@ export class KernelMiniRuntime {
         } catch { /* 注记尽力即可 */ }
       }
       if (r.outcome === 'completed') {
-        this.settleAssistant(sessionId, assistantText, wasCancelled)
+        this.settleAssistant(sessionId, assistantText, wasCancelled, callStats)
       } else if (r.outcome === 'suspended') {
         // confirmation_pending/fatal_error 挂起不落 alarm——无自动复活路径，
         // 只有新 prompt（waiting→input_arrived→resume）能续跑，文案如实说。
@@ -431,7 +440,12 @@ export class KernelMiniRuntime {
     }
   }
 
-  private settleAssistant(sessionId: string, text: string, wasCancelled = false): void {
+  private settleAssistant(
+    sessionId: string,
+    text: string,
+    wasCancelled = false,
+    llmCalls: Array<{ inputTokens?: number; outputTokens?: number; decodeMs?: number }> = [],
+  ): void {
     const s = this.require(sessionId)
     // 取消完成的轮无部分文本时跳过 assistant 行——'（本轮无文本输出）'
     // 是误导性垃圾（用户主动停的）；cancel() 已落'已请求停止'注记（M6）。
@@ -440,6 +454,7 @@ export class KernelMiniRuntime {
       const item: ChatItem = {
         kind: 'assistant_message', id: randomId('msg'), seq: this.nextSeq(s),
         text: body, html: markdownToHtml(body),
+        ...(llmCalls.length > 0 ? { llmCalls } : {}),
       }
       this.append(sessionId, item)
       this.emit({ type: 'assistant.settle', sessionId, seq: item.seq, messageId: item.id })
