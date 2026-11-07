@@ -1,0 +1,50 @@
+{
+  "sim": "b03-write-then-delete",
+  "endpoint": "https://dsh-mini-test.saobao.com",
+  "oid": "b03-audit-mw6k877h",
+  "checks": [
+    {
+      "name": "bucket:before-empty",
+      "ok": true,
+      "detail": "mc ls returned empty output, exit 0（修正判读：空前缀非异常）"
+    },
+    {
+      "name": "vfs:put",
+      "ok": true,
+      "detail": "status 200"
+    },
+    {
+      "name": "bucket:object-materialized",
+      "ok": true,
+      "detail": "[2026-11-07 15:30:24 UTC]    53B STANDARD rows/b03-probe.txt"
+    },
+    {
+      "name": "vfs:get-bytes",
+      "ok": true,
+      "detail": "status 200"
+    },
+    {
+      "name": "vfs:del",
+      "ok": true,
+      "detail": "status 200"
+    },
+    {
+      "name": "vfs:get-404",
+      "ok": true,
+      "detail": "status 404"
+    },
+    {
+      "name": "bucket:no-residue",
+      "ok": true,
+      "detail": "mc ls after del: empty output, exit 0；grep b03 无命中"
+    },
+    {
+      "name": "vfs:list-clean",
+      "ok": true,
+      "detail": "keys=[]"
+    }
+  ],
+  "status": "pass",
+  "at": "2026-11-07T15:30:32.023Z",
+  "note": "首判 mc 空前缀误读；人工复核+grep 复核确认无残留。53B 对象物化→合同面 del→桶内无残留。"
+}

@@ -68,8 +68,9 @@ curl http://127.0.0.1:9095/healthz
 - **App**：`services/config.ts` 的 `DSH_MINI_BASE_URL=https://dsh-mini.saobao.com`；
   `.local.development.json`/`services/fx/dev-config.ts` 同步该域；微信公众平台已加入
   request 合法域名。
-- **sweeper**：`cloud/functions/sweeper` 默认 `WORKER=https://dsh-mini.saobao.com`，已部署；
-  真调用返回 `{ok:true,ran:[]}`。
+- **sweeper**：`cloud/functions/sweeper` 默认 `WORKER=https://dsh-mini.saobao.com`；2026-11-07
+  已重部署 HEAD 构建（`host.cjs`/`kernel.cjs` 与本地同 hash）；真 alarm at-most-once 实测通过
+  （合成 oid；证据见 `docs/closure/mini-nano/1st-wave/MN06-closure.md` §8.1 `B-04`）。
 - **验证**：`mp-remote` 27/27、`cold-state` 10/10、`vision-dual` 7/7（生产公网 artifact →
   magpie `Red`）；`public-surface` 38/39，唯一差异是测试脚本期望 dev 入口 `/dev/ticket` 403，
   生产入口按合同返回 404。
