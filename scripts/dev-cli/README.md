@@ -8,6 +8,7 @@
 通道 C · CLI v2     Contents/MacOS/cli（login/upload/preview/…）  ← 生命周期/云/agent/auto-replay
 通道 D · skill      wechatide -c <client> <tool>（skill-cli）      ← 一次性工具调用（AI 增强新增）
 通道 E · agent      cli agent <subcommand>                         ← IDE 内置 AI agent（非确定性，探索用）
+通道 F · CloudBase   tcb（腾讯云开发 CLI）                        ← 云函数/DB/hosting/storage/cloudrun/logs 高级调试/测试/应用脚本
 ```
 
 **择路原则**：模拟器操作/观测 → MCP；只读状态/测试号/doctor → skill；真机 remote/console → automator；生命周期 → CLI；AI 探索 → agent。`--via` 仅调试覆写；`ProbeDriver` 内建 skill→MCP 回落。
@@ -35,11 +36,12 @@ node scripts/dev-cli/session.mjs --via skill   # 单进程 REPL（skill 通道�
 | `lib/catalog.mjs` | MCP tools/list × skill tools.yaml → 归一目录；merge/diff/summary/cache；只读/写/废弃标注 |
 | `lib/tasks.mjs` | pending/taskId 提取 + `polling_task_result` 轮询 + 终态判定（preview/task/session 共用） |
 | `lib/report.mjs` | 统一输出信封 `dsh-mini.devcli.v1`；`runMain` 包装 |
-| `lib/registry.mjs` | 本仓 dev-cli 命令注册表（35 命令）；`assertRegistry` 双向对账 |
+| `lib/registry.mjs` | 本仓 dev-cli 命令注册表（36 命令）；`assertRegistry` 双向对账 |
 | `lib/doctor.mjs` | 健康检查（文件面 + 在线 skill/MCP/automator） |
 | `lib/pitfalls.mjs` | `matchPitfall`/`wrapError`/`classifyError`/`appendPitfall`——错误出口统一 `[PITFALL-n]` + kind |
 | `lib/probe.mjs` | **ProbeDriver**：五通道择路、锚解析、hook 白名单、mock 配对 restore、桥复用、catalog/task/doctor 便捷面 |
 | `lib/region-run.mjs` | region 三步合成：element geo → viewport 截图 → jimp 裁切 |
+| `lib/tcb.mjs` | CloudBase tcb 核心：版本/登录/env、fn list/detail(脱敏)/deploy/invoke/trigger、域命令透传 |
 
 `anchors.json` = 一级交互锚点注册真源（`data-anchor="scope.action"`；`disc` 字段管 wx:for 动态行）。`pitfalls.json` = 机器可读踩坑真源（symptom 正则 → fix/ownerAction）。
 
@@ -58,6 +60,7 @@ node scripts/dev-cli/session.mjs --via skill   # 单进程 REPL（skill 通道�
 | `task.mjs` | `task.mjs <taskId> [--timeout ms] [--interval ms] [--via mcp\|skill]` | 异步任务轮询（pending/taskId 语义） |
 | `agent.mjs` | `agent.mjs <start\|tool\|chat\|render\|card-click\|get-dom\|get-card-image\|clear\|debug\|overlay\|detail-close> [...]` | IDE 内置 AI agent；**非确定性，禁止用于 GSTH 判定** |
 | `skill.mjs` | `skill.mjs <tool> '<json-args>' [--json] [--client name]` | skill-cli 透传（一次性，不建 MCP 桥） |
+| `tcb.mjs` | `tcb.mjs <status|doctor|env|fn|db|hosting|storage|cloudrun|logs|docs|api|secrets|config|live-b|deploy-sweeper-test|raw> [...]` | CloudBase 高级通道；`fn detail` env/code 脱敏；禁止顶层 `tcb deploy` |
 
 ### 锚点/探针/注入面（DevTools）
 
@@ -111,6 +114,28 @@ node scripts/dev-cli/session.mjs --via skill   # 单进程 REPL（skill 通道�
 | AI agent | `agent start\|tool\|chat\|render\|card-click\|get-dom\|get-card-image\|clear\|debug\|overlay\|detail-close` |
 
 例：`node scripts/dev-cli/cli.mjs islogin` · `cli.mjs auto-replay --replay-all --replay-config-path ./replay.json` · `cli.mjs agent chat --query '检查首页'`
+
+## F · CloudBase tcb 高级通道
+
+> 真源：https://cloudbase.net/skill.md。`tcb` 是独立于 DevTools 的腾讯云开发 CLI（本机 3.9.1，已登录）；它不建 MCP/automator 桥，只 spawn `tcb`。
+
+| 入口 | 用法 | 说明 |
+|---|---|---|
+| `tcb.mjs status` | `status [--json]` | 版本 + 环境列表；验证 CLI 连通性 |
+| `tcb.mjs doctor` | `doctor [--json] [--env id] [--function name]` | bin/env/函数元数据检查；env 只报 key |
+| `tcb.mjs env` | `env list\|use <envId>` | 环境列表/切换 |
+| `tcb.mjs fn` | `fn list\|detail\|deploy\|invoke\|trigger-create\|trigger-delete\|logs\|env-pull` | 云函数全生命周期；`deploy` 首次创建时 `--runtime` 生效 |
+| `tcb.mjs <domain>` | `db\|hosting\|storage\|cloudrun\|logs\|docs\|api\|secrets\|config\|app\|user\|policy\|role\|cors\|routes\|domains\|sandbox\|ai\|lowcode\|validate\|sync-model-dts` | 领域命令透传 |
+| `tcb.mjs live-b` | — | 运行 `sim-wx-alarm` Live-B（公网测试网关 + `sweeper-test`） |
+| `tcb.mjs deploy-sweeper-test` | — | 部署 `sim-wx-alarm/sweeper-test`（Node20/60s/env/30s timer） |
+| `tcb.mjs raw` | `raw <args...>` | 逃逸舱门；禁止 `deploy` |
+
+**约束**：
+
+- 顶层 `tcb deploy` 被禁用（skill 要求用 `fn deploy`/`hosting deploy` 等领域命令）。
+- `fn detail` 默认只返回元数据与 env key 列表，**不打印 env/code 值**；`tcb fn detail` 原生命令会明文打印 env，排查时不要直接用它看 env。
+- secret 只从 `.anote/frd1/gateway.env`/进程 env 读取，不写入仓库；`tcb/README.md` 只写步骤，不写值。
+- `tcb/` 子目录 = 命令元数据（`commands.mjs`）+ 使用说明；顶层 `tcb.mjs` 是唯一注册入口。
 
 ## 通道边界与已知坑（实测登记）
 
