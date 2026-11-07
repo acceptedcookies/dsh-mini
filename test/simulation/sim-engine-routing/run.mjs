@@ -1,0 +1,60 @@
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { openApp } from '../lib/devtools.mjs'
+import { bootWorkspace, openModels, openSettings } from '../lib/app.mjs'
+import { openEvidence } from '../lib/evidence.mjs'
+import { modeOf, runModes } from '../lib/run.mjs'
+import { SIM_BASE } from '../lib/env.mjs'
+
+const dir = dirname(fileURLToPath(import.meta.url))
+const fixture = JSON.parse(readFileSync(join(dir, 'fixtures/models.json'), 'utf8'))
+
+async function routing(mode) {
+  const evidence = openEvidence(dir, mode)
+  const app = await openApp()
+  try {
+    const start = await bootWorkspace(app, evidence)
+    const settings = await openSettings(app, evidence)
+    const models = await openModels(app, evidence)
+    const data = await app.data()
+    const labels = JSON.stringify(data.models ?? data.model ?? data)
+    evidence.check('engine:model-page', models.path.includes('models'), models.path)
+    evidence.check('engine:lane-visible', fixture.visible.some((id) => labels.includes(id)), labels.slice(0, 180))
+    await fetch(`${SIM_BASE}/sim/_bio`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ supported: false, enrolled: false }) }).catch(() => {})
+    const challenge = await fetch(`${SIM_BASE}/sim/challenge`, { method: 'POST' }).then((r) => r.json())
+    const off = await fetch(`${SIM_BASE}/sim/bio`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ challenge: challenge.challenge }) })
+    evidence.check('engine:bio-off', off.status === 403, `status ${off.status}`)
+    await fetch(`${SIM_BASE}/sim/_bio`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ supported: true, enrolled: true }) })
+    const again = await fetch(`${SIM_BASE}/sim/challenge`, { method: 'POST' }).then((r) => r.json())
+    const proof = await fetch(`${SIM_BASE}/sim/bio`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ challenge: again.challenge }) })
+    evidence.check('engine:bio-on', proof.status === 200, `status ${proof.status}`)
+    const badModel = await fetch(`${SIM_BASE}/sim/enroll`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ...(await proof.json()), base_url: 'http://127.0.0.1:9/v1', model: fixture.rejected }),
+    })
+    evidence.check('engine:model-rejected', badModel.status === 401 || badModel.status === 403, `status ${badModel.status}`)
+    return evidence.finish({
+      sim: 'sim-engine-routing', endpoint: SIM_BASE, shots: [start, settings, models],
+      control_mock: ['sim-bio'], deferred: mode === 'live' ? ['device-soter'] : [],
+    })
+  } finally {
+    await fetch(`${SIM_BASE}/sim/_bio`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ supported: true, enrolled: true }),
+    }).catch(() => {})
+    await app.close()
+  }
+}
+
+const mode = modeOf()
+await runModes({
+  sim: 'sim-engine-routing',
+  mode,
+  mock: () => routing('mock'),
+  live: async () => openEvidence(dir, 'live').finish({
+    sim: 'sim-engine-routing', status: 'live-blocked', endpoint: SIM_BASE, shots: [],
+    deferred: ['device-soter'],
+    note: '真 magpie 上游与真机 SOTER 不在本机；sim 控制面不记 live-pass',
+  }),
+})

@@ -1,0 +1,4 @@
+{
+  "visible": ["deepseek-flash", "workbuddy/deepseek-v4.1-flash"],
+  "rejected": "other/not-allowed"
+}

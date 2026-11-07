@@ -1,0 +1,5 @@
+{
+  "health": "/healthz",
+  "state": "/v1/state/get",
+  "dev": "/dev/ticket"
+}

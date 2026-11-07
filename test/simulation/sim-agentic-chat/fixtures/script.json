@@ -1,0 +1,6 @@
+{
+  "prompt": "sim agentic turn",
+  "reply": "sim-agentic-reply",
+  "tool": "file_read",
+  "cancel": "sim cancel this turn"
+}

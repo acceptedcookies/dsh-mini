@@ -2,7 +2,7 @@
 
 > 唯一登记真源：本文件。旧 `test/README-draft.md` 只保留历史作废说明。
 > 本目录不参与小程序打包、构建、上传或发布；独立删除 `test/simulation/` 不影响发布。
-> 当前状态：v2 已登记，测试实现待建。
+> 当前状态：v3 已实现。mock 均已跑通；live 仅 `sim-production-surface` 为 live-pass，其余因 FRD1 测试网关停用或真 magpie/真机 SOTER 缺席记 live-blocked。
 
 ## 1. 业主原则与心智模型
 
@@ -120,8 +120,8 @@ test/simulation/                         # 仿真测试根；不打包、不接 
 
 | 项 | 值 |
 |----|----|
-| 版本 | `v2` |
+| 版本 | `v3` |
 | 日期 | 2026-11-07 |
-| 状态 | 已登记，待建 |
+| 状态 | 8 条已实现 |
 | 范围 | 8 条；全部 `sim-{slug}` |
-| 变更 | v1 初版；v2 新增 P-09（evidence 独立存放于 sim 文件夹内并 gitignore），同步拓扑与证据口径 |
+| 变更 | v2 登记 P-09；v3 落地 lib 与 8 条 run.mjs。mock-pass 已取证；写面 live 在测试网关停用期间为 live-blocked |
