@@ -1,6 +1,5 @@
 // simulation 环境真源：只读本机 gateway.env 的键名，不打印密钥。
-// live 写面不得打生产：本机 9097 隧道当前指向 dsh-mini-prod，
-// 因此 live 写面一律另起本地 dev.mjs（内存 S3），只读生产面单独标注。
+// mock 用本机网关。live 不走这里。
 import { readFileSync, existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -24,12 +23,10 @@ export function loadGatewayEnv() {
 export const PRODUCTION_BASE = 'https://dsh-mini.saobao.com'
 export const SIM_BASE = 'http://127.0.0.1:3426'
 export const MAGPIE_BASE = 'http://127.0.0.1:3425/v1'
-/** FRD1 测试写面：本机隧道 → 9095 dev.mjs → MinIO dsh-mini-test。9097 是生产入口，没有 /dev/ticket。 */
-export const FRD1_WRITE_BASE = 'http://127.0.0.1:9095'
 export const TEST_OID = 'sim-test-oid'
 export const OTHER_OID = 'sim-other-oid'
 
-/** live 写面的本地测试入口。端口避开 9095（隧道死连接）与 9097（生产桶）。 */
+/** mock 用的本机网关。不是 live。 */}
 export function liveWriteBase() {
   return (process.env.SIM_LIVE_BASE ?? 'http://127.0.0.1:19097').replace(/\/$/, '')
 }

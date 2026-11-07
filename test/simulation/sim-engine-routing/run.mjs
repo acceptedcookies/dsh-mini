@@ -6,6 +6,7 @@ import { bootWorkspace, openModels, openSettings } from '../lib/app.mjs'
 import { openEvidence } from '../lib/evidence.mjs'
 import { modeOf, runModes } from '../lib/run.mjs'
 import { SIM_BASE } from '../lib/env.mjs'
+import { liveWithoutTunnel } from '../lib/live.mjs'
 
 const dir = dirname(fileURLToPath(import.meta.url))
 const fixture = JSON.parse(readFileSync(join(dir, 'fixtures/models.json'), 'utf8'))
@@ -52,9 +53,5 @@ await runModes({
   sim: 'sim-engine-routing',
   mode,
   mock: () => routing('mock'),
-  live: async () => openEvidence(dir, 'live').finish({
-    sim: 'sim-engine-routing', status: 'live-blocked', endpoint: SIM_BASE, shots: [],
-    deferred: ['device-soter'],
-    note: '真 magpie 上游与真机 SOTER 不在本机；sim 控制面不记 live-pass',
-  }),
+  live: () => liveWithoutTunnel(dir, 'sim-engine-routing'),
 })

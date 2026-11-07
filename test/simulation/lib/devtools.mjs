@@ -43,6 +43,11 @@ export async function openApp({ device = false } = {}) {
     async call(method, ...args) {
       return this.page.callMethod(method, ...args)
     },
+    async setData(data) {
+      // automator 的 Page.setData 是独立 RPC；不能走 Page.callMethod('setData')
+      //（真机报 this.setData is not a function）。
+      return this.page.setData(data)
+    },
     async eval(fn) {
       return mp.evaluate(fn)
     },

@@ -7,7 +7,8 @@ import { bootWorkspace, typeAndSend } from '../lib/app.mjs'
 import { openEvidence } from '../lib/evidence.mjs'
 import { modeOf, runModes } from '../lib/run.mjs'
 import { TEST_OID } from '../lib/env.mjs'
-import { devTicket, getRaw, openFrd1, post, startLiveGateway } from '../lib/gateway.mjs'
+import { devTicket, getRaw, post, startLiveGateway } from '../lib/gateway.mjs'
+import { liveWithoutTunnel } from '../lib/live.mjs'
 
 const dir = dirname(fileURLToPath(import.meta.url))
 const bytes = readFileSync(join(dir, 'fixtures/file.txt'))
@@ -69,8 +70,5 @@ await runModes({
     const gw = await startLiveGateway()
     try { return await roundtrip('mock', gw) } finally { await gw.close() }
   },
-  live: async () => {
-    const gw = await openFrd1()
-    try { return await roundtrip('live', gw) } finally { await gw.close() }
-  },
+  live: () => liveWithoutTunnel(dir, 'sim-vfs-roundtrip'),
 })

@@ -7,13 +7,13 @@ import { openEvidence } from '../lib/evidence.mjs'
 import { modeOf, runModes } from '../lib/run.mjs'
 import { TEST_OID } from '../lib/env.mjs'
 import { devTicket, post, startLiveGateway } from '../lib/gateway.mjs'
+import { liveWithoutTunnel } from '../lib/live.mjs'
 
 const dir = dirname(fileURLToPath(import.meta.url))
 const fixture = JSON.parse(readFileSync(join(dir, 'fixtures/alarm.json'), 'utf8'))
 
-async function alarm(mode) {
+async function alarm(mode, gw) {
   const evidence = openEvidence(dir, mode)
-  const gw = await startLiveGateway()
   const app = await openApp()
   try {
     const start = await bootWorkspace(app, evidence)
@@ -32,23 +32,22 @@ async function alarm(mode) {
     const second = await post(gw.base, '/v1/alarm/claim', ticket, { key, holder: 'sim-sweeper' })
     evidence.check('alarm:exactly-once', first.status === 200 && second.status === 404, `first ${first.status} second ${second.status}`)
     return evidence.finish({
-      sim: 'sim-alarm-resume', endpoint: gw.base, shots: [start, sent.typed, sent.done],
+      sim: 'sim-wx-alarm', endpoint: gw.base, shots: [start, sent.typed, sent.done],
       control_mock: ['clock-request-now', 'soter-devtools'],
       note: '云函数 sweeper 未在本进程代跑',
     })
   } finally {
     await app.close()
-    await gw.close()
   }
 }
 
 const mode = modeOf()
 await runModes({
-  sim: 'sim-alarm-resume',
+  sim: 'sim-wx-alarm',
   mode,
-  mock: () => alarm('mock'),
-  live: async () => openEvidence(dir, 'live').finish({
-    sim: 'sim-alarm-resume', status: 'live-blocked', endpoint: 'http://127.0.0.1:9095', shots: [],
-    note: 'FRD1 测试网关已停止；不伪造云函数 sweeper',
-  }),
+  mock: async () => {
+    const gw = await startLiveGateway()
+    try { return await alarm('mock', gw) } finally { await gw.close() }
+  },
+  live: () => liveWithoutTunnel(dir, 'sim-wx-alarm'),
 })

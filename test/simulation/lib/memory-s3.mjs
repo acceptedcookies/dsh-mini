@@ -1,6 +1,5 @@
 // 内存 S3：只实现 durable core 用到的 SigV4 面（Put/Get/Head/Delete/List + Range + 条件写）。
-// 不是 MinIO。live 写面在 FRD1 测试网关停用期间用它承载真实 /v1/* 合同，
-// 避免写到本机 9097 隧道背后的生产桶。签名规则与 cloud/durable/core.mjs 同型。
+// 只给 mock 用。签名规则与 cloud/durable/core.mjs 同型。
 import { createHash, createHmac } from 'node:crypto'
 import { createServer } from 'node:http'
 

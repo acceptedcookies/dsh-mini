@@ -51,8 +51,5 @@ await runModes({
     const llm = await startScriptedLlm({ text: fixture.reply })
     try { return await journey('mock', llm) } finally { await llm.close() }
   },
-  live: async () => openEvidence(dir, 'live').finish({
-    sim: 'sim-agentic-chat', status: 'live-blocked', endpoint: 'configured-magpie', shots: [],
-    note: '本机没有独立的真 magpie 路由；页面错误态不记 live-pass',
-  }),
+  live: () => liveWithoutTunnel(dir, 'sim-agentic-chat'),
 })

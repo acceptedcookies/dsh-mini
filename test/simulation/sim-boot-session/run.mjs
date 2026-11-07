@@ -6,7 +6,8 @@ import { bootWorkspace, currentText, typeAndSend } from '../lib/app.mjs'
 import { openEvidence } from '../lib/evidence.mjs'
 import { modeOf, runModes } from '../lib/run.mjs'
 import { TEST_OID } from '../lib/env.mjs'
-import { devTicket, openFrd1, post, startLiveGateway } from '../lib/gateway.mjs'
+import { devTicket, post, startLiveGateway } from '../lib/gateway.mjs'
+import { liveWithoutTunnel } from '../lib/live.mjs'
 import { startScriptedLlm } from '../lib/mock-upstream.mjs'
 
 const dir = dirname(fileURLToPath(import.meta.url))
@@ -57,10 +58,5 @@ await runModes({
       return await journey('mock', gw.base, await devTicket(gw.base, gw.admin, TEST_OID))
     } finally { await gw.close() }
   },
-  live: async () => {
-    const gw = await openFrd1()
-    try {
-      return await journey('live', gw.base, await devTicket(gw.base, gw.admin, TEST_OID))
-    } finally { await gw.close() }
-  },
+  live: () => liveWithoutTunnel(dir, 'sim-boot-session'),
 })

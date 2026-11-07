@@ -6,7 +6,8 @@ import { bootWorkspace, typeAndSend } from '../lib/app.mjs'
 import { openEvidence } from '../lib/evidence.mjs'
 import { modeOf, runModes } from '../lib/run.mjs'
 import { TEST_OID } from '../lib/env.mjs'
-import { devTicket, openFrd1, post, startLiveGateway } from '../lib/gateway.mjs'
+import { devTicket, post, startLiveGateway } from '../lib/gateway.mjs'
+import { liveWithoutTunnel } from '../lib/live.mjs'
 
 const dir = dirname(fileURLToPath(import.meta.url))
 const bytes = readFileSync(join(dir, 'fixtures/note.txt'))
@@ -43,8 +44,5 @@ await runModes({
     const gw = await startLiveGateway()
     try { return await offline('mock', gw) } finally { await gw.close() }
   },
-  live: async () => {
-    const gw = await openFrd1()
-    try { return await offline('live', gw) } finally { await gw.close() }
-  },
+  live: () => liveWithoutTunnel(dir, 'sim-vfs-offline'),
 })

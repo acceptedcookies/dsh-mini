@@ -7,7 +7,7 @@ export async function bootWorkspace(app, evidence) {
 }
 
 export async function typeAndSend(app, evidence, text) {
-  await app.call('setData', { input: text })
+  await app.setData({ input: text })
   const typed = await capture(app, evidence, '02-typed', {
     route: 'pages/workspace/workspace',
     includes: [text.slice(0, 24)],

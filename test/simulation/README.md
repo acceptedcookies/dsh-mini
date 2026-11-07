@@ -2,7 +2,7 @@
 
 > 唯一登记真源：本文件。旧 `test/README-draft.md` 只保留历史作废说明。
 > 本目录不参与小程序打包、构建、上传或发布；独立删除 `test/simulation/` 不影响发布。
-> 当前状态：v4。mock 已跑。`live-pass` 只认手机也会走的公网 `https://`。`127.0.0.1` SSH 隧道只证明网关进程，不是发布后的用户路径，结果记 `not-phone-path`，不作 live-pass。
+> 当前状态：v5。mock 可以用本机。live 不使用 SSH 隧道，也不使用 `127.0.0.1`。写操作的 live 现在是 `live-blocked`：公网没有 `/dev/ticket`，不能用隧道给手机补测试身份。
 
 ## 1. 业主原则与心智模型
 
@@ -26,10 +26,10 @@
 |---|------|----------|----------------|-------------------------------|----------------|----------------|
 | 1 | `sim-boot-session` | 冷启动 → 主题/壳 → unlock → durable session → prompt → turn → 杀进程/重载 → 续跑 | 证明 App 从零到可对话、再到崩溃恢复的完整生命周期 | `/healthz`、`/dev/ticket`、`/v1/state/*`、session store、checkpoint、transcript；UI：启动/会话/续跑 | `cloud/sim` + scripted LLM + 合成 oid | FRD1 测试网关 + 真 durable + 真票（SOTER 标注 `control_mock`） |
 | 2 | `sim-agentic-chat` | 输入 prompt → 流式 → tool call → cancel → 上游错误/重试 | 证明 agentic 对话主链在正常、取消、错误三种用户路径下都成立 | LLM 流式、tool 结果、transcript、error center 分类；UI：正常/取消/错误三态 | scripted LLM/tool/error | 真 magpie + 测试网关 |
-| 3 | `sim-vfs-roundtrip` | 写文件 → 列表 → 读 → range → 删 → artifact publish → 公网 `/a/` 回读 | 证明 VFS 与 artifact 的读写闭环、字节一致性和边界限制 | `vfs/{put,get,del,list}`、`artifacts/publish`、`/a/{sha}`、8MB/256KB/list 上限；UI：文件列表/预览 | 本地测试网关 + 测试桶 | FRD1 9095 + `dsh-mini-test` MinIO |
+| 3 | `sim-vfs-roundtrip` | 写文件 → 列表 → 读 → range → 删 → artifact publish → 公网 `/a/` 回读 | 证明 VFS 与 artifact 的读写闭环、字节一致性和边界限制 | `vfs/{put,get,del,list}`、`artifacts/publish`、`/a/{sha}`、8MB/256KB/list 上限；UI：文件列表/预览 | 本机 mock 网关 | 手机用自己的票打 `https://dsh-mini.saobao.com`；不用隧道 |
 | 4 | `sim-vfs-offline` | 断票/离线写删 → 恢复 → reconcile → 删除不复活 | 证明离线期间不丢写、不复活删除，恢复后能收敛到远端真源 | 本地行/墓碑、pending summary、远端 row/object、LWW；UI：离线提示/收敛后状态 | 强制离线 + 测试网关回放 | 真测试网关 + MinIO |
 | 5 | `sim-claim-conflict` | shadow 持 claim → App prompt → 「会话写者冲突」→ 释放 → 重试 | 证明多写者不会静默分叉，冲突会被用户看见并恢复 | `/v1/claim`、holder、state CAS、冲突 toast/diag；UI：冲突/恢复 | shadow Node 客户端 + 测试网关 | 真测试网关 claim |
-| 6 | `sim-alarm-resume` | 建 due alarm → sweeper tick → resume → tool 恰一次 | 证明 30s 闹钟能恢复挂起 turn，且不会重复执行 tool | `/v1/alarm/{due,claim}`、sweeper、resume 状态、tool 计数；UI：恢复中/完成 | 本地 sweeper + 受控时钟 | 云函数 sweeper + 真 30s + 测试网关 |
+| 6 | `sim-wx-alarm` | 建 due alarm → sweeper → resume → tool 恰一次 | 证明 alarm 被消费一次 | `/v1/alarm/{due,claim}`、resume、tool 计数 | 本机 mock 网关 | 手机用自己的票打 `https://dsh-mini.saobao.com`；不用隧道 |
 | 7 | `sim-engine-routing` | 设置页 provider/model/engine（local/cloud/magpie）→ bio 门禁 → enroll → 真轮 | 证明引擎、模型、凭证三者的路由与白名单在真实设置流程中成立 | 设置页、enroll/bio、引擎戳记、模型白名单、会话车道；UI：设置/注入/真轮 | `cloud/sim` + mock bio/challenge | 真测试网关 + 真 magpie；真 SOTER 仅真机，否则 `device-deferred` |
 | 8 | `sim-production-surface` | 生产只读：healthz、无票 401、真实 oid `state/get` + `vfs/list`、`/dev/*` 404 | 证明生产入口对外只暴露合同面，鉴权与 oid 隔离有效，测试入口不外泄 | `https://dsh-mini.saobao.com` 只读、401/404、跨 oid 隔离；UI：App 生产配置只读页 | 本地测试网关 + 合成 oid | `https://dsh-mini.saobao.com` 只读 |
 
@@ -43,7 +43,7 @@
 | VFS | 五根、`vfs/{put,get,del,list}`、range、本地行/墓碑 | `sim-vfs-roundtrip`、`sim-vfs-offline` |
 | Artifact | `artifacts/publish`、`/a/{sha}`、内容寻址 | `sim-vfs-roundtrip` |
 | 多写者协调 | `claim`、holder、冲突 UI、释放重试 | `sim-claim-conflict` |
-| 闹钟恢复 | `alarm/{due,claim}`、sweeper、resume、恰一次 | `sim-alarm-resume` |
+| 微信云 alarm 近似 | `alarm/{due,claim}`、`sweepTick`/`runPump`、resume、恰一次 | `sim-wx-alarm` |
 | 鉴权与隔离 | ticket、无票 401、oid 注入、跨 oid 隔离、生产 `/dev/*` 404 | `sim-production-surface`、`sim-engine-routing` |
 | 引擎与模型 | local/cloud/magpie 路由、provider/model 白名单、bio/enroll | `sim-engine-routing` |
 
@@ -57,7 +57,7 @@
 | 测试入口外泄 | 生产环境出现 `/dev/*`、admin 面 | `sim-production-surface` | 生产 `/dev/*` 为 404，无 admin 响应 |
 | 路径穿越 / 键注入 | `../`、`//`、前导 `/`、伪造 `dsh-mini` 段 | `sim-vfs-roundtrip` | 400/拒绝；不写出 oid 前缀 |
 | CAS 竞态 / 丢更新 | 并发写、旧 etag、claim 抢占 | `sim-boot-session`、`sim-claim-conflict` | 412 恰一成功；不静默覆盖 |
-| 恢复重复执行 | 杀进程、alarm 重放、resume 重入 | `sim-boot-session`、`sim-alarm-resume` | tool 恰一次；transcript 不重复 |
+| 恢复重复执行 | 杀进程、alarm 重放、resume 重入 | `sim-boot-session`、`sim-wx-alarm` | tool 恰一次；transcript 不重复 |
 | 删除复活 | 离线删、墓碑过期、远端旧行回拉 | `sim-vfs-offline` | 删除后不复活；远端新于碑时按 LWW 重建 |
 | 离线丢写 | 无票写、断网、恢复中断 | `sim-vfs-offline` | pending 保留并可重试；恢复后收敛，不静默丢 |
 | 容量边界绕过 | 256KB state、8MB 对象、list 1000、行面预算 | `sim-vfs-roundtrip` | 超限按合同拒绝；分页/range 正确 |
@@ -129,7 +129,7 @@ test/simulation/                         # 仿真测试根；不打包、不接 
 ├── sim-vfs-roundtrip/{README.md,run.mjs,fixtures/,evidence/}
 ├── sim-vfs-offline/{README.md,run.mjs,fixtures/,evidence/}
 ├── sim-claim-conflict/{README.md,run.mjs,fixtures/,evidence/}
-├── sim-alarm-resume/{README.md,run.mjs,fixtures/,evidence/}
+├── sim-wx-alarm/{README.md,run.mjs,fixtures/,evidence/}
 ├── sim-engine-routing/{README.md,run.mjs,fixtures/,evidence/}
 └── sim-production-surface/{README.md,run.mjs,fixtures/,evidence/}
 ```
@@ -165,4 +165,4 @@ test/simulation/                         # 仿真测试根；不打包、不接 
 | 日期 | 2026-11-07 |
 | 状态 | 8 条已实现；§5 回顾方法已登记 |
 | 范围 | 8 条；全部 `sim-{slug}` |
-| 变更 | v2 登记 P-09；v3 落地 lib 与 8 条 run.mjs。mock-pass 已取证；写面 live 在测试网关停用期间为 live-blocked；v4 新增 §5 回顾与加强方法（四维：深度/宽度/Scope/Mock-Live） |
+| 变更 | v2 登记 P-09；v3 落地 lib 与 8 条 run.mjs。mock-pass 已取证；写面 live 在测试网关停用期间为 live-blocked；v4 新增 §5 回顾与加强方法（四维：深度/宽度/Scope/Mock-Live）；`sim-alarm-resume` 更名为 `sim-wx-alarm`，明确“微信云 alarm 近似，不是 DO alarm 本体” |
