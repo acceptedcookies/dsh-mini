@@ -1,0 +1,9 @@
+# per-run evidence — regenerable via harness/run.mjs
+evidence/
+# rust build artifacts — regenerable via cargo
+kernel/target/
+kernel/Cargo.lock
+# generated wasm artifacts — regenerable via harness/run.mjs --build
+mp/wasm/*.wasm
+mp/wasm/*.wasm.br
+qr.png

@@ -1,0 +1,6 @@
+# per-run evidence — regenerable via harness/run.mjs
+evidence/
+# generated wasm/enc artifacts — regenerable via harness/run.mjs --build
+mp/wasm/*.wasm
+fixtures/*.wasm
+fixtures/*.enc

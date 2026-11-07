@@ -1,0 +1,5 @@
+App({
+  globalData: {
+    probeResult: null,
+  },
+});

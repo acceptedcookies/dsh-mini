@@ -1,0 +1,4 @@
+<view class="page">
+  <view wx:if="{{!done}}">probe running: {{stage}}</view>
+  <view wx:if="{{done}}">probe done</view>
+</view>

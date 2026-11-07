@@ -1,0 +1,14 @@
+{
+  "appid": "wx356d3abb52825466",
+  "compileType": "miniprogram",
+  "libVersion": "latest",
+  "projectname": "spike-env-array-buffer-wasm",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "postcss": false,
+    "minified": false,
+    "ignoreUploadUnusedFiles": true
+  },
+  "condition": {}
+}

@@ -1,0 +1,8 @@
+{
+  "pages": ["pages/index/index"],
+  "window": {
+    "navigationBarTitleText": "env-array-buffer-wasm"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

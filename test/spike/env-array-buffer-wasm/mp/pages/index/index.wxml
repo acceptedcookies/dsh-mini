@@ -1,0 +1,22 @@
+<view class="page">
+  <view class="title">env-array-buffer-wasm probe</view>
+  <view class="row">{{stage}} {{posted ? '· posted' : ''}}</view>
+  <view class="row">
+    <input class="input" placeholder="mock base url" value="{{base}}" bindinput="onBase" />
+    <button size="mini" bindtap="runManual">run</button>
+    <button size="mini" bindtap="copyResult">copy json</button>
+  </view>
+  <block wx:if="{{done && r}}">
+    <view class="row" wx:if="{{r.fatal}}">FATAL: {{r.fatal}}</view>
+    <block wx:if="{{r.apiSurface}}">
+      <view class="row">WXWebAssembly: {{r.apiSurface.wxWasm}} / Module: {{r.apiSurface.wxWasmModule}} / Instance: {{r.apiSurface.wxWasmInstance}} / Memory: {{r.apiSurface.wxWasmMemory}} / Table: {{r.apiSurface.wxWasmTable}} / Global: {{r.apiSurface.wxWasmGlobal}}</view>
+      <view class="row">Module.imports/exports/customSections: {{r.apiSurface.wxWasmModuleImports}} / {{r.apiSurface.wxWasmModuleExports}} / {{r.apiSurface.wxWasmModuleCustomSections}} / compile: {{r.apiSurface.wxWasmCompile}} / validate: {{r.apiSurface.wxWasmValidate}}</view>
+      <view class="row">crypto.subtle: {{r.apiSurface.cryptoSubtle}} / getRandomValues: {{r.apiSurface.cryptoGetRandomValues}} / wx.getRandomValues: {{r.apiSurface.wxGetRandomValues}}</view>
+    </block>
+    <view class="row" wx:if="{{r.cryptoProbe}}">cryptoProbe: {{r.cryptoProbe.subtle || '-'}} enc4MB={{r.cryptoProbe.encryptMs4MB}}ms dec4MB={{r.cryptoProbe.decryptMs4MB}}ms {{r.cryptoProbe.error || ''}}</view>
+    <view class="row" wx:if="{{r.pathBaseline}}">pathBaseline: {{r.pathBaseline.ok ? 'ok' : 'FAIL'}} value={{r.pathBaseline.value}} total={{r.pathBaseline.totalMs}}ms</view>
+    <view class="row" wx:if="{{r.bytesRaw}}">bytesRaw: {{r.bytesRaw.ok ? 'ok' : 'FAIL'}} value={{r.bytesRaw.value}} fetch={{r.bytesRaw.fetchMs}} compile={{r.bytesRaw.compileMs}} link={{r.bytesRaw.linkMs}} view={{r.bytesRaw.moduleFromView}} badM={{r.bytesRaw.badModuleName}} badL={{r.bytesRaw.badLinkName}}</view>
+    <view class="row" wx:if="{{r.encPipeline}}">encPipeline: {{r.encPipeline.ok ? 'ok' : 'FAIL'}} value={{r.encPipeline.value}} fetch={{r.encPipeline.fetchMs}} dec={{r.encPipeline.decryptMs}} compile={{r.encPipeline.compileMs}} link={{r.encPipeline.linkMs}} rt={{r.encPipeline.roundtripEq}} wk={{r.encPipeline.wrongKeyName}} tr={{r.encPipeline.truncName}} swap={{r.encPipeline.validSwapValue}}</view>
+    <view class="row" wx:if="{{r.fxReal}}">fxReal: {{r.fxReal.ok ? 'ok' : 'FAIL'}} module={{r.fxReal.moduleOk}} inst={{r.fxReal.instanceOk}} imports={{r.fxReal.imports}} stubCalls={{r.fxReal.stubCalls}} fnv={{r.fxReal.fnvMatch}} fetch={{r.fxReal.fetchMs}} dec={{r.fxReal.decryptMs}} compile={{r.fxReal.compileMs}} link={{r.fxReal.linkMs}} {{r.fxReal.error || r.fxReal.compileErr || r.fxReal.linkErr || ''}}</view>
+  </block>
+</view>

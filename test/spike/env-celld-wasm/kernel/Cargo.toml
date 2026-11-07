@@ -1,0 +1,19 @@
+[package]
+name = "env-celld-probe"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+celld-logic = { path = "../../../../context/celld/crates/logic" }
+
+# wasm 体积取证口径：与 celld 自身 release 同向（opt-size + fat LTO + abort）。
+[profile.release]
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
