@@ -1,0 +1,7 @@
+{
+  "file": "cloud/pod1/fss3-server.mjs",
+  "sha256": "857d477836ff6863ff15d7fab4da2e16b7017df0323b9740e690e2044127b729",
+  "frozen_at": "2026-11-07T04:50:00Z",
+  "last_code_commit": "2f50d70",
+  "policy": "fss3 代码冻结：EP-1 后只读、单向退役；不双写；变更需业主 durable 决定"
+}

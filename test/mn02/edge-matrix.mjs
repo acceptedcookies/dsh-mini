@@ -393,8 +393,10 @@ export { ensureDurableTicket, ioStateFor, hasFreshTicket }`,
   const io = mkIo(cas).io
   const ran = await host.sweepTick({ kernel, io, owner: 'o1', holder: 'sw-e11' }, { batchLimit: 10 })
   const hit = ran.find((r) => r.sessionId === raSid)
-  const nowDue = (await post('alarm/due', { now: Date.now() })).body.keys.filter((k) => k.includes(raSid))
-  const futureDue = (await post('alarm/due', { now: Date.now() + 120000 })).body.keys.filter((k) => k.includes(raSid))
+  // 精确剥 due 前缀后比 sid：includes(sid) 会被 `${RUN}-race` 的前缀误伤（E11 曾假红）。
+  const dueSid = (k) => k.match(/^alarms\/(?:[^/]+\/)?\d+-(.+)$/)?.[1]
+  const nowDue = (await post('alarm/due', { now: Date.now() })).body.keys.filter((k) => dueSid(k) === raSid)
+  const futureDue = (await post('alarm/due', { now: Date.now() + 120000 })).body.keys.filter((k) => dueSid(k) === raSid)
   check('E11:claim-denied→原行消费+退避重臂', hit?.outcome === 'claim-denied' && nowDue.length === 0 && futureDue.length === 1, `outcome=${hit?.outcome} now=${nowDue.length} future=${futureDue.length}`)
   // 重臂行消费验体：attempts=1 记账 + dueAt 在未来。
   // due-list 线键形如 alarms/{due}-{sid}（或全形 alarms/{oid}/{due}-{sid}）——双形剥壳。
@@ -416,8 +418,9 @@ export { ensureDurableTicket, ioStateFor, hasFreshTicket }`,
   const io2 = mkIo(cas).io
   io2.llm = async () => { throw new Error('deterministic-llm-fault') }
   const ran2 = await host.sweepTick({ kernel, io: io2, owner: 'o1', holder: 'sw-e12' }, { batchLimit: 10 })
-  const nowDue2 = (await post('alarm/due', { now: Date.now() })).body.keys.filter((k) => k.includes(csSid))
-  const futureDue2 = (await post('alarm/due', { now: Date.now() + 120000 })).body.keys.filter((k) => k.includes(csSid))
+  const dueSid2 = (k) => k.match(/^alarms\/(?:[^/]+\/)?\d+-(.+)$/)?.[1]
+  const nowDue2 = (await post('alarm/due', { now: Date.now() })).body.keys.filter((k) => dueSid2(k) === csSid)
+  const futureDue2 = (await post('alarm/due', { now: Date.now() + 120000 })).body.keys.filter((k) => dueSid2(k) === csSid)
   const ck2 = futureDue2[0]?.replace(/^alarms\//, '').replace(/^[^/]+\//, '')
   const cl2 = ck2 !== undefined ? await post('alarm/claim', { key: ck2, holder: 'e12-verify' }) : { status: 0, body: null }
   const rec2 = cl2.status === 200 ? JSON.parse(cl2.body.body) : null

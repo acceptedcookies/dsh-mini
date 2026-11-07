@@ -3,6 +3,7 @@
 // preflight：BASE/DURABLE 必须 127.0.0.1:9095，否则 exit 3。
 // NOTE/SKIP 不计 PASS；ide-durable 必须 E:openid=TEST_OID；s3-probe 必须 configured=true。
 import { spawn } from 'node:child_process'
+import { writeFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { loadEnv, requireEnv, assertMode600, assertLocalEndpoint, mintTicket, report } from './env.mjs'
@@ -44,6 +45,7 @@ const baseEnv = {
 const NODE = process.execPath
 const suites = [
   { name: 'env-check', file: 'test/mn06/env-check.mjs', timeout: 60000 },
+  { name: 'docs-check', file: 'test/mn06/docs-check.mjs', timeout: 60000 },
   { name: 'entry-isolation', file: 'test/mn06/entry-isolation.mjs', timeout: 90000 },
   { name: 'parity', file: 'test/mn06/parity.mjs', timeout: 180000 },
   { name: 'tombstone', file: 'test/mn06/tombstone.mjs', timeout: 90000 },
@@ -79,13 +81,14 @@ function run(s) {
       const fail = (out.match(/^FAIL /gm) ?? []).length
       const note = (out.match(/^NOTE /gm) ?? []).length
       const skip = (out.match(/^SKIP /gm) ?? []).length
-      resolve({ name: s.name, exit: code ?? 1, pass, fail, note, skip, ms: Date.now() - started, out, err })
+      resolve({ name: s.name, exit: code ?? 1, pass, fail, note, skip, ms: Date.now() - started, started_at: new Date(started).toISOString(), out, err })
     })
   })
 }
 
 function classify(r) {
-  const base = { name: r.name, pass: r.pass, fail: r.fail, note: r.note, skip: r.skip, exit: r.exit, ms: r.ms }
+  const lines = r.out.split('\n').filter((l) => /^(PASS|FAIL|NOTE|SKIP) /.test(l)).slice(0, 500)
+  const base = { name: r.name, pass: r.pass, fail: r.fail, note: r.note, skip: r.skip, exit: r.exit, ms: r.ms, started_at: r.started_at, lines }
   if (r.exit === 3) return { ...base, status: 'skip', reason: 'exit 3（未观察）' }
   if (r.name === 's3-probe') {
     const configured = r.pass === 9 && r.fail === 0 && r.exit === 0
@@ -121,13 +124,25 @@ for (const s of suites) {
 }
 
 const requiredFail = tests.filter((t) => t.status === 'fail' || t.status === 'skip')
+const ranAt = new Date().toISOString()
 const payload = report('mn06-regression', tests, {
-  ran_at: new Date().toISOString(),
+  ran_at: ranAt,
   base: env.BASE,
   durable: env.DURABLE,
   oid: env.TEST_OID,
   oid2: env.TEST_OID2,
   known_pre_existing: tests.filter((t) => t.status === 'known_pre_existing').map((t) => t.name),
 })
-console.log(`\n${tests.filter((t) => t.status === 'pass').length}/${tests.length} PASS  ${payload.known_pre_existing.length} known-pre-existing @ ${new Date().toISOString()}`)
+// 供 acceptance 同轮消费；token 防止把历史/外部输出当本轮证据。
+if (process.env.MN06_REGRESSION_OUT) {
+  writeFileSync(process.env.MN06_REGRESSION_OUT, JSON.stringify({
+    token: process.env.MN06_REGRESSION_TOKEN ?? '',
+    ran_at: ranAt,
+    base: env.BASE,
+    durable: env.DURABLE,
+    oid: env.TEST_OID,
+    tests,
+  }))
+}
+console.log(`\n${tests.filter((t) => t.status === 'pass').length}/${tests.length} PASS  ${payload.known_pre_existing.length} known-pre-existing @ ${ranAt}`)
 if (requiredFail.length > 0) process.exit(1)

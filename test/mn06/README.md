@@ -20,7 +20,7 @@ node test/mn06/parity.mjs              # 旧 test-s3 (74e8aab) vs 新 core golde
 node test/mn06/tombstone.mjs           # T04–T07（unit/remove/recover/summary）
 node test/mn06/matrix.mjs              # C4a/C4b/C1/C2/C3 三层矩阵
 node test/mn06/alarm30.mjs             # T21 真 30s loop（约 33s）
-node test/mn06/probe-sop.mjs           # probe/ 键区 SOP（dev 分支；SOP 后移除）
+node test/mn06/probe-sop.mjs           # probe/ SOP（仅 probe 窗口；窗口外 exit 3）
 node test/mn06/docs-check.mjs          # handoff/limits/closure 静态收口
 node test/mn06/acceptance.mjs          # 9 行验收矩阵
 node test/mn06/regression.mjs          # 全量回归（注入 127.0.0.1:9095）
@@ -52,6 +52,37 @@ node test/mn06/regression.mjs          # 全量回归（注入 127.0.0.1:9095）
 
 - 只看 exit 0 不算：每 case 三层布尔 + 四元组。
 - `ide-durable` NOTE 不计 PASS；`local-sweeper` 单 tick 不算 #5。
-- God view 读 FRD1 测试 bucket；POD1 审计另用只读 `mc find/count`，不冒充 God view。
+- God view 读 FRD1 测试 bucket；POD1 审计另用只读 `find` before/after（测试 oid 前缀），不冒充 God view。
 - 默认 `BASE=POD1` 的既有套件由 `regression.mjs` preflight 拒绝。
 - 直连 MinIO 的 `s3-probe` 不能替代 `probe/` SOP。
+
+## 6. 证据包（T19a，2026-11-07 本轮）
+
+> 本轮 `BASE=DURABLE=http://127.0.0.1:9095`，`TEST_OID=mn06-test-oid`；`acceptance.mjs` 自跑
+> `regression.mjs`，并用 token 绑定本轮 artifact（拒绝历史输出）。多套件计数与运行时间见
+> 最终 artifact 归档：`.anote/reviews/mini-nano/1st-wave/MN06/acceptance-artifact.json`（token `59e1c317…`，本轮 05:10:33–05:15:41 UTC）；下表为 Test-ID 四元组索引。
+
+| Test-ID | 命令 | 结果（本轮） | 运行时间（UTC） | 层 |
+|---------|------|--------------|-----------------|----|
+| T01 | `node test/mn06/parity.mjs` | 31/31，golden A/B diff 0 | 05:10:34 | 合同 |
+| T02 | `node test/mn06/entry-isolation.mjs` | 13/13（生产闭包无 admin 面） | 05:10:33 | 静态+启动 |
+| T04–T07 | `node test/mn06/tombstone.mjs` | 24/24（unit/remove/recover/summary） | 05:10:53 | unit/集成 |
+| T08–T12 | `node test/mn06/matrix.mjs` | 5/5（C4a/C4b/C1/C2/C3 三层） | 05:10:53 | App/shadow/God |
+| T13 | `node test/mn06/env-check.mjs` | 4/4（600/缺 key exit 3/schema） | 05:10:33 | env |
+| T14/T16 | `node test/mn06/docs-check.mjs` | 78/78（五节/原语/limits/静态） | 05:10:33 | 契约 |
+| T15 | `node test/mn06/probe-sop.mjs` | 4/4；probe `acb163e` → revert `4e2227e` | 04:40:03 | `/v1/state` SOP |
+| T17 | `node test/mn06/acceptance.mjs` | 9/9 rows（#1/#5/#6 partial） | 05:10:33–05:15:41 | 9 行矩阵 |
+| T18 | `node test/mn06/regression.mjs` | 19/20 suites + 1 known E9；exit 0 | 05:10:33–05:15:37 | 全量 |
+| T19a/T19b | `docs-check` + acceptance artifact | 五节/静态 0 命中/证据字段齐 | 05:10:33 | 静态 |
+| T20 | `node test/mn06/matrix.mjs --repeat 10` | 未跑（advisory，不入闸） | — | soak |
+| T21 | `node test/mn06/alarm30.mjs` | 6/6；2 ticks；间隔 ≥30s | 05:12:05 | 真 30s |
+
+**deferred（逐项理由/承接）**
+
+- 生产切流/旧客户端 — `cloud/durable/README.md` §3 七步 runbook；EP-1 不执行。
+- 物理 OS kill/真机 — `cold-state` 仅 pump 级 `killAfter`；R-lane/设备在场窗口。
+- 云函数 sweeper 部署 — 控制台 env/域名窗口；本轮同码 `sweepTick` + 真 30s。
+- `S3ObjectBackend` — 合约占位 `not-configured`；对象后端后续窗口。
+- `fx` lane — `get_weather` 不在 kernel 工具面；交 fx lane。
+- `vision-dual https:` — 需上游可达 HTTPS；测试面 `data:` 正常。
+- `soak` — advisory，不入闸；不建 release gate / CI 仪式。

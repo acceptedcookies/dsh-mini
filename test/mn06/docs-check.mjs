@@ -2,8 +2,9 @@
 //
 // 只读、无网络：检查五节、原语 request/response、T-O 引用、probe 双 sha 与生产键区、
 // 限制表代码锚、README 反假绿；`--closure` 时追加 closure 文件与五态。
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { ROOT, report } from './env.mjs'
 
@@ -72,12 +73,62 @@ check('readme:mn06 挂载 probe/docs-check/acceptance', ['probe-sop.mjs', 'docs-
 check('readme:test-s3 删除 8/8 假绿', !/8\/8/.test(testS3) && has(testS3, '8 PASS + 1 NOTE'))
 check('readme:test-s3 指向 durable 生产入口', has(testS3, 'cloud/durable/server.mjs'))
 
+// ── T19b 静态收口 ───────────────────────────────────────────────
+const gitGrep = (pattern, paths) => {
+  try { return git('grep', '-I', '-n', '-E', pattern, '--', ...paths) } catch (e) {
+    if (e.status === 1) return ''
+    return String(e.stdout ?? e.message ?? e)
+  }
+}
+const tracked = git('ls-files').split('\n').filter(Boolean)
+check('secret:无 .anote/gateway.env/env 入仓', !tracked.some((f) => /(^|\/)\.anote\/|gateway\.env$|\.env\.wx\.cloud$|\.local\.development\./.test(f)))
+check('secret:无私钥/AWS key 字面', gitGrep('BEGIN [A-Z ]*PRIVATE KEY|AKIA[0-9A-Z]{16}', ['.']) === '')
+check('scope:无 outbox/WAL', gitGrep('outbox|write-ahead', ['services', 'cloud', 'app.ts', 'scripts/local-sweeper.mjs']) === '')
+check('scope:无 episode/compaction 代码', gitGrep('\\bepisode\\b|\\bcompaction\\b', ['services', 'cloud', 'app.ts']) === '')
+const tombHits = gitGrep('dsh:mini:vfs-tombstones', ['services']).split('\n').filter(Boolean)
+check('scope:墓碑唯一 store 键', tombHits.length === 1, `hits=${tombHits.length}`)
+const freezePath = join(ROOT, 'test/mn06/fss3-freeze.json')
+const freeze = existsSync(freezePath) ? JSON.parse(readFileSync(freezePath, 'utf8')) : {}
+const fss3 = read(join(ROOT, 'cloud/pod1/fss3-server.mjs'))
+const fss3Sha = createHash('sha256').update(fss3).digest('hex')
+check('freeze:fss3 代码冻结 hash 不变', freeze.sha256 === fss3Sha, `${fss3Sha.slice(0, 12)} vs ${String(freeze.sha256).slice(0, 12)}`)
+check('freeze:fss3 策略为单向退役', /冻结|单向/.test(freeze.policy ?? ''))
+const fss3Last = git('log', '-1', '--format=%h', '--', 'cloud/pod1/fss3-server.mjs').trim()
+check('freeze:last_code_commit 对应 HEAD 历史', freeze.last_code_commit === fss3Last, `${freeze.last_code_commit} vs ${fss3Last}`)
+
+const walk = (dir, out = []) => {
+  for (const f of readdirSync(dir)) {
+    const p = join(dir, f)
+    if (statSync(p).isDirectory()) { walk(p, out); continue }
+    if (/\.(mjs|cjs|js)$/.test(f)) out.push(p)
+  }
+  return out
+}
+const mn06Files = walk(join(ROOT, 'test/mn06')).filter((f) => !f.endsWith('/docs-check.mjs'))
+// 扫描器自身不得出现受禁 token 字面（否则 no-self-bridge 会把检查器当违规源）。
+const AUTOMATOR = 'miniprogram' + '-automator'
+const automatorHits = mn06Files.flatMap((f) => {
+  const src = readFileSync(f, 'utf8')
+  return [...src.matchAll(new RegExp(AUTOMATOR + '[^\\s\'"`]*', 'g'))].map((m) => `${f.split('/').pop()}:${m[0]}`)
+})
+const bridgeRe = new RegExp(['Mcp' + 'Client', 'new' + '[\\s]+Web' + 'Socket', 'automator' + '\\.(connect|launch)', 'launchAnd' + 'Connect', 'from[\\s]+[\'"`]' + AUTOMATOR + '[\'"`]'].join('|'))
+check('bridge:test/mn06 仅 Connection 帧补丁子路径', automatorHits.length === 1 && automatorHits[0].endsWith(AUTOMATOR + '/out/Connection.js'), automatorHits.join(','))
+check('bridge:test/mn06 无裸 ws/客户端直连', !mn06Files.some((f) => bridgeRe.test(readFileSync(f, 'utf8'))))
+check('bridge:test/mn06 经 lib/ide.connectIde', /connectIde/.test(read(join(ROOT, 'test/mn06/app.mjs'))))
+
 if (checkClosure) {
   const closure = read(CLOSURE)
   check('closure:exists', closure.length > 0, CLOSURE.replace(ROOT + '/', ''))
+  for (const h of ['## 0.', '## 1.', '## 2.', '## 3.', '## 4.', '## 5.']) check(`closure:section ${h}`, has(closure, h))
+  check('closure:close-type taxonomy', /Close-type: `(full-close|closed-with-explicit-deferrals|close-with-known-issues|implementation-complete-awaiting-live-verification)`/.test(closure))
+  for (const id of ['P1-01', 'P2-01', 'P3-01', 'P4-01', 'P5-01', 'P5-04']) check(`closure:item ${id}`, has(closure, id))
   for (const s of ['verified', 'partial', 'deferred', '未观察', 'observed-OK-at-closure']) check(`closure:${s}`, has(closure, s))
   check('closure:T-O-1..T-O-10', has(closure, 'T-O-1'))
+  check('closure:review 汇总', /审查|review/.test(closure))
 }
+const evidencePack = ['## 6. 证据包', '四元组', '运行时间', 'deferred', 'T17', 'T18', 'T21', 'T15']
+for (const e of evidencePack) check(`evidence:${e}`, has(readme, e))
+check('evidence:无 release gate', /无 release gate|不建 release gate/.test(readme))
 
 const failed = results.filter((r) => !r.ok)
 report('mn06-docs-check', results.map((r) => ({ id: r.name, pass: r.ok })), {
