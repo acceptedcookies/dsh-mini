@@ -5,6 +5,7 @@
 // 每个 golden case 以 side 后缀隔离键，按 status + 归一化 JSON 做结构化 diff。
 import { spawn, spawnSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync } from 'node:fs'
+import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ROOT, loadEnv, requireEnv, assertLocalEndpoint, assertMode600, mintTicket, report, isMain } from './env.mjs'
@@ -26,8 +27,15 @@ try {
 
 const oldRoot = mkdtempSync(join(tmpdir(), 'mn06-parity-'))
 const children = []
-let oldPort = 9096
-let newPort = 9097
+async function freePort() {
+  return new Promise((resolve, reject) => {
+    const s = createServer()
+    s.listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => resolve(p)) })
+    s.on('error', reject)
+  })
+}
+const oldPort = await freePort()
+const newPort = await freePort()
 
 function childEnv(port) {
   return {
@@ -116,7 +124,7 @@ function normalize(value, side) {
   }
   if (typeof value === 'string') {
     return value
-      .replace(/http:\/\/127\.0\.0\.1:909[67]/g, '<BASE>')
+      .replace(/http:\/\/127\.0\.0\.1:\d+/g, '<BASE>')
       .replace(new RegExp(`-${side}`, 'g'), '-side')
   }
   return value

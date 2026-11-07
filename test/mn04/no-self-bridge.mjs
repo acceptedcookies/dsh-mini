@@ -47,6 +47,19 @@ check('桥构造集中在 lib（mcp.open + ide.connectIde）', /class McpClient/
 check('通道构造集中在 lib/channels（skill/agent/cli）', /class SkillChannel/.test(channels) && /class AgentChannel/.test(channels) && /class CliChannel/.test(channels))
 check('bridgeCount 计数存在', /bridgeCount/.test(mcp))
 
+// MN06 套件：允许经 lib/ide.connectIde 接单桥；禁止直接 automator/WebSocket 自建桥。
+const MN06_DIR = `${ROOT}/test/mn06`
+const MN06_BRIDGE_RE = /['"]miniprogram-automator['"]|new\s+WebSocket\s*\(|\bMcpClient\b|automator\.(connect|launch)|launchAndConnect/
+const mn06Offenders = []
+let mn06AppUsesConnect = false
+for (const f of walk(MN06_DIR)) {
+  const src = readFileSync(f, 'utf8')
+  if (f.endsWith('/app.mjs') && /connectIde/.test(src)) mn06AppUsesConnect = true
+  const hits = src.split('\n').map((l, i) => ({ l, i: i + 1 })).filter(({ l }) => MN06_BRIDGE_RE.test(l) && !/^\s*(\*|\/\/)/.test(l))
+  if (hits.length) mn06Offenders.push(`${f.split('/').pop()}: ${hits.map((h) => `${h.i}:${h.l.trim().slice(0, 60)}`).join(' | ')}`)
+}
+check('test/mn06 无直接 automation 桥（仅经 app.mjs→lib/ide.connectIde）', mn06Offenders.length === 0 && mn06AppUsesConnect, mn06Offenders.join(' ;; '))
+
 const pass = results.filter((r) => r.ok).length
 console.log(`\n${pass}/${results.length} PASS`)
 process.exit(pass === results.length ? 0 : 1)

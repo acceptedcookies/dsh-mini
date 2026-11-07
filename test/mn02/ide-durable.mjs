@@ -39,7 +39,7 @@ const DURABLE = (process.env.DURABLE ?? "https://dsh-mini.haimang.com.cn").repla
 const log = (...a) => console.log("[ide-durable]", ...a);
 const results = [];
 const check = (name, ok, detail = "") => { results.push({ name, ok }); console.log(`${ok ? "PASS" : "FAIL"} ${name}${detail ? ` :: ${detail}` : ""}`); };
-const note = (name, detail = "") => { results.push({ name, ok: true }); console.log(`NOTE ${name} :: ${detail}`); };
+const note = (name, detail = "") => { results.push({ name, ok: true, note: true }); console.log(`NOTE ${name} :: ${detail}`); };
 
 const envFile = {};
 for (const line of readFileSync(join(root, ".env.wx.cloud"), "utf8").split("\n")) {
@@ -157,8 +157,9 @@ if (process.env.PATCH_UNLOCK === "1" || DURABLE.includes("127.0.0.1")) {
   const body = `{"probe":"ide-durable","ts":${Date.now()}}`;
   const r = await mini.evaluate((b) => {
     const cas = getApp().globalData.__ioStateFor();
-    return cas.putCas("dsh-mini/state/self/mn02ide-probe", b, { ifNoneMatch: "*" })
-      .then((put) => cas.get("dsh-mini/state/self/mn02ide-probe")
+    const key = "dsh-mini/state/self/mn02ide-probe-" + Date.now().toString(36);
+    return cas.putCas(key, b, { ifNoneMatch: "*" })
+      .then((put) => cas.get(key)
         .then((got) => ({ putStatus: put.status, got: got === null ? null : got.body.slice(0, 60) })))
       .catch((e) => ({ err: String((e && e.message) || e) }));
   }, body);
@@ -202,6 +203,7 @@ if (process.env.PATCH_UNLOCK === "1" || DURABLE.includes("127.0.0.1")) {
   const who = await callFunction(mini, "unlock", { action: "challenge" });
   const oid = who && who.result && who.result.openid;
   log("E openid:", oid ? `${oid.slice(0, 8)}...` : JSON.stringify(who));
+  check("E:openid=TEST_OID", oid === TEST_OID, oid === TEST_OID ? "" : "unexpected openid（未 patch 或端点错）");
   if (oid) {
     const sid = `mn02ide-alarm-${Date.now().toString(36)}`;
     const due = Date.now() - 5000;
@@ -233,5 +235,7 @@ if (process.env.PATCH_UNLOCK === "1" || DURABLE.includes("127.0.0.1")) {
 
 await mini.disconnect();
 const failed = results.filter((r) => !r.ok);
-console.log(`\n${results.length - failed.length}/${results.length} PASS  @ ${new Date().toISOString()}`);
-process.exit(0);
+const passed = results.filter((r) => r.ok && r.note !== true);
+const notes = results.filter((r) => r.note === true);
+console.log(`\n${passed.length}/${results.length - notes.length} PASS  ${notes.length} NOTE  @ ${new Date().toISOString()}`);
+process.exit(failed.length === 0 ? 0 : 1);

@@ -39,8 +39,8 @@ export function loadEnv(extra = {}) {
     ...merged,
     BASE: (merged.BASE ?? durable).replace(/\/$/, ''),
     DURABLE: (merged.DURABLE ?? durable).replace(/\/$/, ''),
-    TEST_OID: merged.TEST_OID ?? `mn06-${Date.now().toString(36)}`,
-    TEST_OID2: merged.TEST_OID2 ?? `mn06-b-${Date.now().toString(36)}`,
+    TEST_OID: merged.TEST_OID ?? 'mn06-test-oid',
+    TEST_OID2: merged.TEST_OID2 ?? 'mn06-test-oid-b',
     PATCH_UNLOCK: merged.PATCH_UNLOCK ?? '1',
     AUTO_PORT: merged.AUTO_PORT ?? '9602',
   }
