@@ -9,7 +9,7 @@ import { join } from 'node:path'
 import { ROOT, report } from './env.mjs'
 
 const HANDOFF = join(ROOT, 'docs/truth/mini-nano/MN06-ep2-handoff.md')
-const CLOSURE = join(ROOT, 'docs/closure/mini-nano/1st-wave/MN06-N-A-closure.md')
+const CLOSURE = join(ROOT, 'docs/closure/mini-nano/1st-wave/MN06-closure.md')
 const MN06_README = join(ROOT, 'test/mn06/README.md')
 const TEST_S3_README = join(ROOT, 'cloud/test-s3/README.md')
 const WORKER = join(ROOT, 'cloud/worker/worker.mjs')
