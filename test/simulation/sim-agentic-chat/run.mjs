@@ -58,12 +58,13 @@ await runModes({
     const app = await openPhone()
     try {
       const shots = [await shot(app, evidence, '01-phone')]
+      const before = ((await app.data())?.state?.current?.items ?? []).length
       await app.setData({ input: fixture.prompt })
       shots.push(await shot(app, evidence, '02-typed'))
       await app.eval('() => { const page = getCurrentPages().slice(-1)[0]; const bar = page.selectComponent("#composer"); bar.onSend() }')
-      const data = await app.data()
-      const text = JSON.stringify(data?.state?.current?.items ?? [])
-      evidence.check('phone:prompt', text.includes(fixture.prompt) || (data?.state?.error ?? '').length > 0, text.slice(0, 160))
+      const items = (await app.data())?.state?.current?.items ?? []
+      const added = items.slice(before)
+      evidence.check('phone:new-turn', added.some((item) => String(item.text ?? '').includes(fixture.prompt)), JSON.stringify(added).slice(0, 180))
       shots.push(await shot(app, evidence, '03-done'))
       return evidence.finish({ sim: 'sim-agentic-chat', endpoint: PRODUCTION_BASE, shots, device: app.device, note: '真机页面发送，走手机自己的网络' })
     } finally { await app.close() }

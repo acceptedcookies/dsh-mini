@@ -50,6 +50,19 @@ await runModes({
     const app = await openPhone()
     try {
       const shots = [await shot(app, evidence, '01-phone')]
+      const local = await app.eval(`() => {
+        const key = 'dsh:vfs:v1:rows'
+        const rows = wx.getStorageSync(key) || {}
+        rows['/tmp/sim-live-offline'] = { virtual_path: '/tmp/sim-live-offline', text: 'offline row', updated_ms: Date.now() }
+        wx.setStorageSync(key, rows)
+        const tomb = 'dsh:mini:vfs-tombstones'
+        const tombs = wx.getStorageSync(tomb) || {}
+        tombs['/tmp/sim-live-deleted'] = { path: '/tmp/sim-live-deleted', updated_ms: Date.now() }
+        wx.setStorageSync(tomb, tombs)
+        return { row: Boolean(wx.getStorageSync(key)['/tmp/sim-live-offline']), tomb: Boolean(wx.getStorageSync(tomb)['/tmp/sim-live-deleted']) }
+      }`)
+      evidence.check('phone:local-row', local?.row === true, JSON.stringify(local))
+      evidence.check('phone:local-tomb', local?.tomb === true, JSON.stringify(local))
       const rows = await phoneSteps(app, [
         { op: 'denied', path: '/v1/vfs/put', body: { key, bytes_b64: bytes.toString('base64') } },
         { op: 'unlock' },

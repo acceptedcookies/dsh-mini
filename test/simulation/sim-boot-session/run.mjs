@@ -64,12 +64,19 @@ await runModes({
     const app = await openPhone()
     try {
       const shots = [await shot(app, evidence, '01-phone')]
-      const marker = 'sim-live-boot'
+      const before = await app.data()
+      const sid = before.state?.current?.sessionId
+      if (!sid) throw new Error('真机没有当前会话')
+      await app.call('newSession')
+      const after = await app.data()
+      const created = after.state?.current?.sessionId
+      evidence.check('phone:new-session', typeof created === 'string' && created !== sid, `${sid} -> ${created}`)
+      const marker = `sim-live-${created}`
       const rows = await phoneSteps(app, [
         { op: 'unlock' },
-        { op: 'put', path: '/v1/state/put-cas', auth: true, body: { key: 'state/sim-live-boot', body: JSON.stringify({ marker }), cond: { ifNoneMatch: '*' } } },
-        { op: 'get', path: '/v1/state/get', auth: true, body: { key: 'state/sim-live-boot' } },
-        { op: 'stale', path: '/v1/state/put-cas', auth: true, body: { key: 'state/sim-live-boot', body: 'x', cond: { ifMatch: 'stale' } } },
+        { op: 'put', path: '/v1/state/put-cas', auth: true, body: { key: `state/${created}`, body: JSON.stringify({ marker }), cond: { ifNoneMatch: '*' } } },
+        { op: 'get', path: '/v1/state/get', auth: true, body: { key: `state/${created}` } },
+        { op: 'stale', path: '/v1/state/put-cas', auth: true, body: { key: `state/${created}`, body: 'x', cond: { ifMatch: 'stale' } } },
       ])
       const put = step(rows, 'put')
       evidence.check('phone:state-write', put?.status === 200 || put?.status === 412, `status ${put?.status}`)

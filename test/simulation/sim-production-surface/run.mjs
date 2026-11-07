@@ -56,7 +56,10 @@ await runModes({
         { op: 'health', path: '/healthz', method: 'GET' },
         { op: 'no-ticket', path: '/v1/state/get', body: { key: 'state/sim-live' } },
         { op: 'dev', path: '/dev/ticket', body: {} },
-        { op: 'bad-ticket', path: '/v1/state/get', body: { key: 'state/sim-live' }, auth: false },
+        { op: 'unlock' },
+        { op: 'own', path: '/v1/state/get', auth: true, body: { key: 'state/sim-live-boot' } },
+        { op: 'own-vfs', path: '/v1/vfs/list', auth: true, body: { prefix: 'vfs/' } },
+        { op: 'other', path: '/v1/state/get', auth: true, body: { key: 'state/does-not-belong' } },
       ])
       const health = step(rows, 'health')
       const noTicket = step(rows, 'no-ticket')
@@ -64,6 +67,9 @@ await runModes({
       evidence.check('phone:health', health?.status === 200, `status ${health?.status}`)
       evidence.check('phone:no-ticket', noTicket?.status === 401, `status ${noTicket?.status}`)
       evidence.check('phone:dev-hidden', dev?.status === 404, `status ${dev?.status}`)
+      evidence.check('phone:own-state', step(rows, 'own')?.status === 200, `status ${step(rows, 'own')?.status}`)
+      evidence.check('phone:own-vfs', step(rows, 'own-vfs')?.status === 200, `status ${step(rows, 'own-vfs')?.status}`)
+      evidence.check('phone:other-hidden', step(rows, 'other')?.status === 404, `status ${step(rows, 'other')?.status}`)
       shots.push(await shot(app, evidence, '02-after'), await shot(app, evidence, '03-done'))
       return evidence.finish({
         sim: 'sim-production-surface', endpoint: PRODUCTION_BASE, shots, device: app.device,

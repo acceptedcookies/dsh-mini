@@ -1,5 +1,10 @@
 # sim-agentic-chat
 
+## 下一步
+
+- 发送后只认本轮新增的用户消息。
+- 流式、tool、取消、上游错误仍未做。
+
 输入 → 发送 → 停止 → 错误可见。
 
 - mock：scripted LLM 返回固定回复；App 仍走真实 composer/send。

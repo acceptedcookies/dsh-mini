@@ -59,16 +59,18 @@ await runModes({
     const app = await openPhone()
     try {
       const shots = [await shot(app, evidence, '01-phone')]
+      await app.eval('() => wx.setStorageSync("dsh:mini:engine:v1", "magpie")')
+      await app.call('newSession')
+      const created = await app.data()
+      const engine = created.state?.sessions?.find((s) => s.id === created.state?.current?.sessionId)?.engine
       const rows = await phoneSteps(app, [
         { op: 'bio' },
         { op: 'unlock' },
-        { op: 'no-ticket', path: '/v1/state/get', body: { key: 'state/sim-live' } },
       ])
       const bio = step(rows, 'bio')
       evidence.check('phone:soter', bio?.supported === true && bio?.enrolled === true, `supported ${bio?.supported} enrolled ${bio?.enrolled}`)
       evidence.check('phone:unlock', step(rows, 'unlock')?.ok === true, 'unlock')
-      evidence.check('phone:engine', typeof bio?.engine === 'string', bio?.engine || 'default')
-      evidence.check('phone:no-ticket', step(rows, 'no-ticket')?.status === 401, `status ${step(rows, 'no-ticket')?.status}`)
+      evidence.check('phone:engine', engine === 'magpie', String(engine))
       shots.push(await shot(app, evidence, '02-after'), await shot(app, evidence, '03-done'))
       return evidence.finish({ sim: 'sim-engine-routing', endpoint: PRODUCTION_BASE, shots, device: app.device, note: '真机生物识别与引擎存储' })
     } finally { await app.close() }

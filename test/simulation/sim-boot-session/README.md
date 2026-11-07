@@ -1,5 +1,11 @@
 # sim-boot-session
 
+## 下一步
+
+- 用当前会话的真实 `state/{sid}` 写入并读回。
+- 新建会话，断言这是一条新会话。
+- 杀进程和续跑仍未做。
+
 冷启动 → 会话 → prompt/turn → 重载后续跑。
 
 - mock：本地真实 `/v1/state/*`，scripted LLM 只替换上游。当前 3426 的 sim 进程没有加载 durable 面，不把 404 记成 mock-pass。

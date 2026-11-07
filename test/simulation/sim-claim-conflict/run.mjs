@@ -51,14 +51,20 @@ await runModes({
     const app = await openPhone()
     try {
       const shots = [await shot(app, evidence, '01-phone')]
+      const sid = (await app.data()).state?.current?.sessionId
+      if (!sid) throw new Error('真机没有当前会话')
       const rows = await phoneSteps(app, [
         { op: 'unlock' },
-        { op: 'hold', path: '/v1/claim', auth: true, body: { key: 'sim-live-claim', holder: 'shadow', ttlMs: 60000 } },
-        { op: 'deny', path: '/v1/claim', auth: true, body: { key: 'sim-live-claim', holder: 'app', ttlMs: 60000 } },
-        { op: 'release', path: '/v1/claim', auth: true, body: { key: 'sim-live-claim', holder: 'shadow', ttlMs: 1 } },
+        { op: 'hold', path: '/v1/claim', auth: true, body: { key: sid, holder: 'shadow', ttlMs: 60000 } },
+        { op: 'deny', path: '/v1/claim', auth: true, body: { key: sid, holder: 'app', ttlMs: 60000 } },
+        { op: 'release', path: '/v1/claim', auth: true, body: { key: sid, holder: 'shadow', ttlMs: 1 } },
         { op: 'sleep', ms: 20 },
-        { op: 'retry', path: '/v1/claim', auth: true, body: { key: 'sim-live-claim', holder: 'app', ttlMs: 1000 } },
+        { op: 'retry', path: '/v1/claim', auth: true, body: { key: sid, holder: 'app', ttlMs: 1000 } },
       ])
+      await app.setData({ input: prompt })
+      await app.eval('() => { const page = getCurrentPages().slice(-1)[0]; page.selectComponent("#composer").onSend() }')
+      const text = JSON.stringify(await app.data())
+      evidence.check('phone:conflict-visible', text.includes('会话写者冲突'), text.slice(0, 180))
       evidence.check('phone:hold', step(rows, 'hold')?.status === 200, `status ${step(rows, 'hold')?.status}`)
       evidence.check('phone:deny', step(rows, 'deny')?.status === 412 && step(rows, 'deny')?.holder === 'shadow', `status ${step(rows, 'deny')?.status}`)
       evidence.check('phone:retry', step(rows, 'retry')?.status === 200, `status ${step(rows, 'retry')?.status}`)
