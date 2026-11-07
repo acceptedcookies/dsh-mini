@@ -60,22 +60,22 @@ node test/mn06/regression.mjs          # 全量回归（注入 127.0.0.1:9095）
 
 > 本轮 `BASE=DURABLE=http://127.0.0.1:9095`，`TEST_OID=mn06-test-oid`；`acceptance.mjs` 自跑
 > `regression.mjs`，并用 token 绑定本轮 artifact（拒绝历史输出）。多套件计数与运行时间见
-> 9 行结果归档：`.anote/reviews/mini-nano/1st-wave/MN06/acceptance-result.json`（token `9e3eb913…`，git `aa56a9f`，含 POD1 before/after）；regression 输入：`acceptance-artifact.json`；probe 证据：`test/mn06/probe-sop-evidence.txt`。本轮 2026-11-07T05:52:00–05:59:24Z。
+> 9 行结果归档：`.anote/reviews/mini-nano/1st-wave/MN06/acceptance-result.json`（token `42b76b35…`，git `8b7e388`，含 POD1 before/after）；regression 输入：`acceptance-artifact.json`；probe 证据：`test/mn06/probe-sop-evidence.txt`。本轮 2026-11-07T06:06:16–06:14:21Z。
 
 | Test-ID | 命令 | 结果（本轮） | 运行时间（UTC） | 层 |
 |---------|------|--------------|-----------------|----|
-| T01 | `node test/mn06/parity.mjs` | 31/31，golden A/B diff 0 | 05:52:01 | 合同 |
-| T02 | `node test/mn06/entry-isolation.mjs` | 14/14（生产闭包无 admin 面；缺 S3 凭证 fail-closed） | 05:52:00 | 静态+启动 |
-| T04–T07 | `node test/mn06/tombstone.mjs` | 24/24（unit/remove/recover/summary） | 05:52:19 | unit/集成 |
-| T08–T12 | `node test/mn06/matrix.mjs` | 5/5（C4a/C4b/C1/C2/C3 三层） | 05:52:19 | App/shadow/God |
-| T13 | `node test/mn06/env-check.mjs` | 5/5（600/缺 key exit 3/错端点 exit 3/schema） | 05:52:00 | env |
-| T14/T16 | `node test/mn06/docs-check.mjs` | 88/88（五节/原语/limits/静态/freeze deps） | 05:52:00 | 契约 |
+| T01 | `node test/mn06/parity.mjs` | 31/31，golden A/B diff 0 | 06:06:17 | 合同 |
+| T02 | `node test/mn06/entry-isolation.mjs` | 14/14（生产闭包无 admin 面；缺 S3 凭证 fail-closed） | 06:06:17 | 静态+启动 |
+| T04–T07 | `node test/mn06/tombstone.mjs` | 24/24（unit/remove/recover/summary） | 06:06:36 | unit/集成 |
+| T08–T12 | `node test/mn06/matrix.mjs` | 5/5（C4a/C4b/C1/C2/C3 三层） | 06:06:37 | App/shadow/God |
+| T13 | `node test/mn06/env-check.mjs` | 5/5（600/缺 key exit 3/错端点 exit 3/schema） | 06:06:16 | env |
+| T14/T16 | `node test/mn06/docs-check.mjs` | 88/88（五节/原语/limits/静态/freeze deps） | 06:06:16 | 契约 |
 | T15 | `node test/mn06/probe-sop.mjs` | 4/4；probe `acb163e` → revert `4e2227e`；证据 `test/mn06/probe-sop-evidence.txt` | 04:40:03 | `/v1/state` SOP |
-| T17 | `node test/mn06/acceptance.mjs` | 9/9 rows（#1/#5/#6 partial） | 05:52:00–05:59:24 | 9 行矩阵 |
-| T18 | `node test/mn06/regression.mjs` | 18/20 + 1 known E9 + 1 partial（ide mock）；exit 0 | 05:52:00–05:59:18 | 全量 |
-| T19a/T19b | `docs-check` + acceptance artifact | 五节/静态 0 命中/证据字段齐 | 05:52:00 | 静态 |
+| T17 | `node test/mn06/acceptance.mjs` | 9/9 rows（#1/#5/#6 partial） | 06:06:16–06:14:21 | 9 行矩阵 |
+| T18 | `node test/mn06/regression.mjs` | 18/20 + 1 known E9 + 1 partial（ide mock）；exit 0 | 06:06:16–06:14:16 | 全量 |
+| T19a/T19b | `docs-check` + acceptance artifact | 五节/静态 0 命中/证据字段齐 | 06:06:16 | 静态 |
 | T20 | `node test/mn06/matrix.mjs --repeat 10` | 未跑（advisory，不入闸） | — | soak |
-| T21 | `node test/mn06/alarm30.mjs` | 7/7；2 ticks；父进程 wall-clock ≥30s | 05:55:16 | 真 30s |
+| T21 | `node test/mn06/alarm30.mjs` | 7/7；2 ticks；父进程 wall-clock ≥30s | 06:09:29 | 真 30s |
 
 **deferred（逐项理由/承接）**
 
