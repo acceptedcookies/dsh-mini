@@ -20,40 +20,9 @@ import { sha256Hex } from './sha256'
 import { encodeUtf8, decodeUtf8 } from '../fx/utf8'
 import { reportSilent } from '../error-report'
 import type { RemoteVfs } from './remote'
+import { allTombstones, atMs, phaseOf, setTomb, clearTomb, commitDelete } from './tombstone'
 
 const SYNC_KEY = 'dsh:vfs:v1:sync'
-/** 删除墓碑（客户端侧，不占远端键区——不扩约）：path→deleted_ms。
- *  pushRemove 失败（网络抖动）后，pullRows 见远端行不复活本删项，并重发删除收敛；
- *  远端行 updated_ms 更新于墓碑=真重建（LWW），复活并清碑（审查四轮 F3）。 */
-const TOMB_KEY = 'dsh:mini:vfs-tombstones'
-
-function tombstones(): Record<string, number> {
-  const v = wx.getStorageSync(TOMB_KEY) as Record<string, number> | '' | undefined
-  return v !== '' && v !== undefined ? v : {}
-}
-
-/** 每次新删除意图都刷新碑时——唯一调用方是 pushRemove（heal 走 remote.del 不经此），
- *  「删除→远端跨设备重建→用户再删→del 再失败」链下滞留旧碑会把新删项错判成真
- *  重建复活（审查六轮）。无界增长防（审查五轮）：满 512 逐最旧。 */
-const TOMB_CAP = 512
-function setTomb(path: string): void {
-  const t = tombstones()
-  t[path] = Date.now()
-  const keys = Object.keys(t)
-  if (keys.length > TOMB_CAP) {
-    keys.sort((a, b) => (t[a] ?? 0) - (t[b] ?? 0))
-    for (const k of keys.slice(0, keys.length - TOMB_CAP)) delete t[k]
-  }
-  wx.setStorageSync(TOMB_KEY, t)
-}
-
-function clearTomb(path: string): void {
-  const t = tombstones()
-  if (t[path] !== undefined) {
-    delete t[path]
-    wx.setStorageSync(TOMB_KEY, t)
-  }
-}
 
 interface SyncPointer {
   etag: string
@@ -94,6 +63,64 @@ export interface SyncReport {
   pushed: string[]
   skipped: string[]
   failed: Array<{ path: string; error: string }>
+}
+
+export interface PendingSummary {
+  unsynced_rows: number
+  tombstones: { pending: number; committed: number }
+  total: number
+}
+
+/** 只读读数——未同步 row + 墓碑数；不是第二本 truth（T-O-7）。 */
+export function pendingSummary(): PendingSummary {
+  const pointersMap = pointers()
+  let unsynced = 0
+  for (const row of vfsStore.allRows()) {
+    if (row.placement === 'local-scratch' || !row.committed) continue
+    const p = pointersMap[row.virtual_path]
+    if (p === undefined || p.synced_ms < row.updated_ms) unsynced += 1
+  }
+  let pending = 0
+  let committed = 0
+  for (const v of Object.values(allTombstones())) {
+    if (phaseOf(v) === 'pending') pending += 1
+    else committed += 1
+  }
+  return { unsynced_rows: unsynced, tombstones: { pending, committed }, total: unsynced + pending + committed }
+}
+
+/** 启动恢复：完成 beginDelete 后崩溃留下的 pending 意图（LWW 守卫，T-O-7）。
+ *  不依赖远端/ticket；只读本地 vfsStore + tombstone。
+ *  - row 不在 → 意图已达成，标 committed
+ *  - row.updated_ms <= tomb.at_ms → 补删并标 committed
+ *  - row.updated_ms >  tomb.at_ms → 真重建，保留 row、清碑
+ */
+export function recoverPendingDeletes(): { removed: string[]; kept: string[] } {
+  const removed: string[] = []
+  const kept: string[] = []
+  for (const [path, v] of Object.entries(allTombstones())) {
+    if (phaseOf(v) !== 'pending') continue
+    try {
+      const row = vfsStore.getRow(path)
+      if (row === undefined) {
+        commitDelete(path)
+        continue
+      }
+      if (row.updated_ms <= atMs(v)) {
+        vfsStore.removeRow(path)
+        commitDelete(path)
+        removed.push(path)
+      } else {
+        clearTomb(path)
+        kept.push(path)
+      }
+    } catch (e) {
+      // 单行损坏不阻断启动；pending 碑留待下一次 recover。
+      console.warn(`[remote-sync] recoverPendingDeletes ${path} 失败:`, e instanceof Error ? e.message : e)
+      reportSilent(e, { op: 'vfs-recover-delete', lane: 'background', path })
+    }
+  }
+  return { removed, kept }
 }
 
 export function createVfsSync(remote: RemoteVfs) {
@@ -180,7 +207,7 @@ export function createVfsSync(remote: RemoteVfs) {
       const r = await remote.get(key)
       if (r === null) {
         // 远端已缺席——若有碑其意图已落地，清碑防积压（审查五轮）。
-        if (tombstones()[path] !== undefined) clearTomb(path)
+        if (allTombstones()[path] !== undefined) clearTomb(path)
         continue
       }
       let row: VfsRow
@@ -192,9 +219,9 @@ export function createVfsSync(remote: RemoteVfs) {
         reportSilent(e, { op: 'vfs-pull-rows', lane: 'background', key })
         continue
       }
-      const tomb = tombstones()[path]
+      const tomb = allTombstones()[path]
       if (local === undefined && tomb !== undefined) {
-        if (row.updated_ms <= tomb) {
+        if (row.updated_ms <= atMs(tomb)) {
           // 本删项远端行残存（pushRemove 曾失败）——不复活，重发删除收敛（F3）；
           // 重删成功即清碑（使命完成），失败留碑下轮重试（审查五轮）。
           void remote.del(key)

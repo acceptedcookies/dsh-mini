@@ -7,8 +7,10 @@ import { resolveVfsPath, assertWritable, sessionCwd, VfsError, type VfsLane } fr
 import { vfsStore, type VfsRow, type VfsPlacement } from './store'
 import { localObjects, backendFor } from './objects'
 import { vfsJournal } from './journal'
+import { beginDelete, commitDelete, abortDelete } from './tombstone'
 import { sha256Hex } from './sha256'
 import { encodeUtf8, decodeUtf8 } from '../fx/utf8'
+import { reportSilent } from '../error-report'
 
 export interface VfsListEntry {
   name: string
@@ -92,6 +94,16 @@ let mirrorHook: MirrorHook | undefined
 export function setVfsMirrorHook(fn: MirrorHook | undefined): void {
   mirrorHook = fn
 }
+
+/** 镜像 lane 判定（app.ts 注入：magpie 会话行是纯本地车道）。
+ *  scratch 由 vfs 层静态排除；未注入时默认镜像（Node 测试/无 app 上下文）。 */
+type MirrorPredicate = (path: string) => boolean
+let mirrorPredicate: MirrorPredicate | undefined
+export function setVfsMirrorPredicate(fn: MirrorPredicate | undefined): void {
+  mirrorPredicate = fn
+}
+const mirrored = (path: string, lane: VfsLane): boolean =>
+  lane !== 'scratch' && (mirrorPredicate === undefined || mirrorPredicate(path))
 
 /** `/mnt/{ws}/{sid}/{sub}` read-through 投影 → `/data/{sid}/{sub}`；
  *  `/mnt/{ws}/{sid}` → `/data/{sid}`；未挂载/形状不符 → null。 */
@@ -291,15 +303,47 @@ export const vfs = {
       throw new VfsError('unsafe-workspace-path', `session lane 只允许删本会话 /data/${opts.sessionId}`)
     }
     const id = vfsJournal.begin(resolved.absolute, 'remove')
+    const mirror = mirrored(resolved.absolute, resolved.lane)
+
+    // 删除意图必须先于 removeRow 落盘，且不经 app.ts 的 ticket 门控（T-O-2/T-O-7）。
+    if (mirror) {
+      try {
+        beginDelete(resolved.absolute)
+      } catch (e) {
+        vfsJournal.abandon(id)
+        reportSilent(e, { op: 'vfs-tomb-begin', lane: 'background', path: resolved.absolute })
+        throw e
+      }
+    }
+
+    let row: VfsRow | undefined
     try {
-      const row = vfsStore.removeRow(resolved.absolute)
-      vfsJournal.finish(id)
-      if (row !== undefined && resolved.lane !== 'scratch') mirrorHook?.(resolved.absolute, 'remove')
-      return row !== undefined // 对象字节按无引用惰性清扫，不即时删（同 nano 对象层惰性）
+      row = vfsStore.removeRow(resolved.absolute)
     } catch (e) {
+      if (mirror) {
+        try { abortDelete(resolved.absolute) } catch (e2) {
+          reportSilent(e2, { op: 'vfs-tomb-abort', lane: 'background', path: resolved.absolute })
+        }
+      }
       vfsJournal.abandon(id)
       throw e
     }
+
+    // 本地删除已成功：commit 失败保留 pending 碑（recover 下次补齐），不回滚已删 row。
+    if (mirror) {
+      try { commitDelete(resolved.absolute) } catch (e) {
+        reportSilent(e, { op: 'vfs-tomb-commit', lane: 'background', path: resolved.absolute })
+      }
+    }
+    vfsJournal.finish(id)
+
+    // 事务外：hook 失败不得回滚已提交删除意图（commit 后 abort 会复活删除项）。
+    if (row !== undefined && mirror) {
+      try { mirrorHook?.(resolved.absolute, 'remove') } catch (e) {
+        reportSilent(e, { op: 'vfs-mirror-hook', lane: 'background', path: resolved.absolute })
+      }
+    }
+    return row !== undefined // 对象字节按无引用惰性清扫，不即时删（同 nano 对象层惰性）
   },
 
   /** 上传入口：本地临时路径（chooseMedia/chooseMessageFile/测试写入）→ VFS 行+对象。 */

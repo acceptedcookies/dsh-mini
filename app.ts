@@ -3,7 +3,8 @@ import { getTheme, watchSystemTheme } from './services/theme'
 import { errorBus, reportSilent } from './services/error-report'
 import { sessionDiagnostics } from './services/diagnostics'
 import { vfs, vfsReadView, vfsStore } from './services/vfs/api'
-import { setVfsMirrorHook } from './services/vfs/vfs'
+import { setVfsMirrorHook, setVfsMirrorPredicate } from './services/vfs/vfs'
+import { recoverPendingDeletes, pendingSummary } from './services/vfs/remote-sync'
 import { nanoMiniCatchUp, nanoMiniStartTick, nanoMiniStopTick } from './services/nano-mini-host/tick'
 import { vfsRemoteFor, vfsSyncFor, ioStateFor, ensureDurableTicket } from './services/state/provider'
 import { engineForSession } from './services/session-engine'
@@ -15,6 +16,26 @@ import { hasFreshTicket, onTicketMinted } from './services/fx/ticket'
  *  reconcile：远端清单/行下拉（updated_ms 大者赢）→ 本地行推送（指针增量）。 */
 function wireRemoteMirror(): void {
   let inFlight: Promise<void> | undefined
+  // 会话车道分界（MN03 引擎戳记）：/data/{sid}/ 下 magpie 会话的文件是纯
+  // 本地车道——不镜像上行；非会话行（/root 等）无引擎归属照常全局镜像。
+  const isMirrored = (path: string): boolean => {
+    const m = /^\/data\/([^/]+)\//.exec(path)
+    return !(m !== null && engineForSession(m[1]) === 'magpie')
+  }
+  // 删除意图的镜像 lane 判定与 mirrorHook 同源：/tmp 由 vfs 层排除，
+  // magpie 会话行不落碑（T-O-7；避免污染 512 墓碑预算）。
+  setVfsMirrorPredicate(isMirrored)
+
+  // 启动恢复先于 reconcile 的 ticket 门控：pending 碑只依赖本地 row/碑。
+  try {
+    const rec = recoverPendingDeletes()
+    if (rec.removed.length > 0 || rec.kept.length > 0) {
+      console.warn(`[vfs-mirror] recover pending deletes: removed=${rec.removed.length} kept=${rec.kept.length}`)
+    }
+  } catch (e) {
+    reportSilent(e, { op: 'vfs-recover-delete', lane: 'background' })
+  }
+
   const doReconcile = async (): Promise<void> => {
     // 句柄每次重解析——remote-durable 开关/配置翻转即时生效，不吃启动时陈旧快照（审查三轮）。
     const s = vfsSyncFor()
@@ -28,7 +49,8 @@ function wireRemoteMirror(): void {
       const rep = await s.pushAll()
       if (rep.failed.length > 0) {
         console.warn('[vfs-mirror] reconcile 残留失败:', rep.failed)
-        reportSilent(new Error(`vfs reconcile 残留失败 ${rep.failed.length} 行`), { op: 'vfs-mirror', lane: 'background', detail: rep.failed.map((f) => `${f.path}: ${f.error}`).join('\n').slice(0, 800) })
+        const ps = pendingSummary()
+        reportSilent(new Error(`vfs reconcile 残留失败 ${rep.failed.length} 行`), { op: 'vfs-mirror', lane: 'background', detail: `pending=${ps.unsynced_rows} tombstones=${ps.tombstones.pending}/${ps.tombstones.committed}\n${rep.failed.map((f) => `${f.path}: ${f.error}`).join('\n').slice(0, 700)}` })
       }
     } catch (e) {
       console.warn('[vfs-mirror] reconcile 失败（远端不可达——写路径仍先推）:', e instanceof Error ? e.message : e)
@@ -44,10 +66,7 @@ function wireRemoteMirror(): void {
   }
   setVfsMirrorHook((path, kind) => {
     if (!hasFreshTicket()) return
-    // 会话车道分界（MN03 引擎戳记）：/data/{sid}/ 下 magpie 会话的文件是纯
-    // 本地车道——不镜像上行；非会话行（/root 等）无引擎归属照常全局镜像。
-    const m = /^\/data\/([^/]+)\//.exec(path)
-    if (m !== null && engineForSession(m[1]) === 'magpie') return
+    if (!isMirrored(path)) return
     const s = vfsSyncFor()
     if (s === null) return
     const p = kind === 'write' ? s.pushPath(path) : s.pushRemove(path)
