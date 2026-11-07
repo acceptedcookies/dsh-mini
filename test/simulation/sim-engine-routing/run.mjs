@@ -6,7 +6,8 @@ import { bootWorkspace, openModels, openSettings } from '../lib/app.mjs'
 import { openEvidence } from '../lib/evidence.mjs'
 import { modeOf, runModes } from '../lib/run.mjs'
 import { SIM_BASE } from '../lib/env.mjs'
-import { liveWithoutTunnel } from '../lib/live.mjs'
+import { openPhone, phoneSteps, shot, step } from '../lib/phone.mjs'
+import { PRODUCTION_BASE } from '../lib/env.mjs'
 
 const dir = dirname(fileURLToPath(import.meta.url))
 const fixture = JSON.parse(readFileSync(join(dir, 'fixtures/models.json'), 'utf8'))
@@ -53,5 +54,23 @@ await runModes({
   sim: 'sim-engine-routing',
   mode,
   mock: () => routing('mock'),
-  live: () => liveWithoutTunnel(dir, 'sim-engine-routing'),
+  live: async () => {
+    const evidence = openEvidence(dir, 'live')
+    const app = await openPhone()
+    try {
+      const shots = [await shot(app, evidence, '01-phone')]
+      const rows = await phoneSteps(app, [
+        { op: 'bio' },
+        { op: 'unlock' },
+        { op: 'no-ticket', path: '/v1/state/get', body: { key: 'state/sim-live' } },
+      ])
+      const bio = step(rows, 'bio')
+      evidence.check('phone:soter', bio?.supported === true && bio?.enrolled === true, `supported ${bio?.supported} enrolled ${bio?.enrolled}`)
+      evidence.check('phone:unlock', step(rows, 'unlock')?.ok === true, 'unlock')
+      evidence.check('phone:engine', typeof bio?.engine === 'string', bio?.engine || 'default')
+      evidence.check('phone:no-ticket', step(rows, 'no-ticket')?.status === 401, `status ${step(rows, 'no-ticket')?.status}`)
+      shots.push(await shot(app, evidence, '02-after'), await shot(app, evidence, '03-done'))
+      return evidence.finish({ sim: 'sim-engine-routing', endpoint: PRODUCTION_BASE, shots, device: app.device, note: '真机生物识别与引擎存储' })
+    } finally { await app.close() }
+  },
 })

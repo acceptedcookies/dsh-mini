@@ -6,6 +6,7 @@ import { capture } from '../lib/screenshots.mjs'
 import { openEvidence } from '../lib/evidence.mjs'
 import { modeOf, runModes } from '../lib/run.mjs'
 import { OTHER_OID, PRODUCTION_BASE, TEST_OID } from '../lib/env.mjs'
+import { openPhone, phoneSteps, shot, step } from '../lib/phone.mjs'
 import { devTicket, post, startLiveGateway } from '../lib/gateway.mjs'
 
 const dir = dirname(fileURLToPath(import.meta.url))
@@ -46,5 +47,28 @@ await runModes({
     try { return await surface('mock', gw.base, { admin: gw.admin, production: false }) }
     finally { await gw.close() }
   },
-  live: () => surface('live', PRODUCTION_BASE, { production: true }),
+  live: async () => {
+    const evidence = openEvidence(dir, 'live')
+    const app = await openPhone()
+    try {
+      const shots = [await shot(app, evidence, '01-phone')]
+      const rows = await phoneSteps(app, [
+        { op: 'health', path: '/healthz', method: 'GET' },
+        { op: 'no-ticket', path: '/v1/state/get', body: { key: 'state/sim-live' } },
+        { op: 'dev', path: '/dev/ticket', body: {} },
+        { op: 'bad-ticket', path: '/v1/state/get', body: { key: 'state/sim-live' }, auth: false },
+      ])
+      const health = step(rows, 'health')
+      const noTicket = step(rows, 'no-ticket')
+      const dev = step(rows, 'dev')
+      evidence.check('phone:health', health?.status === 200, `status ${health?.status}`)
+      evidence.check('phone:no-ticket', noTicket?.status === 401, `status ${noTicket?.status}`)
+      evidence.check('phone:dev-hidden', dev?.status === 404, `status ${dev?.status}`)
+      shots.push(await shot(app, evidence, '02-after'), await shot(app, evidence, '03-done'))
+      return evidence.finish({
+        sim: 'sim-production-surface', endpoint: PRODUCTION_BASE, shots, device: app.device,
+        note: '真机 wx.request 直接打公网，不经隧道，不写',
+      })
+    } finally { await app.close() }
+  },
 })

@@ -26,7 +26,7 @@ export const MAGPIE_BASE = 'http://127.0.0.1:3425/v1'
 export const TEST_OID = 'sim-test-oid'
 export const OTHER_OID = 'sim-other-oid'
 
-/** mock 用的本机网关。不是 live。 */}
+/** mock 用的本机网关。不是 live。 */
 export function liveWriteBase() {
   return (process.env.SIM_LIVE_BASE ?? 'http://127.0.0.1:19097').replace(/\/$/, '')
 }

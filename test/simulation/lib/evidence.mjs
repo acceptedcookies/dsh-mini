@@ -30,17 +30,20 @@ export function openEvidence(simDir, mode) {
       const failed = checks.some((c) => !c.ok)
       const endpoint = String(extra.endpoint ?? '')
       const phonePath = endpoint.startsWith('https://')
+      const deviceOk = extra.device && extra.device.platform && extra.device.platform !== 'devtools'
       let status = extra.status
       if (status == null) {
         if (failed) status = 'fail'
-        else if (mode === 'live' && !phonePath) status = 'not-phone-path'
+        else if (mode === 'live' && (!phonePath || !deviceOk)) status = 'not-phone-path'
         else status = `${mode}-pass`
       }
+      if (mode === 'live' && String(status).endsWith('pass') && (!phonePath || !deviceOk)) status = 'not-phone-path'
       const payload = {
         sim: extra.sim,
         mode,
         git_head: head,
         endpoint: extra.endpoint ?? null,
+        device: extra.device ?? null,
         control_mock: extra.control_mock ?? [],
         deferred: extra.deferred ?? [],
         checks,

@@ -2,7 +2,7 @@
 
 > 唯一登记真源：本文件。旧 `test/README-draft.md` 只保留历史作废说明。
 > 本目录不参与小程序打包、构建、上传或发布；独立删除 `test/simulation/` 不影响发布。
-> 当前状态：v5。mock 可以用本机。live 不使用 SSH 隧道，也不使用 `127.0.0.1`。写操作的 live 现在是 `live-blocked`：公网没有 `/dev/ticket`，不能用隧道给手机补测试身份。
+> 当前状态：v6。除 `sim-wx-alarm` 外，live 由真机自己的 `wx.request` 打 `https://dsh-mini.saobao.com`。票据留在手机里。不用 SSH 隧道。
 
 ## 1. 业主原则与心智模型
 

@@ -8,7 +8,8 @@ import { openEvidence } from '../lib/evidence.mjs'
 import { modeOf, runModes } from '../lib/run.mjs'
 import { TEST_OID } from '../lib/env.mjs'
 import { devTicket, getRaw, post, startLiveGateway } from '../lib/gateway.mjs'
-import { liveWithoutTunnel } from '../lib/live.mjs'
+import { hasText, openPhone, phoneSteps, shot, step } from '../lib/phone.mjs'
+import { PRODUCTION_BASE } from '../lib/env.mjs'
 
 const dir = dirname(fileURLToPath(import.meta.url))
 const bytes = readFileSync(join(dir, 'fixtures/file.txt'))
@@ -70,5 +71,33 @@ await runModes({
     const gw = await startLiveGateway()
     try { return await roundtrip('mock', gw) } finally { await gw.close() }
   },
-  live: () => liveWithoutTunnel(dir, 'sim-vfs-roundtrip'),
+  live: async () => {
+    const evidence = openEvidence(dir, 'live')
+    const app = await openPhone()
+    try {
+      const shots = [await shot(app, evidence, '01-phone')]
+      const b64 = bytes.toString('base64')
+      const rows = await phoneSteps(app, [
+        { op: 'unlock' },
+        { op: 'put', path: '/v1/vfs/put', auth: true, body: { key: 'vfs/rows/sim-live', bytes_b64: b64, mime: 'text/plain' } },
+        { op: 'list', path: '/v1/vfs/list', auth: true, body: { prefix: 'vfs/rows/' } },
+        { op: 'range', path: '/v1/vfs/get', auth: true, body: { key: 'vfs/rows/sim-live', offset: 0, max_bytes: 4 } },
+        { op: 'traversal', path: '/v1/vfs/put', auth: true, body: { key: 'vfs/../secret', bytes_b64: b64 } },
+        { op: 'publish', path: '/v1/artifacts/publish', auth: true, body: { bytes_b64: b64, mime: 'text/plain' } },
+        { op: 'del', path: '/v1/vfs/del', auth: true, body: { key: 'vfs/rows/sim-live' } },
+        { op: 'gone', path: '/v1/vfs/get', auth: true, body: { key: 'vfs/rows/sim-live' } },
+      ])
+      evidence.check('phone:put', step(rows, 'put')?.status === 200, `status ${step(rows, 'put')?.status}`)
+      evidence.check('phone:list', (step(rows, 'list')?.keyCount ?? 0) > 0, `keys ${step(rows, 'list')?.keyCount}`)
+      evidence.check('phone:range', step(rows, 'range')?.status === 200 && hasText(step(rows, 'range'), 'simu'), `status ${step(rows, 'range')?.status} ${step(rows, 'range')?.decoded}`)
+      evidence.check('phone:traversal', step(rows, 'traversal')?.status === 400, `status ${step(rows, 'traversal')?.status}`)
+      const sha = step(rows, 'publish')?.sha
+      evidence.check('phone:publish', step(rows, 'publish')?.status === 200 && sha.length === 64, `status ${step(rows, 'publish')?.status}`)
+      const pub = await phoneSteps(app, [{ op: 'public', path: `/a/${sha}`, method: 'GET' }])
+      evidence.check('phone:public', step(pub, 'public')?.status === 200 && step(pub, 'public')?.bytes === bytes.length, `status ${step(pub, 'public')?.status}`)
+      evidence.check('phone:del', step(rows, 'del')?.status === 200 && step(rows, 'gone')?.status === 404, `del ${step(rows, 'del')?.status} get ${step(rows, 'gone')?.status}`)
+      shots.push(await shot(app, evidence, '02-after'), await shot(app, evidence, '03-done'))
+      return evidence.finish({ sim: 'sim-vfs-roundtrip', endpoint: PRODUCTION_BASE, shots, device: app.device, note: '真机写入后已删除测试行' })
+    } finally { await app.close() }
+  },
 })

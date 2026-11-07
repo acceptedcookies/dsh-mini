@@ -7,7 +7,8 @@ import { openEvidence } from '../lib/evidence.mjs'
 import { modeOf, runModes } from '../lib/run.mjs'
 import { TEST_OID } from '../lib/env.mjs'
 import { devTicket, post, startLiveGateway } from '../lib/gateway.mjs'
-import { liveWithoutTunnel } from '../lib/live.mjs'
+import { openPhone, phoneSteps, shot, step } from '../lib/phone.mjs'
+import { PRODUCTION_BASE } from '../lib/env.mjs'
 
 const dir = dirname(fileURLToPath(import.meta.url))
 const bytes = readFileSync(join(dir, 'fixtures/note.txt'))
@@ -44,5 +45,23 @@ await runModes({
     const gw = await startLiveGateway()
     try { return await offline('mock', gw) } finally { await gw.close() }
   },
-  live: () => liveWithoutTunnel(dir, 'sim-vfs-offline'),
+  live: async () => {
+    const evidence = openEvidence(dir, 'live')
+    const app = await openPhone()
+    try {
+      const shots = [await shot(app, evidence, '01-phone')]
+      const rows = await phoneSteps(app, [
+        { op: 'denied', path: '/v1/vfs/put', body: { key, bytes_b64: bytes.toString('base64') } },
+        { op: 'unlock' },
+        { op: 'put', path: '/v1/vfs/put', auth: true, body: { key, bytes_b64: bytes.toString('base64') } },
+        { op: 'del', path: '/v1/vfs/del', auth: true, body: { key } },
+        { op: 'gone', path: '/v1/vfs/get', auth: true, body: { key } },
+      ])
+      evidence.check('phone:no-ticket', step(rows, 'denied')?.status === 401, `status ${step(rows, 'denied')?.status}`)
+      evidence.check('phone:restored', step(rows, 'put')?.status === 200, `status ${step(rows, 'put')?.status}`)
+      evidence.check('phone:stays-dead', step(rows, 'del')?.status === 200 && step(rows, 'gone')?.status === 404, `del ${step(rows, 'del')?.status}`)
+      shots.push(await shot(app, evidence, '02-after'), await shot(app, evidence, '03-done'))
+      return evidence.finish({ sim: 'sim-vfs-offline', endpoint: PRODUCTION_BASE, shots, device: app.device, note: '真机先无票再解锁，测试行已删除' })
+    } finally { await app.close() }
+  },
 })

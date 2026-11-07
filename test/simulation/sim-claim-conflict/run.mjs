@@ -7,7 +7,8 @@ import { openEvidence } from '../lib/evidence.mjs'
 import { modeOf, runModes } from '../lib/run.mjs'
 import { TEST_OID } from '../lib/env.mjs'
 import { devTicket, post, startLiveGateway } from '../lib/gateway.mjs'
-import { liveWithoutTunnel } from '../lib/live.mjs'
+import { openPhone, phoneSteps, shot, step } from '../lib/phone.mjs'
+import { PRODUCTION_BASE } from '../lib/env.mjs'
 
 const dir = dirname(fileURLToPath(import.meta.url))
 const prompt = readFileSync(join(dir, 'fixtures/prompt.txt'), 'utf8').trim()
@@ -45,5 +46,24 @@ await runModes({
     const gw = await startLiveGateway()
     try { return await conflict('mock', gw) } finally { await gw.close() }
   },
-  live: () => liveWithoutTunnel(dir, 'sim-claim-conflict'),
+  live: async () => {
+    const evidence = openEvidence(dir, 'live')
+    const app = await openPhone()
+    try {
+      const shots = [await shot(app, evidence, '01-phone')]
+      const rows = await phoneSteps(app, [
+        { op: 'unlock' },
+        { op: 'hold', path: '/v1/claim', auth: true, body: { key: 'sim-live-claim', holder: 'shadow', ttlMs: 60000 } },
+        { op: 'deny', path: '/v1/claim', auth: true, body: { key: 'sim-live-claim', holder: 'app', ttlMs: 60000 } },
+        { op: 'release', path: '/v1/claim', auth: true, body: { key: 'sim-live-claim', holder: 'shadow', ttlMs: 1 } },
+        { op: 'sleep', ms: 20 },
+        { op: 'retry', path: '/v1/claim', auth: true, body: { key: 'sim-live-claim', holder: 'app', ttlMs: 1000 } },
+      ])
+      evidence.check('phone:hold', step(rows, 'hold')?.status === 200, `status ${step(rows, 'hold')?.status}`)
+      evidence.check('phone:deny', step(rows, 'deny')?.status === 412 && step(rows, 'deny')?.holder === 'shadow', `status ${step(rows, 'deny')?.status}`)
+      evidence.check('phone:retry', step(rows, 'retry')?.status === 200, `status ${step(rows, 'retry')?.status}`)
+      shots.push(await shot(app, evidence, '02-after'), await shot(app, evidence, '03-done'))
+      return evidence.finish({ sim: 'sim-claim-conflict', endpoint: PRODUCTION_BASE, shots, device: app.device, note: '真机 claim，短租约' })
+    } finally { await app.close() }
+  },
 })
