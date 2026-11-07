@@ -20,6 +20,11 @@ if (!configured) {
   console.log('SKIP s3-probe：S3_* env 未配置（业主授权项 T10——未观察，不算 PASS 也不算 FAIL）')
   process.exit(3)
 }
+// 测试桶/端点白名单——防把 PUT/DELETE 侧载到生产桶（R3-18）。
+if (S3_BUCKET !== 'dsh-mini-test' || !/^http:\/\/127\.0\.0\.1:(9000|9095)\/?$/.test(S3_ENDPOINT)) {
+  console.log(`SKIP s3-probe：非测试桶/端点（bucket=${S3_BUCKET} endpoint=${S3_ENDPOINT}）`)
+  process.exit(3)
+}
 
 // ── SigV4（与 worker.mjs 同实现，node:crypto 版）
 const enc = new TextEncoder()

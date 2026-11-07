@@ -50,6 +50,7 @@ const ENV_ID = envFile.WX_CLOUD_ENV_ID ?? "cloud1-d7gar8j7w419589a0";
 const TICKET_SECRET = process.env.TICKET_SECRET ?? envFile.TICKET_SECRET;
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN ?? "";
 const TEST_OID = process.env.TEST_OID ?? "mn02-ide-oid";
+const PATCHED = process.env.PATCH_UNLOCK === "1" || DURABLE.includes("127.0.0.1");
 const mint = (oid) => {
   const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
   const h = b64({ alg: "HS256", typ: "JWT" });
@@ -86,7 +87,7 @@ log("connected");
 
 // ── 测试身份面（仅专用测试端点）：DevTools 无 SOTER，用 gateway /dev/ticket 铸真票。
 // 控制面 mock（challenge/SOTER/unlock），数据面仍走真 gateway + 真 MinIO。
-if (process.env.PATCH_UNLOCK === "1" || DURABLE.includes("127.0.0.1")) {
+if (PATCHED) {
   const patched = await mini.evaluate((args) => {
     // automator evaluate 不支持顶层参数解构（Unexpected token ','）——函数体内解构。
     const { admin, oid, base } = args;
@@ -190,7 +191,8 @@ if (process.env.PATCH_UNLOCK === "1" || DURABLE.includes("127.0.0.1")) {
 {
   const res = await callSweeper(mini);
   if (res && res.result && res.result.ok === true) {
-    check("D:sweeper callFunction executed", true, `ran=${JSON.stringify(res.result.ran)}`);
+    if (PATCHED) note("D:sweeper callFunction executed（mock）", "PATCH_UNLOCK/本地测试面 = 控制面 mock；不代表真云函数可达");
+    else check("D:sweeper callFunction executed", true, `ran=${JSON.stringify(res.result.ran)}`);
   } else if (res && res.result && res.result.reason === "env-missing") {
     note("D:sweeper callFunction reached", "函数执行但 TICKET_SECRET env 未配（登记受限：env 属控制台手动面，业主决定暂缓）");
   } else {
@@ -203,7 +205,8 @@ if (process.env.PATCH_UNLOCK === "1" || DURABLE.includes("127.0.0.1")) {
   const who = await callFunction(mini, "unlock", { action: "challenge" });
   const oid = who && who.result && who.result.openid;
   log("E openid:", oid ? `${oid.slice(0, 8)}...` : JSON.stringify(who));
-  check("E:openid=TEST_OID", oid === TEST_OID, oid === TEST_OID ? "" : "unexpected openid（未 patch 或端点错）");
+  if (PATCHED) note("E:openid=TEST_OID（mock）", "openid 由控制面 mock 注入；不证明真云 unlock");
+  else check("E:openid=TEST_OID", oid === TEST_OID, oid === TEST_OID ? "" : "unexpected openid（未 patch 或端点错）");
   if (oid) {
     const sid = `mn02ide-alarm-${Date.now().toString(36)}`;
     const due = Date.now() - 5000;

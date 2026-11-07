@@ -66,9 +66,11 @@ async function C4a() {
   const t = await app.ensureTicket()
   await app.pushAll()
   const shadowRow = await waitFor(() => shadow.row(path), 30000, 800)
+  const pulled = await shadow.pullRows()
+  const shadowLocal = await shadow.localRow(path)
   const godRow = await waitFor(() => god.json(vfsKey(env.TEST_OID, `rows${path}`)), 30000, 800)
   const appOk = w?.ok === true && local0 !== null && cold1 && (await app.hasFreshTicket()) === true
-  const shadowOk = shadowBefore === null && shadowRow !== null
+  const shadowOk = shadowBefore === null && shadowRow !== null && pulled.includes(path) && shadowLocal?.object_key === shadowRow.object_key
   const godOk = godBefore === null && godRow !== null && typeof godRow.object_key === 'string'
   finish('C4a', { app: appOk, shadow: shadowOk, god: godOk }, `cold=${cold0}/${cold1} mint=${JSON.stringify(t)} local=${local0 !== null} shadowBefore=${shadowBefore !== null} shadow=${shadowRow !== null} god=${godRow !== null}`, started)
 }
@@ -92,12 +94,16 @@ async function C4b() {
   const cold1 = (await app.hasFreshTicket()) === false
   await app.ensureTicket()
   await app.pushAll()
-  const shadowGone = await waitFor(async () => (await shadow.row(path)) === null, 30000, 800)
+  const remoteGone = await waitFor(async () => (await shadow.row(path)) === null, 30000, 800)
+  const pulled = await shadow.pullRows()
+  const shadowLocal = await shadow.localRow(path)
+  const rowNow = await shadow.row(path)
+  const shadowGone = rowNow === null && shadowLocal === undefined && !pulled.includes(path)
   const godGone = await waitFor(async () => (await god.json(vfsKey(env.TEST_OID, `rows${path}`))) === null, 30000, 800)
   const appOk = d?.ok === true && localAfter === null && cold1 && tombAtDelete !== null
   const shadowOk = shadowGone === true
   const godOk = godGone === true
-  finish('C4b', { app: appOk, shadow: shadowOk, god: godOk }, `cold=${cold0}/${cold1} del=${JSON.stringify(d)} local=${localAfter === null} tomb=${JSON.stringify(tombAtDelete)} shadowGone=${shadowGone} godGone=${godGone}`, started)
+  finish('C4b', { app: appOk, shadow: shadowOk, god: godOk }, `cold=${cold0}/${cold1} del=${JSON.stringify(d)} local=${localAfter === null} tomb=${JSON.stringify(tombAtDelete)} shadowGone=${shadowGone} remoteGone=${remoteGone} rowNow=${rowNow!==null} local=${shadowLocal!==undefined} pulled=${pulled.includes(path)} godGone=${godGone}`, started)
 }
 
 async function C1() {
@@ -115,7 +121,9 @@ async function C1() {
   const state = await waitFor(() => shadow.getState(sid), 15000, 500)
   const godState = await waitFor(() => god.json(stateKey(env.TEST_OID, sid)), 15000, 500)
   const body = state?.body ?? ''
-  const appOk = done !== undefined && diag?.session?.itemCount >= 2 && (diag.session.lastItems ?? []).some((i) => i.kind === 'assistant_message')
+  const assistant = (diag?.session?.lastItems ?? []).find((i) => i.kind === 'assistant_message')
+  const assistantText = JSON.stringify(assistant ?? {})
+  const appOk = done !== undefined && diag?.session?.itemCount >= 2 && assistant !== undefined && /pong/i.test(assistantText)
   const shadowOk = state !== null && typeof body === 'string' && body.includes('checkpoint')
   const godOk = godState !== null && JSON.stringify(godState).includes('checkpoint')
   finish('C1', { app: appOk, shadow: shadowOk, god: godOk }, `sid=${sid} prompt=${JSON.stringify(p)} itemCount=${diag?.session?.itemCount} shadow=${state !== null} god=${godState !== null}`, started)
@@ -154,14 +162,17 @@ async function C3() {
   const pus = await app.pushPath(path)
   const row = await waitFor(() => shadow.row(path), 30000, 800)
   if (row === null) { finish('C3', { app: w?.ok === true, shadow: false, god: false }, `row not visible push=${JSON.stringify(pus)}`, started); return }
-  const bytes = await shadow.object(row.object_key)
-  const shaOk = bytes !== null && sha256Hex(bytes) === row.object_key
+  const pulled = await shadow.pullRows()
+  const localRow = await shadow.localRow(path)
+  const hydrated = localRow !== undefined ? await shadow.hydrate(path) : false
+  const bytes = localRow !== undefined ? await shadow.localBytes(localRow.object_key) : null
+  const shaOk = bytes !== null && localRow !== undefined && sha256Hex(bytes) === localRow.object_key
   const textOk = bytes !== null && Buffer.from(bytes).toString('utf8') === 'c3-bytes'
   const godObj = await god.get(vfsKey(env.TEST_OID, `objects/${row.object_key}`))
   const godRow = await god.json(vfsKey(env.TEST_OID, `rows${path}`))
   const appRead = await app.readVfs(path)
   const appOk = w?.ok === true && appRead?.text === 'c3-bytes'
-  const shadowOk = shaOk && textOk
+  const shadowOk = pulled.includes(path) && localRow !== undefined && hydrated && shaOk && textOk
   const godOk = godObj !== null && Buffer.from(godObj).toString('utf8') === 'c3-bytes' && godRow !== null
   finish('C3', { app: appOk, shadow: shadowOk, god: godOk }, `sha=${shaOk} text=${textOk} godObj=${godObj !== null} godRow=${godRow !== null}`, started)
 }

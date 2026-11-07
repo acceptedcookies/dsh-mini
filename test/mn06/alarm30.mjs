@@ -72,7 +72,9 @@ const code = await new Promise((resolve) => {
 const ticks = [...out.matchAll(/tick=(\d+) at=([^\s]+) ran=/g)].map((m) => ({ n: Number(m[1]), at: Date.parse(m[2]) }))
 const completedLines = [...out.matchAll(/"sessionId":"([^"]+)","outcome":"completed"/g)].map((m) => m[1]).filter((s) => s === SID)
 const interval = ticks.length >= 2 ? ticks[1].at - ticks[0].at : 0
-check('loop:exit 0', code === 0, `exit=${code} elapsed=${Date.now() - started}ms`)
+const wallMs = Date.now() - started
+check('loop:exit 0', code === 0, `exit=${code} elapsed=${wallMs}ms`)
+check('loop:父进程 wall-clock ≥30000ms', wallMs >= 30000, `wall=${wallMs}ms（不信任子进程自报 at）`)
 check('loop:≥2 tick', ticks.length >= 2, `ticks=${ticks.length}`)
 check('loop:间隔 ≥30000ms', interval >= 30000, `interval=${interval}ms`)
 check('loop:目标 alarm 恰好 completed 一次', completedLines.length === 1, `completed=${completedLines.length}`)

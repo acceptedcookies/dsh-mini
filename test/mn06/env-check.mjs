@@ -23,6 +23,12 @@ const bad = spawnSync(process.execPath, [join(ROOT, 'test/mn06/env.mjs')], {
 })
 check('env:缺 TICKET_SECRET exit 3', bad.status === 3, `exit=${bad.status}`)
 
+const wrong = spawnSync(process.execPath, [join(ROOT, 'test/mn06/env.mjs')], {
+  encoding: 'utf8',
+  env: { ...process.env, BASE: 'http://127.0.0.1:9999' },
+})
+check('env:非 9095 端点 exit 3', wrong.status === 3, `exit=${wrong.status}`)
+
 const sample = report('mn06-selftest', [{ id: 'x', pass: true, app: true, shadow: true, god: true }])
 const c = sample.cases[0]
 check('report:suite+cases 四字段', sample.suite === 'mn06-selftest' && c.app === true && c.shadow === true && c.god === true && c.pass === true)

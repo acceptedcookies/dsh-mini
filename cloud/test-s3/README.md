@@ -36,7 +36,7 @@ mc admin user add local "$S3_ACCESS_KEY_ID" "$S3_SECRET_ACCESS_KEY"
 mc admin policy create local dsh-mini-test-policy /tmp/dsh-mini-test-policy.json
 mc admin policy attach local dsh-mini-test-policy --user "$S3_ACCESS_KEY_ID"
 
-# 网关（Node 24，仅内置模块；/srv/dsh-mini-test 下放 worker/lib/test-s3 三目录）
+# 网关（Node 24，仅内置模块；/srv/dsh-mini-test 下放 durable/worker/lib/test-s3 四目录）
 # /etc/dsh-mini-test/gateway.env: TICKET_SECRET ADMIN_TOKEN S3_* API_PORT API_BIND PUBLIC_BASE
 systemctl enable --now dsh-mini-test-gateway
 curl http://127.0.0.1:9095/healthz

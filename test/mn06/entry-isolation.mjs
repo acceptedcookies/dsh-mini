@@ -112,6 +112,9 @@ try {
   const missing = await waitExit(run(serverPath, { ...baseEnv, TICKET_SECRET: '', API_PORT: '9198' }))
   check('startup:server 缺 TICKET_SECRET 非零退出', missing !== null && missing !== 0, `exit=${missing}`)
 
+  const missingS3 = await waitExit(run(serverPath, { ...baseEnv, S3_ACCESS_KEY_ID: '', API_PORT: '9199' }))
+  check('startup:server 缺 S3 凭证非零退出', missingS3 !== null && missingS3 !== 0, `exit=${missingS3}`)
+
   const p = run(serverPath, { ...baseEnv, API_PORT: '9198' })
   const up = await waitHealth(9198)
   check('startup:server 无 ADMIN_TOKEN 仍可启动', up, up ? '' : p.log().slice(-400))

@@ -29,7 +29,10 @@ async function loadServices() {
   writeFileSync(entry, `
 import { createRemoteCas } from '${ROOT}/services/state/remote-cas'
 import { createRemoteVfs } from '${ROOT}/services/vfs/remote'
-export { createRemoteCas, createRemoteVfs }
+import { createVfsSync } from '${ROOT}/services/vfs/remote-sync'
+import { vfsStore } from '${ROOT}/services/vfs/store'
+import { localObjects } from '${ROOT}/services/vfs/objects'
+export { createRemoteCas, createRemoteVfs, createVfsSync, vfsStore, localObjects }
 `)
   const out = await esbuild.build({ entryPoints: [entry], bundle: true, format: 'cjs', write: false, platform: 'node', target: 'node18', logLevel: 'silent' })
   const mod = { exports: {} }
@@ -38,7 +41,7 @@ export { createRemoteCas, createRemoteVfs }
 }
 
 export async function createShadow(env, oid = env.TEST_OID) {
-  const { createRemoteCas, createRemoteVfs } = await loadServices()
+  const { createRemoteCas, createRemoteVfs, createVfsSync, vfsStore, localObjects } = await loadServices()
   const ticket = signTicket(env, oid)
   const post = async (url, headers, body) => {
     const r = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) })
@@ -58,6 +61,7 @@ export async function createShadow(env, oid = env.TEST_OID) {
   const enc = (s) => new TextEncoder().encode(s)
   const fullRow = (path) => `dsh-mini/state/shadow/${path}`
   const rowKey = (path) => `rows/${path.replace(/^\//, '')}`
+  const sync = () => createVfsSync(remote)
 
   return {
     oid,
@@ -95,6 +99,18 @@ export async function createShadow(env, oid = env.TEST_OID) {
     },
     async listRows() {
       return remote.list('rows/', 1000)
+    },
+    async pullRows() {
+      return sync().pullRows()
+    },
+    async hydrate(path) {
+      return sync().hydrate(path)
+    },
+    async localRow(path) {
+      return vfsStore.getRow(path)
+    },
+    async localBytes(sha) {
+      try { return localObjects.read(sha) } catch { return null }
     },
     async stats() {
       const r = await fetch(`${env.DURABLE}/dev/stats`, { headers: { 'x-admin-token': env.ADMIN_TOKEN } })

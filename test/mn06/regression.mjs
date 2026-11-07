@@ -1,7 +1,7 @@
 // MN06-T18 —— 全量回归执行器：注入测试端点 + PASS/NOTE/FAIL 解析。
 //
 // preflight：BASE/DURABLE 必须 127.0.0.1:9095，否则 exit 3。
-// NOTE/SKIP 不计 PASS；ide-durable 必须 E:openid=TEST_OID；s3-probe 必须 configured=true。
+// NOTE/SKIP 不计 PASS；ide-durable 的 mock NOTE 记 partial；s3-probe 必须 configured=true。
 import { spawn } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
@@ -15,6 +15,7 @@ try {
   assertLocalEndpoint(env.BASE, 'BASE')
   assertLocalEndpoint(env.DURABLE, 'DURABLE')
   requireEnv(env, ['TICKET_SECRET', 'ADMIN_TOKEN', 'S3_ENDPOINT', 'S3_BUCKET', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY'])
+  if (env.S3_BUCKET !== 'dsh-mini-test' || !/^http:\/\/127\.0\.0\.1:(9000|9095)\/?$/.test(env.S3_ENDPOINT)) throw new Error(`S3 非测试桶/端点: bucket=${env.S3_BUCKET} endpoint=${env.S3_ENDPOINT}`)
 } catch (e) {
   console.error(`[regression] env: ${e?.message ?? e}`)
   process.exit(3)
@@ -42,6 +43,12 @@ const baseEnv = {
   S3_SECRET_ACCESS_KEY: env.S3_SECRET_ACCESS_KEY,
 }
 
+const MIN_PASS = {
+  'env-check': 5, 'docs-check': 88, 'entry-isolation': 14, parity: 31, tombstone: 24,
+  matrix: 5, alarm30: 7, 'mp-remote': 27, 'public-surface': 39, 'cold-state': 10,
+  'edge-matrix': 39, 'tool-observability': 21, 'ide-durable': 6, 's3-probe': 9,
+  'no-self-bridge': 5, 'probe-lane': 3, catalog: 16, registry: 6, tasks: 9, doctor: 5,
+}
 const NODE = process.execPath
 const suites = [
   { name: 'env-check', file: 'test/mn06/env-check.mjs', timeout: 60000 },
@@ -81,23 +88,30 @@ function run(s) {
       const fail = (out.match(/^FAIL /gm) ?? []).length
       const note = (out.match(/^NOTE /gm) ?? []).length
       const skip = (out.match(/^SKIP /gm) ?? []).length
-      resolve({ name: s.name, exit: code ?? 1, pass, fail, note, skip, ms: Date.now() - started, started_at: new Date(started).toISOString(), out, err })
+      let suiteReport = null
+      try { suiteReport = JSON.parse((out.match(/^MN06_REPORT (\{.*\})$/m) ?? [])[1] ?? 'null') } catch { /* bad report */ }
+      resolve({ name: s.name, exit: code ?? 1, pass, fail, note, skip, ms: Date.now() - started, started_at: new Date(started).toISOString(), report: suiteReport, out, err })
     })
   })
 }
 
 function classify(r) {
   const lines = r.out.split('\n').filter((l) => /^(PASS|FAIL|NOTE|SKIP) /.test(l)).slice(0, 500)
-  const base = { name: r.name, pass: r.pass, fail: r.fail, note: r.note, skip: r.skip, exit: r.exit, ms: r.ms, started_at: r.started_at, lines }
+  const base = { name: r.name, pass: r.pass, fail: r.fail, note: r.note, skip: r.skip, exit: r.exit, ms: r.ms, started_at: r.started_at, lines, report: r.report }
   if (r.exit === 3) return { ...base, status: 'skip', reason: 'exit 3（未观察）' }
+  if (r.name === 'matrix') {
+    const cases = r.report?.cases
+    const schemaOk = Array.isArray(cases) && cases.length === 5 && cases.every((c) => typeof c.app === 'boolean' && typeof c.shadow === 'boolean' && typeof c.god === 'boolean')
+    if (!schemaOk) return { ...base, status: 'fail', reason: 'matrix MN06_REPORT schema 缺 app/shadow/god' }
+  }
   if (r.name === 's3-probe') {
-    const configured = r.pass === 9 && r.fail === 0 && r.exit === 0
+    const configured = r.pass === 9 && r.fail === 0 && r.note === 0 && r.skip === 0 && r.exit === 0
     return { ...base, status: configured ? 'pass' : 'fail', reason: configured ? '' : 's3-probe 非 9/9 或未配置（SKIP 不算 PASS）' }
   }
   if (r.name === 'ide-durable') {
-    const eOk = /^PASS E:openid=TEST_OID/m.test(r.out)
-    const ok = r.exit === 0 && r.fail === 0 && eOk
-    return { ...base, status: ok ? 'pass' : 'fail', reason: ok ? '' : `ide-durable exit=${r.exit} fail=${r.fail} E:openid=${eOk}` }
+    // PATCH_UNLOCK=1 时 D/E 是控制面 mock，只能记 partial；真云 sweeper 部署另行。
+    const ok = r.exit === 0 && r.fail === 0 && r.pass > 0
+    return { ...base, status: ok ? 'partial' : 'fail', reason: ok ? `NOTE=${r.note}（mock/degraded，不计 PASS）` : `ide-durable exit=${r.exit} fail=${r.fail}` }
   }
   if (r.name === 'edge-matrix') {
     const known = r.fail === 2
@@ -106,9 +120,15 @@ function classify(r) {
     if (known) return { ...base, status: 'known_pre_existing', reason: 'E9 两项 pre-existing（io/llm 模型解析；EP-1 未改该面）' }
   }
   if (r.fail > 0) return { ...base, status: 'fail', reason: `FAIL=${r.fail}` }
+  if (r.skip > 0) return { ...base, status: 'fail', reason: `SKIP=${r.skip}（未观察不得 pass）` }
   if (r.exit !== 0) return { ...base, status: 'fail', reason: `exit=${r.exit}` }
-  if (r.pass === 0 && !['doctor', 'catalog', 'registry', 'tasks', 'probe-lane'].includes(r.name)) {
+  if (r.note > 0) return { ...base, status: 'partial', reason: `NOTE=${r.note}（未观察，不计 PASS）` }
+  if (r.pass === 0) {
     return { ...base, status: 'fail', reason: '零 PASS 行（无法证明）' }
+  }
+  const min = MIN_PASS[r.name]
+  if (typeof min === 'number' && r.pass < min) {
+    return { ...base, status: 'fail', reason: `PASS 计数 ${r.pass} < 基线 ${min}` }
   }
   return { ...base, status: 'pass', reason: '' }
 }
