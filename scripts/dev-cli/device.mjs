@@ -46,26 +46,30 @@ const mp = d.mp
 // ── 2) remote 拉起（--dump-only 跳过）───────────────────────────────────
 // 注：--dump-only 对已 attach 通道直接 dump，不校验物理设备在场——产物如实记 source:'attached-lane'。
 //
-// 调试窗存活守卫（PITFALL-18）：enableRemoteDebug 让手机进「等调试器」长等态，
-// IDE 侧 remote-debug 调试窗不在听时手机永远卡 logo。窗口在开的可探测证据 =
-// 最新 WeappLog 里 ws=127.0.0.1:PORT 桥端口仍存活（TCP 可连）。桥不在→拒发 remote。
+// 手动会话守卫（PITFALL-31）：桥存活 = 手动真机调试会话存在（绑 IDE 窗口），automator
+// 永远看不见；此时发 enableRemoteDebug 会顶掉手动会话 → 手机黑屏/cmdId 1006。
+// 桥死 = 干净状态，remote 才安全（IDE 会新开真机调试窗弹二维码）。
 async function remoteDebugBridgeAlive() {
   try {
     const logRoot = join(homedir(), 'Library/Application Support/微信开发者工具')
-    let latestFile = null, latestM = 0
+    // 不能只看 mtime 最新日志：新窗创建的空日志 mtime 更新，桥注册行写在主日志里
+    //（2026-11-08 实测误判 skip）。扫最近 12 个日志，取最新注册的桥端口做 TCP 活检。
+    const files = []
     for (const e of readdirSync(logRoot)) {
       const ld = join(logRoot, e, 'WeappLog/logs')
       if (!existsSync(ld)) continue
       for (const f of readdirSync(ld)) {
         const fp = join(ld, f)
-        const m = statSync(fp).mtimeMs
-        if (m > latestM) { latestM = m; latestFile = fp }
+        files.push({ fp, m: statSync(fp).mtimeMs })
       }
     }
-    if (latestFile === null) return false
-    const hits = [...readFileSync(latestFile, 'utf8').matchAll(/ws=127\.0\.0\.1:(\d+)/g)]
-    if (hits.length === 0) return false
-    const port = Number(hits[hits.length - 1][1])
+    files.sort((a, b) => b.m - a.m)
+    let port = null
+    for (const { fp } of files.slice(0, 12)) {
+      const hits = [...readFileSync(fp, 'utf8').matchAll(/ws=127\.0\.0\.1:(\d+)/g)]
+      if (hits.length > 0) { port = Number(hits[hits.length - 1][1]); break }
+    }
+    if (port === null) return false
     return await new Promise((res) => {
       const s = connect({ host: '127.0.0.1', port }, () => { s.end(); res(true) })
       s.on('error', () => res(false))
@@ -80,9 +84,11 @@ if (flags['dump-only'] !== true) {
   // 已连状态下重发 enableRemoteDebug 会重置会话致窗口空转（实测坑），只在未连时触发。
   let dev = await mp.evaluate(() => wx.getDeviceInfo()).catch(() => null)
   const needRemote = !dev || dev.brand === 'devtools' || dev.platform === 'devtools'
-  if (needRemote && !(await remoteDebugBridgeAlive())) {
+  // 守卫（PITFALL-31 修正）：桥存活 = 手动真机调试会话（绑 IDE 窗口），automator 看不见；
+  // 此时发 enableRemoteDebug 会顶掉手动会话 → 手机黑屏/cmdId 1006。桥死 = 干净，remote 才安全。
+  if (needRemote && (await remoteDebugBridgeAlive())) {
     await d.close().catch(() => {})
-    fail('skip', 'remote-debug 调试窗不在听（WeappLog 无存活 ws 桥）——发 enableRemoteDebug 只会把手机吊进 logo 等待态。请先在 DevTools 开真机调试窗再重跑', { machineReason: 'debugger-window-absent' })
+    fail('skip', '检测到手动真机调试会话（桥存活），automator 不可见。请关闭 DevTools 的手动"真机调试"窗口并让手机退出调试态后重跑；不要发 remote()（会顶掉手动会话致黑屏）', { machineReason: 'manual-session-conflict' })
   }
   for (let attempt = 0; attempt < 2 && (!dev || dev.brand === 'devtools' || dev.platform === 'devtools'); attempt++) {
     if (attempt === 1) {
@@ -104,7 +110,7 @@ if (flags['dump-only'] !== true) {
         const p = appendPitfall({
           symptom: e.message.slice(0, 120).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
           where: 'device\\.mjs.*remote', cause: `mp.remote(true) 在场失败: ${e.message}`,
-          fix: '检查设备 USB/真机调试授权、IDE 真机调试开关；随后重跑 device.mjs --remote',
+          fix: '先清手动真机调试窗与残留会话，再重跑 device.mjs --remote（扫码一次后会话保持）',
           ownerAction: '确认真机已在 DevTools 真机调试面板可见后重试',
         })
         fail('degraded', `remote 拉起失败（设备在场语义）: ${e.message}`, { pitfall: p.id })

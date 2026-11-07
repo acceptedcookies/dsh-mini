@@ -263,6 +263,42 @@
       "cause": "element_action 对非 scroll-view 选择器执行 scrollTo 时内部 page 对象缺失，报 $$ 未定义（2.02.2609250 实测）",
       "fix": "scrollTo 目标必须是 scroll-view（如 #chat-scroll/.viewport）；先 geo 确认元素存在且可滚动",
       "since": "2026-11-07"
+    },
+    {
+      "id": "PITFALL-31",
+      "symptom": "手机黑屏|cmdId 1006|errCode -1|连 logo 都没有|检测到手动真机调试会话|手动.*真机调试.*(挡|冲突)|automator.*看不见真机|remote 未连上|onRemoteDebugConnected.*timeout|ios-adapter.*spawnProcess",
+      "where": "remote-debug|device\\.mjs|attachDevice|mp\\.remote",
+      "cause": "手动扫码(工具栏真机调试)建立的是绑 IDE 窗口的会话，automator 永远看不见；此时再发 mp.remote(true) 会顶掉手动会话→手机黑屏。auto 模式(remote(true))本不需要扫码：手机自动唤醒入会。但重复 enable/disableRemoteDebug 会打坏 IDE 状态→窗口 adapter spawn 失败(ios-adapter spawnProcess.close→Device disconnected InternalError)→黑屏；恢复必须完整重启 DevTools。",
+      "fix": "自动流程：①关手动调试窗 ②cli auto --auto-port 9602 ③getDeviceInfo 探测：brand≠devtools 直接用（绝不发 remote） ④模拟器才发一次 mp.remote(true)（不 await，auto 无二维码）⑤等 Tool.onRemoteDebugConnected（60-90s）→真机。失败/黑屏→完整重启 DevTools（pkill wechatwebdevtools + cli auto），只发一次 remote。真机 eval 需 wx.cloud.init；SOTER 拆非阻塞三步（发起→轮询 proof→换票）；401 先清 dsh:sim:live-ticket。临时脚本禁止直调 remote()；桥探测扫最近12个日志+TCP活检",
+      "ownerAction": "每次 DevTools 重启后需扫一次二维码（微信强制入会，不可绕）",
+      "since": "2026-11-08"
+    },
+    {
+      "id": "PITFALL-32",
+      "symptom": "401.*(ticket|live-ticket)|dsh:sim:live-ticket|stale ticket",
+      "where": "sim\\.phoneSteps|phone\\.mjs|vfs-roundtrip",
+      "cause": "手机 storage 里的 dsh:sim:live-ticket 过期（30min TTL）仍被复用，phoneSteps 见票不重铸→全批 401 静默失败",
+      "fix": "见 401 先 wx.removeStorageSync('dsh:sim:live-ticket') 再重跑；phone.mjs 已内置 401 检测+自动清票",
+      "ownerAction": "无",
+      "since": "2026-11-08"
+    },
+    {
+      "id": "PITFALL-33",
+      "symptom": "soter-timeout|startSoterAuthentication.*timeout|timeout waiting for automator response.*soter",
+      "where": "sim\\.phoneSteps|phone\\.mjs|unlock|sim\\.attachDevice",
+      "cause": "SOTER 是人体交互（按指纹/人脸），塞进单次阻塞 eval 时 automator 请求超时先到，eval 被杀",
+      "fix": "拆三步：发起 SOTER 立即返回→Node 侧轮询 globalThis.__dshSoter→用 proof 换票；手机保持亮屏",
+      "ownerAction": "需本人在手机上按一次生物验证",
+      "since": "2026-11-08"
+    },
+    {
+      "id": "PITFALL-34",
+      "symptom": "Cloud API isn't enabled|errCode: -1.*cloud|wx\\.cloud\\.init",
+      "where": "sim\\.phoneSteps|phone\\.mjs|unlock|eval|sim\\.attachDevice",
+      "cause": "真机 eval 上下文与 App 自身作用域不同，wx.cloud 未 init 时 callFunction 报 errCode -1",
+      "fix": "eval 内先 wx.cloud.init({env:'cloud1-d7gar8j7w419589a0'}) 再 callFunction（phone.mjs 已内置）",
+      "ownerAction": "无",
+      "since": "2026-11-08"
     }
   ]
 }

@@ -30,7 +30,7 @@ node scripts/dev-cli/session.mjs --via skill   # 单进程 REPL（skill 通道�
 | `lib/args.mjs` | flag 解析 + `boolFlag/numberFlag/jsonFlag/wantJson`；`REPO_ROOT`、`PROJECT`、`ANOTE_DIR` |
 | `lib/devtools.mjs` | DevTools 安装包/skill 版本、MCP/CLI token 来源、clientName、项目配置摘要；**凭证只报 present/source** |
 | `lib/mcp.mjs` | `McpClient`：stdio 握手 + `tools()/tool()/call/text/eval`；`serverInfo`、stderr、授权 pending 标记；`bridgeCount` |
-| `lib/ide.mjs` | `connectIde`（AUTO_PORT → ws:9420 → cli auto；支持显式 wsEndpoint）；`portAlive`；`cliRun`；`pipeConsole`；`CLI_PATH` |
+| `lib/ide.mjs` | `connectIde`（AUTO_PORT → ws:9420 → cli auto；支持显式 wsEndpoint）；`portAlive`；`cliRun`；`pipeConsole`；`CLI_PATH`。**注意**：本机 DevTools 服务端口是 **47658**（AGENTS.md 登记），ws 端口随重启变化（`http port 47658, ws port <N>`，从 WeappLog 读）；`cli auto --project … --auto-port 9602` 是可靠入口 |
 | `lib/channels.mjs` | `SkillChannel`（skill-cli 参数按 tools.yaml schema 过滤）、`AgentChannel`（cli agent）、`CliChannel`、`runCapture`、`channelStatus` |
 | `lib/catalog.mjs` | MCP tools/list × skill tools.yaml → 归一目录；merge/diff/summary/cache；只读/写/废弃标注 |
 | `lib/tasks.mjs` | pending/taskId 提取 + `polling_task_result` 轮询 + 终态判定（preview/task/session 共用） |
@@ -158,12 +158,43 @@ node scripts/dev-cli/session.mjs --via skill   # 单进程 REPL（skill 通道�
 
 ### 真机调试操作契约（实测刻死，勿踩）
 
-1. **连接探测先行**：`mp.evaluate(() => wx.getDeviceInfo())`——`brand==='devtools'`/`platform==='devtools'` = 当前对端是模拟器；物理设备 = 真机调试会话已活。**已连状态绝不重发 `Tool.enableRemoteDebug`**——会重置会话让调试窗空转。
-2. **连接信号**：真信号是 `mp.connection.once('Tool.onRemoteDebugConnected')` 事件；`mp.remote(true)` 的 send 响应本身会假超时，**不要 await 它**，catch 吞掉只等事件。
-3. **remote-debug 会话禁导航**：`reLaunch`/`navigateTo`/`navigateBack` 会把会话打死——只操作 `currentPage()` 当前页面。
-4. **链路抖动**：`game-ios-debug Device disconnected InternalError` 周期性出现；设备掉线后 `enableRemoteDebug` 重触发即可，事件窗口 60-90s。
-5. **inspect ws 端点是易逝的**：日志 `RemoteDebugWindow inspectUrl ws=127.0.0.1:PORT` 的 CDP 端点随窗口生命周期生灭，不持久——别缓存。
-6. **模拟器 vs 真机判定**：截图分辨率与 `getDeviceInfo().brand` 双证；`--dump-only` 产物 `source:'attached-lane'` 不证物理。
+**语义**：`自动真机调试` = automator 驱动真机；**扫码只在建立会话时发生一次**（微信强制入会动作，不可绕），之后 unlock/点击/断言/截图全部脚本化；会话在 DevTools 存活期间保持，**重跑不再扫码**。手动扫码（工具栏"真机调试"）建立的是**绑 IDE 窗口的手动会话**——automator 永远看不见它，且它会挡住自动会话。**手动会话对测试没有意义。**
+
+**端口事实（2026-11-08 实测）**：
+- DevTools 服务端口 = **47658**（AGENTS.md 登记，常开）；HTTP 47658，ws 端口每次重启变化（21266 / 64665 / 21807 …）。
+- ws 端口从 WeappLog 读：`grep "http port 47658, ws port" <latest>.log`。
+- 可靠入口：`cli auto --project <repo> --auto-port 9602`（绑定主 IDE 的自动化会话），再 `automator.connect({ wsEndpoint: 'ws://127.0.0.1:9602' })`。
+
+**自动流程（2026-11-08 实证通过，唯一正确顺序）**：
+1. **前置**：关掉所有手动"真机调试"窗口；手机退出调试态（回微信主页）。
+2. `cli auto --project <repo> --auto-port 9602` → 输出 `{ autoPort: 9602 }`。
+3. `automator.connect` → `wx.getDeviceInfo()` 探测：
+   - 已是物理设备（`brand !== 'devtools'`）→ **直接跑，绝不发 `remote()`**（会话已绑定）；
+   - 是 `devtools` 模拟器 → 进入第 4 步。
+4. `mp.remote(true)`（**不要 await**，catch 吞掉）→ `Tool.enableRemoteDebug {auto:true}` = **auto 模式，无二维码**，手机自动拉起小程序并连回。
+5. 等 `Tool.onRemoteDebugConnected`（60–90s）→ `getDeviceInfo()` 应为真机（实测 `samsung/SM-S9080/android`）。
+6. 会话建立后：unlock/操作/断言全自动；**DevTools 不重启就一直可用**（实测 2026-11-08T16:41Z `live-pass` 10/10）。
+
+**关键实证（2026-11-08）**：
+- auto 模式**不需要扫码**——手机自动唤醒并入会；扫码只属于手动工具栏流程（手动会话 automator 不可见）。
+- **重复 `enableRemoteDebug`/`disableRemoteDebug` 会打坏 IDE 状态**：后续窗口 adapter spawn 失败（`ios-adapter init error adapter.spawnProcess.close` → `Device disconnected InternalError`）→ 手机黑屏/logo 转。恢复 = **完整重启 DevTools**（`pkill -f wechatwebdevtools` 后 `cli auto` 重拉），然后只发**一次** `remote(true)`。
+- 真机 eval 上下文与 App 作用域不同：`wx.cloud` 需显式 `wx.cloud.init`，否则 `errCode -1`。
+- SOTER 是人体交互，**不能塞进单次阻塞 eval**（automator 请求超时会先到）；正确做法：发起 SOTER 立即返回 → Node 侧轮询 `globalThis.__dshSoter` → 用 proof 换票（`test/simulation/lib/phone.mjs` 已实现）。
+- 手机 storage 的 `dsh:sim:live-ticket` 过期会静默 401：见 401 先清该 key 再重跑。
+
+**失败模式与恢复**：
+- 手机黑屏 / `cmdId 1006, errCode -1` / 连 logo 都没有 = **会话被顶**：先 `Tool.disableRemoteDebug` 释放，关掉调试窗，从第 1 步重来（必须先清手动会话）。
+- 第 4 步后没有二维码 = 存在残留手动会话或残留 remote-debug 窗；不要重发 `remote()`，先清窗再重来。
+- **已连状态绝不重发 `Tool.enableRemoteDebug`**——会重置会话让调试窗空转。
+- **禁止在临时脚本里直接调 `mp.remote()`**：必须走 `device.mjs --remote` 或 `attachDevice`（守卫含桥存活检查）。2026-11-08 的连环黑屏就是绕过守卫的临时脚本造成的。
+
+**守卫规则（2026-11-08 修正，旧规则是反的）**：`bridge alive + automator 看到模拟器` = **手动会话存在** → **拒绝 `remote()`** 并报错指引（清手动窗）；`bridge dead` = 无任何会话 → `remote()` 安全，IDE 会新开真机调试窗弹二维码。旧 `device.mjs` 逻辑"桥不在听就拒发 remote"恰好相反，会把可用的干净窗口拒掉、又在手动会话存在时放行 `remote()`。`test/simulation/lib/devtools.mjs` 的 `attachDevice` 已内置该守卫 + 每步日志（initial/bridge/event/after）+ 超时 `disableRemoteDebug` 释放手机。
+
+**桥探测**：扫最近 12 个 WeappLog 日志文件里的 `ws=127.0.0.1:PORT` 并做 TCP 活检（不能只看 mtime 最新文件——新窗创建的空日志 mtime 更新，桥注册行在主日志）。
+
+**sim 侧错误分类/分级（`test/simulation/lib/errors.mjs`）**：失败时输出 `[sim-error] where=… kind=PITFALL-n severity=… next="…"`。severity 四级：`recoverable`（清状态重跑）/`needs-ide-restart`（重启 DevTools）/`needs-operator`（人要看/要按）/`needs-owner`（业主决策）。`attachDevice`/`phoneSteps` 已接线：手动会话冲突→needs-operator、adapter/remote 失败→needs-ide-restart、SOTER 超时→needs-operator、401 过期票→recoverable（并自动清票）、`wx.cloud` 未 init→recoverable。对应 PITFALL-31/32/33/34。
+
+**CDP 应急车道（非自动，不替代 automator）**：手动会话活着时，远程调试窗 inspectUrl 里的 `ws=127.0.0.1:PORT` 是直通手机运行时的 CDP 桥；`Runtime.evaluate` 用 **contextId 2**（小程序运行时，`wx`/`getApp` 在此；context 1 是 native 层无 `wx`）。可用于不打断手动会话的取证/救急，但**不满足"自动真机调试"要求**，不得作为常规测试通道。
 
 ## DevTools 升级流程（AI 增强形态）
 
