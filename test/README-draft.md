@@ -98,6 +98,9 @@
 
 ## 7. Simulation 测试（业主模型，2026-11-07；取代 §2–§6）
 
+> 登记真源已迁移到 `test/simulation/README.md`（原则、条目、正反价值、拓扑、版本）。
+> 本节保留建模分析草稿；数量/命名/口径冲突时，以 `test/simulation/README.md` 为准。
+
 ### 7.1 定义
 
 Simulation 不是 unit / contract / e2e 分层，而是**基于微信开发者工具的真实业务 E2E**：
