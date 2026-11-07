@@ -13,8 +13,8 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
 
 // 公网端点内嵌默认值（非密钥——密钥仅 TICKET_SECRET 必须 env）；
-// POD1 fss3 收窄面 = worker 五端点同码，MN02 落地后即默认可用。
-const WORKER = () => (process.env.DURABLE_WORKER_URL ?? "https://dsh-mini.haimang.com.cn").replace(/\/$/, "");
+// FRD1 durable 生产面 = worker 五端点同码；旧 POD1 fss3 已退役。
+const WORKER = () => (process.env.DURABLE_WORKER_URL ?? "https://dsh-mini.saobao.com").replace(/\/$/, "");
 const PROXY = () => (process.env.BYOK_PROXY_URL ?? "https://dsh-byok-proxy-341346-12-1326709251.sh.run.tcloudbase.com").replace(/\/$/, "");
 const TICKET_SECRET = () => process.env.TICKET_SECRET ?? "";
 const BATCH_LIMIT = 10;

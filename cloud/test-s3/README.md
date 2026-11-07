@@ -1,22 +1,30 @@
-# cloud/test-s3 — 专用测试 S3 网关（EP-1 W1）
+# cloud/test-s3 — FRD1 测试网关与生产入口部署壳
 
-测试基础设施，**不是生产合同实现**。生产入口是 `cloud/durable/server.mjs`；当前生产流量仍在
-`cloud/pod1/fss3-server.mjs`，切流/退役按 `cloud/durable/README.md` 的 7 步 runbook 另行操作。
-目的：让 App 的现有 `/v1/*` 车道在独立 MinIO 上跑真链路，与 POD1 数据剥离。
+`cloud/test-s3/server.mjs` 只是测试入口部署壳（`import "../durable/dev.mjs"`）；生产入口是
+`cloud/durable/server.mjs`。2026-11-07 起 FRD1 同时承载：
+
+- **生产**：`dsh-mini.saobao.com` → nginx `:443` → `127.0.0.1:9097`（`server.mjs`，无 `/dev/*`），
+  bucket `dsh-mini-prod`。
+- **测试**：`127.0.0.1:9095`（`dev.mjs`，`/dev/*` 仅本机/SSH 隧道），bucket `dsh-mini-test`。
+
+POD1 fss3 已于 2026-11-07 09:30Z 停止/禁用并删除（`/srv/dsh-mini` + 单元）；备份在 FRD1
+`/srv/dsh-mini-backups/pod1-dsh-mini-20261107.tar.gz`。退役记录见 `cloud/durable/README.md`。
 
 ## 拓扑
 
 ```
-DevTools 模拟器 / Node 测试
-        │  /v1/state/* /v1/claim /v1/alarm/* /v1/vfs/* /v1/artifacts/*
-        ▼
-cloud/test-s3/server.mjs（FRD1 127.0.0.1:9095）
-        ├─ worker.mjs 同码委派（state/claim/alarm）
-        └─ SigV4 直打 MinIO（vfs/artifacts）
-                    │
-                    ▼
-        MinIO RELEASE.2025-09-07T16-13-09Z（127.0.0.1:9000）
-        bucket: dsh-mini-test
+生产 App（真机/DevTools）                 Node 测试 / 测试身份面
+        │  https://dsh-mini.saobao.com          │  ssh -L 9095
+        ▼                                       ▼
+FRD1 nginx :443                          FRD1 127.0.0.1:9095
+        │  proxy_pass 127.0.0.1:9097            │  cloud/test-s3/server.mjs
+        ▼                                       ▼
+cloud/durable/server.mjs（生产，无 /dev/*）  cloud/durable/dev.mjs（测试，/dev/*）
+        │                                       │
+        └──────────────┬────────────────────────┘
+                       ▼
+        MinIO 127.0.0.1:9000
+        bucket: dsh-mini-prod（生产） / dsh-mini-test（测试）
 ```
 
 ## FRD1 部署（已落地）
@@ -42,13 +50,39 @@ systemctl enable --now dsh-mini-test-gateway
 curl http://127.0.0.1:9095/healthz
 ```
 
+## 生产切流（2026-11-07）
+
+- **DNS**：`dsh-mini.saobao.com` A → `51.83.11.12`（`saobao.com` zone，DNS-only、未走 Cloudflare 代理）。
+- **FRD1 nginx**：`/etc/nginx/sites-available/dsh-mini.saobao.com`
+  - `:80` 只做 ACME challenge + 301 到 HTTPS；
+  - `:443` 反代 `http://127.0.0.1:9097`（生产入口 `cloud/durable/server.mjs`）；
+  - 公网只放 `/v1/`、`/healthz`、`/a/`；`/dev/` 与其余路径一律 404；
+  - `client_max_body_size 16m`（VFS 8MB + base64 余量）。
+- **证书**：Let's Encrypt `dsh-mini.saobao.com`（certbot webroot，`certbot.timer` 自动续期）。
+- **生产网关**：`/etc/dsh-mini-prod/gateway.env`（600）→ `API_PORT=9097`、`API_BIND=127.0.0.1`、
+  `S3_BUCKET=dsh-mini-prod`、`PUBLIC_BASE=https://dsh-mini.saobao.com`、
+  `TICKET_SECRET` 与 POD1 fss3/真云 unlock 同值；systemd `dsh-mini-prod-gateway.service`。
+- **数据迁移**：只迁真实 oid `ogtyS5GNQegjCKFiERFiYnUBpjVU`（31 个对象 + 4 个 artifacts）
+  到 `dsh-mini-prod`；测试 oid 未迁。迁移后 `state/get` 200、`vfs/list` 19 keys。
+- **App**：`services/config.ts` 的 `DSH_MINI_BASE_URL=https://dsh-mini.saobao.com`；
+  `.local.development.json`/`services/fx/dev-config.ts` 同步该域；微信公众平台已加入
+  request 合法域名。
+- **sweeper**：`cloud/functions/sweeper` 默认 `WORKER=https://dsh-mini.saobao.com`，已部署；
+  真调用返回 `{ok:true,ran:[]}`。
+- **验证**：`mp-remote` 27/27、`cold-state` 10/10、`vision-dual` 7/7（生产公网 artifact →
+  magpie `Red`）；`public-surface` 38/39，唯一差异是测试脚本期望 dev 入口 `/dev/ticket` 403，
+  生产入口按合同返回 404。
+- **POD1**：fss3 已停止/禁用并删除（`/srv/dsh-mini` + `dsh-mini-fss3.service`）；备份在 FRD1
+  `/srv/dsh-mini-backups/pod1-dsh-mini-20261107.tar.gz`。
+
 ## 本地接入（SSH 隧道，不暴露公网）
 
 ```bash
-ssh -N -L 9095:127.0.0.1:9095 frd1   # /v1/* 面
+ssh -N -L 9095:127.0.0.1:9095 frd1   # 测试入口 /v1/* + /dev/*（生产不走隧道）
 ssh -N -L 9000:127.0.0.1:9000 frd1   # 可选：S3 直探（mn01/s3-probe）
 
-# .local.development.json → cloud.durable_url = http://127.0.0.1:9095
+# .local.development.json → cloud.durable_url = https://dsh-mini.saobao.com（生产 App 面）
+# 测试身份面/测试数据仍走隧道：DURABLE=http://127.0.0.1:9095
 node scripts/fx-dev-config.mjs
 ```
 
@@ -84,8 +118,9 @@ PATCH_UNLOCK=1 AUTO_PORT=9602 node test/mn02/ide-durable.mjs
 
 ## 已知限制
 
-- `PUBLIC_BASE` 是 `http://127.0.0.1:9095`；`vision-dual` 的 `https:` 视觉 URL 分支会被 magpie 拒绝
-  （本地 HTTP 不可被上游抓取），`data:` 分支正常。要跑该分支需给网关一个上游可达的 HTTPS 域。
+- 生产网关 `PUBLIC_BASE=https://dsh-mini.saobao.com`；`vision-dual` 7/7 PASS
+  （B1 `https:` 视觉应答 `Red`，B2 `data:` 正常）@ 2026-11-07T09:27Z。
+  测试网关 `PUBLIC_BASE=http://127.0.0.1:9095`，`https:` 分支不适用（本地 HTTP 不可被上游抓取）。
 - 网关不跑 30s sweeper；alarm 真链用 `scripts/local-sweeper.mjs`（已实测 claim+consume）。
 - 测试数据按 `dsh-mini/{kind}/{oid}/` 隔离；teardown 用 `mc rm --recursive --force` 删前缀。
 - 生产合同变更不走本目录；本目录仅测试基础设施。

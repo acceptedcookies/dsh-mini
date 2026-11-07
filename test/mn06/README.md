@@ -77,6 +77,13 @@ node test/mn06/regression.mjs          # 全量回归（注入 127.0.0.1:9095）
 | T20 | `node test/mn06/matrix.mjs --repeat 10` | 未跑（advisory，不入闸） | — | soak |
 | T21 | `node test/mn06/alarm30.mjs` | 7/7；2 ticks；父进程 wall-clock ≥30s | 06:09:29 | 真 30s |
 
+> **2026-11-07 追加（FRD1 生产切流）**：`dsh-mini.saobao.com` 现为生产入口
+> （nginx → `127.0.0.1:9097` `server.mjs` / bucket `dsh-mini-prod`）；测试入口仍是
+> `127.0.0.1:9095`（`dev.mjs` / `dsh-mini-test`，`/dev/*` 仅 SSH 隧道）。生产复验：
+> `mp-remote` 27/27、`cold-state` 10/10、`vision-dual` 7/7；`public-surface` 38/39
+> （唯一差异是测试脚本期望 dev 入口 `/dev/ticket` 403，生产按合同 404）。测试套件
+> `DURABLE` 仍为 `http://127.0.0.1:9095`，未放宽 `assertLocalEndpoint`。
+
 **deferred（逐项理由/承接）**
 
 - 生产切流/旧客户端 — `cloud/durable/README.md` §3 七步 runbook；EP-1 不执行。

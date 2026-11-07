@@ -8,8 +8,8 @@ export const APP_ID = 'wx356d3abb52825466'
 export const NANO_BASE_URL = 'https://nano-agent-orchestrator-core-preview.haimang.workers.dev'
 export const NANO_WS_BASE_URL = 'wss://nano-agent-orchestrator-core-preview.haimang.workers.dev'
 
-/** POD1 durable 基座公网入口（fss3 收窄 API 面；票据=真云 unlock 同 secret 签发）。 */
-export const DSH_MINI_BASE_URL = 'https://dsh-mini.haimang.com.cn'
+/** FRD1 durable 生产入口（S3-first 单合同；票据=真云 unlock 同 secret 签发）。 */
+export const DSH_MINI_BASE_URL = 'https://dsh-mini.saobao.com'
 
 export interface ModelOption {
   id: string
