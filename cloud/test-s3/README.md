@@ -1,6 +1,7 @@
 # cloud/test-s3 — 专用测试 S3 网关（EP-1 W1）
 
-测试基础设施，**不是生产合同实现**。生产仍走 `cloud/pod1/fss3-server.mjs`。
+测试基础设施，**不是生产合同实现**。生产入口是 `cloud/durable/server.mjs`；当前生产流量仍在
+`cloud/pod1/fss3-server.mjs`，切流/退役按 `cloud/durable/README.md` 的 7 步 runbook 另行操作。
 目的：让 App 的现有 `/v1/*` 车道在独立 MinIO 上跑真链路，与 POD1 数据剥离。
 
 ## 拓扑
@@ -79,7 +80,8 @@ PATCH_UNLOCK=1 AUTO_PORT=9602 node test/mn02/ide-durable.mjs
 - MinIO 条件写：`If-Match` / `If-None-Match:*` 均生效；并发同 etag 两写 → `200,412`（`s3-probe` 9/9）。
 - worker 五端点（state/claim/alarm）经 MinIO 全绿：`cold-state` 10/10、`public-surface` 39/39。
 - VFS 车道全绿：`mp-remote` 27/27、`tool-observability` 21/21。
-- DevTools 真 App → 网关 → MinIO：`ide-durable` 8/8（B/C 为真 state/VFS 往返）。
+- DevTools 真 App → 网关 → MinIO：`ide-durable` **8 PASS + 1 NOTE**（NOTE 单列、不计 PASS；
+  IDE 无 SOTER 的车道按设计面记 NOTE）。不写全绿分母。真机车道另跑。
 
 ## 已知限制
 
