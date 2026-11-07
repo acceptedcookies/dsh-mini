@@ -1,0 +1,6 @@
+# Simulation run outputs — local evidence only, never committed.
+# Each sim writes under its own sim-{slug}/evidence/ directory.
+**/evidence/
+**/artifacts/
+**/shots/
+**/screenshots/
