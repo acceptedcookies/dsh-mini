@@ -29,7 +29,7 @@
 | 3 | `sim-vfs-roundtrip` | 写文件 → 列表 → 读 → range → 删 → artifact publish → 公网 `/a/` 回读 | 证明 VFS 与 artifact 的读写闭环、字节一致性和边界限制 | `vfs/{put,get,del,list}`、`artifacts/publish`、`/a/{sha}`、8MB/256KB/list 上限；UI：文件列表/预览 | 本机 mock 网关 | 手机用自己的票打 `https://dsh-mini.saobao.com`；不用隧道 |
 | 4 | `sim-vfs-offline` | 断票/离线写删 → 恢复 → reconcile → 删除不复活 | 证明离线期间不丢写、不复活删除，恢复后能收敛到远端真源 | 本地行/墓碑、pending summary、远端 row/object、LWW；UI：离线提示/收敛后状态 | 强制离线 + 测试网关回放 | 真测试网关 + MinIO |
 | 5 | `sim-claim-conflict` | shadow 持 claim → App prompt → 「会话写者冲突」→ 释放 → 重试 | 证明多写者不会静默分叉，冲突会被用户看见并恢复 | `/v1/claim`、holder、state CAS、冲突 toast/diag；UI：冲突/恢复 | shadow Node 客户端 + 测试网关 | 真测试网关 claim |
-| 6 | `sim-wx-alarm` | 建 due alarm → sweeper → resume → tool 恰一次 | 证明 alarm 被消费一次 | `/v1/alarm/{due,claim}`、resume、tool 计数 | 本机 mock 网关 | 手机用自己的票打 `https://dsh-mini.saobao.com`；不用隧道 |
+| 6 | `sim-wx-alarm` | 微信云 alarm 近似：建 due alarm → 30s sweeper → resume → tool 恰一次 | 证明微信云函数 timer + S3 CAS 行对 DO alarm 的近似合同（不是 DO 本体）；alarm 被消费一次 + tool=1 | `/v1/alarm/{due,claim}`、`sweepTick`/`runPump`、resume、tool 计数；DO-vs-WX 近似表；M1 负例 `negatives.mjs` 13/13；M2 `m2-sweeper.mjs` 6/6 | 本机 mock 网关 | Live-A：生产 `https://` + 合成 oid（transport，`live-a-pass`）；Live-B：公网 `https://dsh-mini-test.saobao.com` + `sweeper-test`（journey，`live-pass`）；真机自己的票打生产 `https://` 是最高口径；不用隧道 |
 | 7 | `sim-engine-routing` | 设置页 provider/model/engine（local/cloud/magpie）→ bio 门禁 → enroll → 真轮 | 证明引擎、模型、凭证三者的路由与白名单在真实设置流程中成立 | 设置页、enroll/bio、引擎戳记、模型白名单、会话车道；UI：设置/注入/真轮 | `cloud/sim` + mock bio/challenge | 真测试网关 + 真 magpie；真 SOTER 仅真机，否则 `device-deferred` |
 | 8 | `sim-production-surface` | 生产只读：healthz、无票 401、真实 oid `state/get` + `vfs/list`、`/dev/*` 404 | 证明生产入口对外只暴露合同面，鉴权与 oid 隔离有效，测试入口不外泄 | `https://dsh-mini.saobao.com` 只读、401/404、跨 oid 隔离；UI：App 生产配置只读页 | 本地测试网关 + 合成 oid | `https://dsh-mini.saobao.com` 只读 |
 
@@ -129,7 +129,7 @@ test/simulation/                         # 仿真测试根；不打包、不接 
 ├── sim-vfs-roundtrip/{README.md,run.mjs,fixtures/,evidence/}
 ├── sim-vfs-offline/{README.md,run.mjs,fixtures/,evidence/}
 ├── sim-claim-conflict/{README.md,run.mjs,fixtures/,evidence/}
-├── sim-wx-alarm/{README.md,run.mjs,fixtures/,evidence/}
+├── sim-wx-alarm/{README.md,run.mjs,live-a.mjs,live-b.mjs,fixtures/,evidence/}
 ├── sim-engine-routing/{README.md,run.mjs,fixtures/,evidence/}
 └── sim-production-surface/{README.md,run.mjs,fixtures/,evidence/}
 ```
@@ -161,8 +161,8 @@ test/simulation/                         # 仿真测试根；不打包、不接 
 
 | 项 | 值 |
 |----|----|
-| 版本 | `v4` |
+| 版本 | `v6` |
 | 日期 | 2026-11-07 |
-| 状态 | 8 条已实现；§5 回顾方法已登记 |
+| 状态 | 8 条已实现；§5 回顾方法；`sim-wx-alarm` Live-A/B |
 | 范围 | 8 条；全部 `sim-{slug}` |
-| 变更 | v2 登记 P-09；v3 落地 lib 与 8 条 run.mjs。mock-pass 已取证；写面 live 在测试网关停用期间为 live-blocked；v4 新增 §5 回顾与加强方法（四维：深度/宽度/Scope/Mock-Live）；`sim-alarm-resume` 更名为 `sim-wx-alarm`，明确“微信云 alarm 近似，不是 DO alarm 本体” |
+| 变更 | v2 登记 P-09；v3 落地 lib 与 8 条 run.mjs。mock-pass 已取证；写面 live 在测试网关停用期间为 live-blocked；v4 新增 §5 回顾与加强方法（四维：深度/宽度/Scope/Mock-Live）；`sim-alarm-resume` 更名为 `sim-wx-alarm`，明确“微信云 alarm 近似，不是 DO alarm 本体”；v5/v6 由并行工作线更新 live 口径；v6 落地 `sim-wx-alarm` Live-A（生产 https transport）与 Live-B（公网测试网关 + `sweeper-test` journey） |

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://static.cloudbase.net/cli/cloudbaserc.schema.json",
+  "envId": "cloud1-d7gar8j7w419589a0",
+  "functionRoot": "..",
+  "functions": [
+    {
+      "name": "sweeper-test",
+      "timeout": 60,
+      "runtime": "Nodejs20.19",
+      "handler": "index.main",
+      "memorySize": 256,
+      "description": "sim-wx-alarm Live-B test sweeper (sim_echo + counter)",
+      "envVariables": {
+        "TICKET_SECRET": "<from .anote/frd1/gateway.env>",
+        "DURABLE_WORKER_URL": "https://dsh-mini-test.saobao.com",
+        "SIM_WX_ALARM_TEST": "1"
+      }
+    }
+  ]
+}

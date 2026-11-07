@@ -1,0 +1,9 @@
+{
+  "name": "sweeper-test",
+  "version": "0.1.0",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  },
+  "description": "sim-wx-alarm Live-B test sweeper (sim_echo + counter)"
+}

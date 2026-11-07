@@ -63,7 +63,35 @@
 - **sweep**：同一 sid 两条 due、>batchLimit、未来行不占批额、腐行不终止整批、5 次 abandon、`alarm-abandoned`。
 - **lifecycle**：future alarm + `clear()`；删除会话后未来 alarm 是否复活；state/claim 残留（B-06）。
 
-## 6. 证据与边界
+> 入口：`node test/simulation/sim-wx-alarm/negatives.mjs`；当前 13/13 `negatives-pass`（本地 `dev.mjs` + memory S3，不触生产/测试桶）。
+> 入口：`node test/simulation/sim-wx-alarm/m2-sweeper.mjs`；当前 6/6 `m2-pass`（真实 `host.sweepTick` + 真实 kernel + memory CAS；idle / waiting tool / claim-denied rearm / 5 次 abandon / killAfter 续跑 / fenced rearm）。
+> `claim-denied` 的 M2 断言是 **characterization**：当前 `rearmOrDrop` 会写一条 attempts=1 的未来 alarm；是否改成“对手在跑时不 rearm”是 runtime/合同决定，不由本 sim 推断。
+> Out of scope：checkpoint 413/compaction（B-07/EP-2）、UI resume（除非 App session 与 alarm session 对齐）、real-S3 M2（由 Live-A/Live-B 覆盖）。
+
+## 6. Live-A / Live-B 入口
+
+| 入口 | 拓扑 | 证明 | 状态口径 |
+|---|---|---|---|
+| `node live-a.mjs` | 生产 `https://dsh-mini.saobao.com` + 合成 oid + 本地 mint 票 | alarm 写入 → 云函数 sweeper 真 30s 消费 → alarm 恰一次 → state 仍 idle | `live-a-pass`（transport；`deferred: resume/tool`） |
+| `node live-b.mjs` | 公网 `https://dsh-mini-test.saobao.com` + `sweeper-test` + 真实 oid + test bucket | due → 真 30s → pending `sim_echo` → tool=1 → scripted final → idle | `live-pass`（journey；`deferred: ui`） |
+| `node run.mjs --mode mock` | 本地 `dev.mjs` + memory S3 | alarm arm/due/claim 合同 | `mock-pass` |
+| `node run.mjs --mode live` | `127.0.0.1:9095` SSH 隧道 | 同一套 alarm 合同 | `not-phone-path`（不是 live-pass） |
+
+**Live-A 前置**：外部 provision 合成 `byok_keys` 记录，`SIM_LIVE_A_META` 指向 `{oid,sid,dueTs}`；跑完删除 `byok_keys` 记录。生产桶的 state/claim 行因 B-06 无删除端点会残留，evidence 里如实登记。
+
+**Live-B 前置**：
+
+- FRD1 测试网关 `dsh-mini-test.saobao.com` 已由 nginx 反代到 `127.0.0.1:9095`，`/dev/*` 404；
+- `sweeper-test` 云函数（Nodejs20.19 / 60s / 30s timer）：
+  - 源码/模板/部署器已固化在 `sim-wx-alarm/sweeper-test/`；
+  - `node test/simulation/sim-wx-alarm/sweeper-test/deploy.mjs`（默认建 30s timer）；
+  - `node test/simulation/sim-wx-alarm/sweeper-test/deploy.mjs --no-trigger`（只部署，手动 `tcb fn invoke`）；
+  - env 由 `deploy.mjs` 从 `.anote/frd1/gateway.env` 注入：`TICKET_SECRET`、`DURABLE_WORKER_URL=https://dsh-mini-test.saobao.com`、`SIM_WX_ALARM_TEST=1`
+- `SIM_WX_ALARM_TEST=1` 时 `ioLlm` 返回 scripted `sim-final`，不调生产 proxy；`sim_echo` 把计数写到 `state/sim-tool-count-{sid}`。
+- Live-B 用真实 oid 但只写 **test bucket**；不写生产桶。`tcb fn detail` 原生命令会明文打印 env；用 `node scripts/dev-cli/index.mjs tcb fn detail sweeper-test`（只报 key）。
+- 测试完可 `tcb fn trigger delete sweeper-test tick` 停掉 30s timer；函数保留供下次 Live-B 重跑。
+
+## 7. 证据与边界
 
 - evidence 落 `sim-wx-alarm/evidence/{mode}/{UTC}/`；`result.json`、shots、artifacts 全部 gitignore。
 - 截图只在 App session 与 alarm session 对齐时算证据；否则只记状态/接口断言。

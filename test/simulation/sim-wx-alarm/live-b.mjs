@@ -66,16 +66,19 @@ snap = kernel.applyAction(snap, {
 const frag = kernel.buildCheckpointFragment(snap)
 
 const evidence = openEvidence(dir, 'live-b')
+const rawCheck = evidence.check.bind(evidence)
+let failed = false
+const check = (name, ok, detail) => { if (!ok) failed = true; return rawCheck(name, ok, detail) }
 const stateKey = `state/${sid}`
 const alarmKey = `alarms/${dueTs}-${sid}`
 const claimKey = `claims/${sid}`
 
 const health = await fetch(`${PUBLIC}/healthz`).then((r) => r.json()).catch(() => null)
-evidence.check('gateway:public-healthz', health?.ok === true && health?.bucket === 'dsh-mini-test', JSON.stringify(health))
+check('gateway:public-healthz', health?.ok === true && health?.bucket === 'dsh-mini-test', JSON.stringify(health))
 
 const putState = await call(LOCAL, 'state/put-cas', { key: stateKey, body: JSON.stringify(frag), cond: { ifNoneMatch: '*' } })
 const putAlarm = await call(LOCAL, 'state/put-cas', { key: alarmKey, body: JSON.stringify({ sessionId: sid, kind: 'turn-resume', dueAt: dueTs, fence: 'new' }), cond: { ifNoneMatch: '*' } })
-evidence.check('alarm:arm', putState.status === 200 && putAlarm.status === 200, JSON.stringify({ putState, putAlarm }))
+check('alarm:arm', putState.status === 200 && putAlarm.status === 200, JSON.stringify({ putState, putAlarm }))
 
 const started = Date.now()
 let alarmGet = null
@@ -85,7 +88,7 @@ for (let i = 0; i < 30; i++) {
   await new Promise((r) => setTimeout(r, 3000))
 }
 const consumedMs = Date.now() - started
-evidence.check('alarm:consumed', alarmGet?.status === 404, `status=${alarmGet?.status} after ${consumedMs}ms`)
+check('alarm:consumed', alarmGet?.status === 404, `status=${alarmGet?.status} after ${consumedMs}ms`)
 
 const stateGet = await call(LOCAL, 'state/get', { key: stateKey })
 let phase = null
@@ -95,27 +98,27 @@ try {
   phase = body?.session?.phase ?? null
   activeTurn = body?.activeTurn ?? null
 } catch { /* leave null */ }
-evidence.check('state:idle', stateGet.status === 200 && phase === 'idle' && activeTurn === null, `status=${stateGet.status} phase=${phase} activeTurn=${activeTurn ? 'present' : 'null'}`)
+check('state:idle', stateGet.status === 200 && phase === 'idle' && activeTurn === null, `status=${stateGet.status} phase=${phase} activeTurn=${activeTurn ? 'present' : 'null'}`)
 
 const counterGet = await call(LOCAL, 'state/get', { key: counterKey })
 let count = null
 try { count = Number(JSON.parse(counterGet.body.body).count) } catch { /* leave null */ }
-evidence.check('tool:exactly-once', counterGet.status === 200 && count === 1, `status=${counterGet.status} count=${count}`)
+check('tool:exactly-once', counterGet.status === 200 && count === 1, `status=${counterGet.status} count=${count}`)
 
 const claimGet = await call(LOCAL, 'state/get', { key: claimKey })
 let holder = null
 try { holder = JSON.parse(claimGet.body.body)?.holder ?? null } catch { /* leave null */ }
-evidence.check('claim:holder', claimGet.status === 200 && typeof holder === 'string' && holder.startsWith('sweeper-'), `status=${claimGet.status} holder=${holder}`)
+check('claim:holder', claimGet.status === 200 && typeof holder === 'string' && holder.startsWith('sweeper-'), `status=${claimGet.status} holder=${holder}`)
 
 const due = await call(LOCAL, 'alarm/due', { now: Date.now() })
 const stillDue = (due.body?.keys ?? []).includes(`alarms/${dueTs}-${sid}`)
-evidence.check('alarm:no-residual', due.status === 200 && !stillDue, `due=${JSON.stringify(due.body?.keys ?? [])}`)
+check('alarm:no-residual', due.status === 200 && !stillDue, `due=${JSON.stringify(due.body?.keys ?? [])}`)
 
 const result = evidence.finish({
   sim: 'sim-wx-alarm',
   mode: 'live-b',
   endpoint: PUBLIC,
-  status: 'live-pass',
+  status: failed ? 'fail' : 'live-pass',
   control_mock: ['test-gateway', 'test-sweeper', 'sim-echo-tool'],
   deferred: ['ui'],
   note: 'Live B cloud test topology：public https test gateway + sweeper-test；real oid；test bucket；sim_echo tool=1；no production write；UI deferred',
