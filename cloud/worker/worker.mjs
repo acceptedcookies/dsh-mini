@@ -149,7 +149,7 @@ export default {
 
     /** 线键 `{kind}/{rest}` → 全键 `dsh-mini/{kind}/{openid}/{rest}`；openid 注入。 */
     const full = (key) => {
-      const m = typeof key === "string" && key.match(/^(state|claims|alarms)\/(.+)$/);
+      const m = typeof key === "string" && key.match(/^(state|claims|alarms|probe)\/(.+)$/);
       // rest 段拒 `..`/`//`/前导 `/`——对会做路径归一化的后端防穿越（审查 P2）；
       // 'dsh-mini' 按段锚定——子串拒会误伤合法文件名（审查 B8）
       if (m === null || /(^|\/)\.\.(\/|$)|\/\/|^\/|(^|\/)dsh-mini(\/|$)/.test(m[2])) return null;
