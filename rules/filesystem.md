@@ -200,7 +200,7 @@ readObjectRange(uuid,ver,path,     ┘
 
 **已落地模块**（`services/vfs/`：`paths` 裁决器 / `store` 行面 / `objects` 对象层 / `journal` / `vfs` 门面 / `read-view` / `api` barrel；fx 侧 `file_read/write/list/stat/remove` 经 `fx_host_tool_call` 入 VFS；`ingestLocal` 上传入口；设置页「存储」区 S3 合约占位）。
 
-**DevTools 模拟器实测**（`scripts/vfs-agentic-test.mjs`，devtools-sim + sim-local-live）全 PASS：
+**DevTools 模拟器实测**（2026-11-04；`vfs-agentic-test` 脚本已随阶段测试拆除，证据留档；devtools-sim + sim-local-live）全 PASS：
 
 | Phase | 面 | 证据 |
 |---|---|---|
@@ -210,7 +210,7 @@ readObjectRange(uuid,ver,path,     ┘
 | D | 图片识别 | `pendingImages` → `ImageRef` → FSM base64 → ACP image block → 视觉答 "Red"（红色方块 PNG） |
 | E | file_write | 模型 `file_write` → `/tmp/` 文件落 VFS 真源并可读回 |
 
-**回归**：`fx-agentic-test.mjs` text + `get_weather` 循环 PASS；`tsc --noEmit` clean。
+**回归（历史）**：`fx-agentic-test` text + `get_weather` 循环 PASS（脚本已随阶段测试拆除）；`tsc --noEmit` clean。
 
 **施工中踩出的环境教训**（留档防复踩）：
 - FSM 二进制面在此环境只认 base64 通道：裸 `ArrayBuffer` `writeFileSync` 会被字符串化为 `"[object ArrayBuffer]"`，`Uint8Array` 报 `invalid data`，无编码 `readFileSync` 返回的 Buffer 不可 `new Uint8Array` 直转——objects/ingest 统一 `arrayBufferToBase64`/`base64ToArrayBuffer`。

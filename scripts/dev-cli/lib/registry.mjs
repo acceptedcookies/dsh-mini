@@ -4,7 +4,7 @@
  *    catalog = DevTools 暴露的工具（49 个）
  *    registry = 本仓 dev-cli 暴露的命令（薄壳 + 新 AI 增强工具）
  *
- *  index.mjs / doctor.mjs / tools.mjs / test/mn04/registry.mjs 共用本表。
+ *  index.mjs / doctor.mjs / tools.mjs 共用本表。
  */
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -72,7 +72,7 @@ export function registryReport() {
   }
 }
 
-/** 静态对账：注册表 ↔ 顶层脚本；供 test/mn04/registry.mjs 与 doctor 使用。 */
+/** 静态对账：注册表 ↔ 顶层脚本；供 doctor 使用。 */
 export function assertRegistry({ dir = `${REPO_ROOT}/scripts/dev-cli` } = {}) {
   const missingScripts = COMMANDS.filter((c) => !existsSync(join(dir, c.script))).map((c) => c.script)
   const names = COMMANDS.map((c) => c.name)

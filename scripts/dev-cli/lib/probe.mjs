@@ -29,11 +29,10 @@ import { doctor as runDoctor } from './doctor.mjs'
 
 export const ANCHORS_PATH = `${REPO_ROOT}/scripts/dev-cli/anchors.json`
 
-/** app.ts:65-83 九枚 globalData 测试钩子——inject.hook 白名单真源。 */
+/** app.ts globalData DevTools 调试面——inject.hook 白名单真源。
+ *  测试套件拆除后只保留诊断/错误注入两枚；其余测试钩子已移除。 */
 export const HOOK_WHITELIST = new Set([
-  '__vfs', '__vfsRemoteFor', '__vfsSyncFor', '__ioStateFor',
-  '__hasFreshTicket', '__ensureDurableTicket',
-  '__diagnostics', '__errorBus', '__sessionStore',
+  '__diagnostics', '__errorBus',
 ])
 
 /** 能力 → 通道择路表（唯一写死点）。 */
@@ -317,7 +316,7 @@ export class ProbeDriver {
   /** inject.hook：evaluate 道，限域白名单（禁新挂诊断钩子，T-O-B2）。 */
   async hook(name, fnSource) {
     if (!HOOK_WHITELIST.has(name)) {
-      throw new Error(`hook '${name}' 不在白名单（${[...HOOK_WHITELIST].join(' ')}）——禁新挂钩子，回 T-O-B2`)
+      throw new Error(`hook '${name}' 不在白名单（${[...HOOK_WHITELIST].join(' ')}）——禁新挂钩子`)
     }
     return this.eval(fnSource)
   }

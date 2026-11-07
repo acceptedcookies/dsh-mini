@@ -277,7 +277,7 @@ dsh 的「模式」（plan-mode 为范例）本质是**系统提示词机制的�
 |---|---|---|
 | **S0** | 本文档点收：心智模型、R1–R5、座位表、接缝映射、分包边界 | 业主确认 |
 | **S1** | `subpkg/context` 合约骨架：枚举/类型/座位表/units 空表 + 装配器纯函数（无 fx/nano 依赖，可单测） | S0 |
-| **S2** | `seats.fx()` + `services/fx` 接线：instructions 注入、prompt 前导块、digest→restartCore | S1；`fx-agentic-test` 实测 |
+| **S2** | `seats.fx()` + `services/fx` 接线：instructions 注入、prompt 前导块、digest→restartCore | S1；`fx-agentic-test` 历史实测（脚本已拆除） |
 | **S3** | receipt 投影 → session 面 dsh 形态条目 | S2 |
 | **S4** | persona 行：deployment 默认 + session 遮蔽 + epoch/digest | S1 |
 | **S5**（缓议） | `seats.nacp()` + cloud 侧 client-owned 字段映射 | cloud-runtime 接入时 |

@@ -1,7 +1,7 @@
 // dev-cli · 注入：四键互斥三分流 + mock 配对 restore（T-O-3）。
 //   --data '{k:v}'                → page_action setData patch（page.data 道）
 //   --call m [--args '[]']        → page_action callMethod
-//   --hook H --fn '<fnSource>'    → evaluate 道（限域钩子白名单 app.ts:65-83）
+//   --hook H --fn '<fnSource>'    → evaluate 道（限域钩子白名单 app.ts globalData）
 //   --mock-wx m [--result j|--fn 'src'] → wx_api mock + 会话登记
 //   --restore [m]                 → 恢复指定/全部 mock；默认 close 时自动 restore 全部
 // 用法:

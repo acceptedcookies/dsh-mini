@@ -2,13 +2,11 @@
 import { getTheme, watchSystemTheme } from './services/theme'
 import { errorBus, reportSilent } from './services/error-report'
 import { sessionDiagnostics } from './services/diagnostics'
-import { vfs, vfsReadView, vfsStore } from './services/vfs/api'
 import { setVfsMirrorHook, setVfsMirrorPredicate } from './services/vfs/vfs'
 import { recoverPendingDeletes, pendingSummary } from './services/vfs/remote-sync'
 import { nanoMiniCatchUp, nanoMiniStartTick, nanoMiniStopTick } from './services/nano-mini-host/tick'
-import { vfsRemoteFor, vfsSyncFor, ioStateFor, ensureDurableTicket } from './services/state/provider'
+import { vfsSyncFor } from './services/state/provider'
 import { engineForSession } from './services/session-engine'
-import { sessionStore } from './services/session-store'
 import { hasFreshTicket, onTicketMinted } from './services/fx/ticket'
 
 /** cloud 车道 VFS 远端镜像接线（MN02 G1 durable lane 活线）：
@@ -83,23 +81,10 @@ function wireRemoteMirror(): void {
 App<IAppOption>({
   globalData: {
     theme: getTheme(),
-    /** VFS 测试钩子：automator evaluate 经 getApp().globalData.__vfs 直达。 */
-    __vfs: { vfs, vfsReadView, vfsStore } as unknown,
-    /** durable 远端钩子：cloud 路由下返回 RemoteVfs/VfsSync 实例，否则 null。 */
-    __vfsRemoteFor: vfsRemoteFor as unknown,
-    __vfsSyncFor: vfsSyncFor as unknown,
-    __ioStateFor: ioStateFor as unknown,
-    /** durable 铸票面测试钩子：authHeaders 缓存只读后，远端句柄 401 时须
-     *  显式铸票（SOTER=真机面，DevTools 可模拟 TouchID）——E10 语义直达。 */
-    __hasFreshTicket: hasFreshTicket as unknown,
-    __ensureDurableTicket: ensureDurableTicket as unknown,
-    /** MN03 G2：session 诊断 bundle——devtools MCP/automator evaluate 直达
-     *  （`getApp().globalData.__diagnostics(sid?)`，sid 缺席=当前会话）。 */
+    /** DevTools 调试面（非测试套件）：session 诊断 bundle 与错误总线注入。
+     *  VFS/durable/claim/session 等测试专用钩子已随测试套件拆除。 */
     __diagnostics: sessionDiagnostics as unknown,
     __errorBus: errorBus as unknown,
-    /** MN03-B9：agentic 真轮探针钩——automator evaluate 驱动 create/prompt/cancel，
-     *  验证 local-runtime（kernel/fx）→ magpie 全链 agentic chat。 */
-    __sessionStore: sessionStore as unknown,
   },
   onLaunch() {
     watchSystemTheme((theme) => {

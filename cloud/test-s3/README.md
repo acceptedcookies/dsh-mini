@@ -6,6 +6,7 @@
 - **生产**：`dsh-mini.saobao.com` → nginx `:443` → `127.0.0.1:9097`（`server.mjs`，无 `/dev/*`），
   bucket `dsh-mini-prod`。
 - **测试**：`127.0.0.1:9095`（`dev.mjs`，`/dev/*` 仅本机/SSH 隧道），bucket `dsh-mini-test`。
+  测试套件拆除后该网关已停止/禁用；`cloud/test-s3` 与 `dev.mjs` 保留为重建测试环境时的入口壳。
 
 POD1 fss3 已于 2026-11-07 09:30Z 停止/禁用并删除（`/srv/dsh-mini` + 单元）；备份在 FRD1
 `/srv/dsh-mini-backups/pod1-dsh-mini-20261107.tar.gz`。退役记录见 `cloud/durable/README.md`。
@@ -27,7 +28,7 @@ cloud/durable/server.mjs（生产，无 /dev/*）  cloud/durable/dev.mjs（测�
         bucket: dsh-mini-prod（生产） / dsh-mini-test（测试）
 ```
 
-## FRD1 部署（已落地）
+## FRD1 部署（历史记录；测试网关已停用）
 
 ```bash
 # MinIO（社区版单二进制，AGPLv3；dl.min.io 社区路径已 410，走 GitHub release）
@@ -78,8 +79,8 @@ curl http://127.0.0.1:9095/healthz
 ## 本地接入（SSH 隧道，不暴露公网）
 
 ```bash
-ssh -N -L 9095:127.0.0.1:9095 frd1   # 测试入口 /v1/* + /dev/*（生产不走隧道）
-ssh -N -L 9000:127.0.0.1:9000 frd1   # 可选：S3 直探（mn01/s3-probe）
+ssh -N -L 9095:127.0.0.1:9095 frd1   # 测试入口（网关已停用；重建时再开）
+ssh -N -L 9000:127.0.0.1:9000 frd1   # 可选：S3 直探（重建测试时使用）
 
 # .local.development.json → cloud.durable_url = https://dsh-mini.saobao.com（生产 App 面）
 # 测试身份面/测试数据仍走隧道：DURABLE=http://127.0.0.1:9095
@@ -87,27 +88,14 @@ node scripts/fx-dev-config.mjs
 ```
 
 DevTools 侧 `project.config.json` 已是 `urlCheck:false`，模拟器可直接访问 `127.0.0.1:9095`。
-`test/mn02/ide-durable.mjs` 在 `DURABLE=127.0.0.1` 时自动 patch `wx.cloud`/SOTER：
-challenge/SOTER 走 mock，unlock 走网关 `/dev/ticket` 铸真票——**控制面 mock，数据面真**。
+测试网关停用期间 App 测试身份面不可用；重建时由网关 `/dev/ticket` 铸票，
+challenge/SOTER 走 mock、数据面走真网关——**控制面 mock，数据面真**。
 
 ## 测试入口
 
-```bash
-# Node 真端点（TICKET 用 /dev/ticket 铸）
-BASE=http://127.0.0.1:9095 TICKET=... node test/mn02/mp-remote.mjs
-BASE=http://127.0.0.1:9095 TICKET=... node test/mn02/edge-matrix.mjs
-BASE=http://127.0.0.1:9095 TICKET=... node test/mn02/cold-state.mjs
-BASE=http://127.0.0.1:9095 TICKET=... TICKET2=... node test/mn02/public-surface.mjs
-BASE=http://127.0.0.1:9095 TICKET=... node test/mn02/tool-observability.mjs
-
-# MinIO 原生 S3 条件写探针（T10）
-S3_ENDPOINT=http://127.0.0.1:9000 S3_BUCKET=dsh-mini-test \
-S3_ACCESS_KEY_ID=... S3_SECRET_ACCESS_KEY=... node test/mn01/s3-probe.mjs
-
-# DevTools 真 App（AUTO_PORT 复用已开自动化会话）
-DURABLE=http://127.0.0.1:9095 TICKET_SECRET=... ADMIN_TOKEN=... TEST_OID=mn02-ide-oid \
-PATCH_UNLOCK=1 AUTO_PORT=9602 node test/mn02/ide-durable.mjs
-```
+阶段命名测试套件（`test/mn01`–`test/mn06`）已拆除，本文档不保留其命令。
+高价值回归线路（Node 真端点、MinIO 条件写、DevTools 真 App）登记在
+`test/README-draft.md`；重建测试体系时按该草稿重新接线。
 
 ## 实测语义（2026-11-07）
 
@@ -121,6 +109,6 @@ PATCH_UNLOCK=1 AUTO_PORT=9602 node test/mn02/ide-durable.mjs
 - 生产网关 `PUBLIC_BASE=https://dsh-mini.saobao.com`；`vision-dual` 7/7 PASS
   （B1 `https:` 视觉应答 `Red`，B2 `data:` 正常）@ 2026-11-07T09:27Z。
   测试网关 `PUBLIC_BASE=http://127.0.0.1:9095`，`https:` 分支不适用（本地 HTTP 不可被上游抓取）。
-- 网关不跑 30s sweeper；alarm 真链用 `scripts/local-sweeper.mjs`（已实测 claim+consume）。
+- 网关不跑 30s sweeper；生产 alarm 真链由 `cloud/functions/sweeper` 承担（已部署）。
 - 测试数据按 `dsh-mini/{kind}/{oid}/` 隔离；teardown 用 `mc rm --recursive --force` 删前缀。
 - 生产合同变更不走本目录；本目录仅测试基础设施。

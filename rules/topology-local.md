@@ -3,7 +3,7 @@
 > 状态：**设计档 + 落地进度**。
 > - L1/L2 云端托管本体仍为**凭证面变更，待业主按 §12 点收**；
 > - 已实现并实测：**路由旋钮（三态）+ 本地模拟云端（cloud-sim）**，详见 §13。
-> 文档日期 2026-11-04。撰写时事实基线：fx-wasm-agent spike（AG-S1/S2/S3）已在 DevTools 模拟器实测通过；产品第一批 `services/fx/` 已落地并经 `scripts/fx-agentic-test.mjs` 实测 PASS。
+> 文档日期 2026-11-04。撰写时事实基线：fx-wasm-agent spike（AG-S1/S2/S3）已在 DevTools 模拟器实测通过；产品第一批 `services/fx/` 已落地并经 `fx-agentic-test` 实测 PASS（脚本已随阶段测试拆除，证据留档）。
 > 引用证据等级沿用 test/spike 规范：H1=本机 Node、S1=DevTools 模拟器、host-local-live=本机回环+真实模型路由、sim-local-live=本地模拟云端+真实上游、R=真机（未证）。
 
 ## 1. 目标与非目标
@@ -209,7 +209,7 @@ P4 可选：L3 口令档、key 轮换、审计面板、迁移路径
 - **设置页注入**：`pages/settings` 供应商区 —— 路由感知（local 只读 / cloudish 注入表单）、bio 状态行、base_url+api_key 表单、已注入卡片+撤回；about 区 fx 许可入口（Apache-2.0 · vercel-labs/fx 复制 GitHub 地址）。注入记录非密存 `wx.storage`（provider/base_url/model/时间），api_key 只在 enroll 调用期过内存。
 - **模型收敛（业主裁决）**：支持面缩至 `workbuddy/deepseek-v4.1-flash` + `workbuddy/deepseek-v4-pro`；`.local.development.json` catalog/allowed_models 同步收缩，`config.ts MODELS` id 对齐 magpie 路由 id；生效模型=设置页选择（白名单内），切换后 `fxRuntime.restartCore()` 重启 core 生效；服务端 enroll 与数据面均按白名单拒。
 - **客户端**：`ticket.ts` 三后端 `ready()` 返回生效 `CredentialSource`（manual 注入 > sim dev 兜底自动注入 > cloud 强制手动 > local dev 直连）；`ensureCore` 按 source 重建 `FX_CONFIGURED_PROVIDERS`/`FX_MODEL`。
-- **实测（devtools-sim + sim-local-live）**：`scripts/fx-agentic-test.mjs --enroll-first` 全 PASS —— bio off 禁态断言 → bio on 设置页注入（enroll 带 bio 证明）→ manual 源经代理 deepseek 双轮（text "ok" + get_weather 循环）；curl 负例实证：无证明 enroll→401、非白名单 model→403、bio off 拒签。
+- **实测（devtools-sim + sim-local-live；脚本已随阶段测试拆除，证据留档）**：`fx-agentic-test --enroll-first` 全 PASS —— bio off 禁态断言 → bio on 设置页注入（enroll 带 bio 证明）→ manual 源经代理 deepseek 双轮（text "ok" + get_weather 循环）；curl 负例实证：无证明 enroll→401、非白名单 model→403、bio off 拒签。
 
 **仍未证（原 §11 边界不变）**
 

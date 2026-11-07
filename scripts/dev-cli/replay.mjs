@@ -1,4 +1,4 @@
-// dev-cli · replay：generate_script 录制导出 → test/replay/*.mjs 重跑（T-O-5）。
+// dev-cli · replay：generate_script 录制导出 → .anote/replay/*.mjs 重跑（T-O-5）。
 // 用法:
 //   node scripts/dev-cli/replay.mjs --export <name>     从 MCP/skill 录制史导出 automator 脚本
 //   node scripts/dev-cli/replay.mjs --run <name>        在 automator 通道重跑该脚本
@@ -15,7 +15,7 @@ import { CliChannel } from './lib/channels.mjs'
 import { parseArgs, flagOf } from './lib/args.mjs'
 
 const { flags } = parseArgs()
-const DIR = resolve('test/replay')
+const DIR = resolve('.anote/replay')
 mkdirSync(DIR, { recursive: true })
 
 if (flags.list === true) {
@@ -56,7 +56,7 @@ if (flags.export !== undefined) {
     }
     const code = pick(r?.result) ?? pick(r?.structuredContent) ?? pick(r)
     if (typeof code !== 'string' || !code.trim()) throw new Error(`generate_script 无脚本产物: ${JSON.stringify(r).slice(0, 200)}`)
-    const header = `// replay 导出（MN04）：模拟器 MCP 面录制；真机回放需 --via auto 的 remote ws 会话。
+    const header = `// replay 导出：模拟器 MCP 面录制；真机回放需 --via auto 的 remote ws 会话。
 // 差异坑位：模拟器 selector/时序与真机渲染节奏不同——waitForSelector 超时要放宽。
 // ⚠ commit 前人工审：sessionId/prompt 文本/凭证残值不得入库。
 `

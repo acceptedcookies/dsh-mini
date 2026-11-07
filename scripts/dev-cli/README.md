@@ -45,7 +45,7 @@ node scripts/dev-cli/session.mjs --via skill   # 单进程 REPL（skill 通道�
 
 ## 工具面（ProbeDriver 薄壳）
 
-全部工具经 `ProbeDriver` 复用同一桥会话；**禁止在顶层脚本自建桥**（`test/mn04/no-self-bridge.mjs` 静态闸；例外：`cli.mjs` 生命周期道、`index.mjs` 纯分发器、`console.mjs --via auto` automator 语义段）。
+全部工具经 `ProbeDriver` 复用同一桥会话；**禁止在顶层脚本自建桥**（例外：`cli.mjs` 生命周期道、`index.mjs` 纯分发器、`console.mjs --via auto` automator 语义段）。
 
 ### 统一入口 / AI 增强工具
 
@@ -59,7 +59,7 @@ node scripts/dev-cli/session.mjs --via skill   # 单进程 REPL（skill 通道�
 | `agent.mjs` | `agent.mjs <start\|tool\|chat\|render\|card-click\|get-dom\|get-card-image\|clear\|debug\|overlay\|detail-close> [...]` | IDE 内置 AI agent；**非确定性，禁止用于 GSTH 判定** |
 | `skill.mjs` | `skill.mjs <tool> '<json-args>' [--json] [--client name]` | skill-cli 透传（一次性，不建 MCP 桥） |
 
-### 锚点/探针/注入面（MN04）
+### 锚点/探针/注入面（DevTools）
 
 | 脚本 | 用法 | 说明 |
 |---|---|---|
@@ -173,14 +173,16 @@ node scripts/dev-cli/session.mjs --via skill   # 单进程 REPL（skill 通道�
 4. 若 MCP 与 skill 工具数不一致：`doctor` 的 `mcp.skill.parity` 会 warn；先同步 skill 再重跑；
 5. 新工具先在 `mcp.mjs`/`skill.mjs` 逃逸舱门试，再决定是否加薄壳。
 
-## 测试入口
+## 验证入口
 
-| 套件 | 入口 | 通道 |
+阶段命名测试套件已拆除；当前只保留 dev-cli 自身的健康检查与单桥批处理：
+
+| 面 | 入口 | 通道 |
 |---|---|---|
-| MN04 L1 | `test/mn04/{anchors,pitfalls,lint,probe-lane,no-self-bridge,diag-v2,catalog,registry,tasks,doctor}.mjs` | Node（无 IDE） |
-| MN04 L2 | `session.mjs -f` 批处理矩阵 | MCP / skill（单桥复用） |
-| 错误 UI 探针 | `test/mn03/ide-error-ui.mjs` | automator（经 `connectIde`） |
-| durable 探针 | `test/mn02/ide-durable.mjs` | automator（经 `connectIde`） |
-| agentic turn | `scripts/fx-agentic-test.mjs` `scripts/vfs-agentic-test.mjs` | automator（经 `connectIde`） |
+| 批处理 | `session.mjs -f` | MCP / skill（单桥复用） |
+| 健康检查 | `doctor.mjs [--probe]` | 文件面 + 在线通道 |
+| 工具目录 | `catalog.mjs --refresh/--diff` | MCP / skill |
+
+高价值回归线路登记见 `test/README-draft.md`（待重建）。
 
 旧入口 `scripts/dev-console.mjs` / `scripts/dev-visual.mjs` 保留为 shim，转调本目录对应实现。legacy 专项探针（`byok-probe`/`sim-toolcall-probe`/`md-*`/`unlock-shot`）已收编 `ProbeDriver`，保留为历史入口。

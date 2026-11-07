@@ -7,7 +7,7 @@
 // 用法:
 //   node scripts/dev-cli/lint.mjs           三段报告 + exit code（未锚/烂锚/未注册>0 → 1）
 //   node scripts/dev-cli/lint.mjs --json    机器可读全量
-//   import { lintAnchors } from './lint.mjs'  测试复用（test/mn04/lint.mjs）
+//   import { lintAnchors } from './lint.mjs'  供其他 dev-cli 工具复用
 //
 // 提取全语法（审查 B·H1 反例）：(bind|catch|mut-bind|capture-bind|capture-catch) 的
 //   无分隔（bindtap）与冒号分隔（bind:tap）双形态 + scroll 族（bindscroll*）。

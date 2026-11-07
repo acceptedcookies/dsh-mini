@@ -57,7 +57,6 @@ if (UPGRADE !== undefined) {
     `checkout context/nano-agent → ${UPGRADE}`,
     `package.json kernelPin: ${pin} → ${UPGRADE}`,
     `rebuild 双出口产物`,
-    `随后跑 L1: node scripts/mn01-harness.mjs`,
   ]
   if (!APPLY) {
     log(`--upgrade 干跑（加 --apply 执行）：\n  ${plan.join('\n  ')}`)

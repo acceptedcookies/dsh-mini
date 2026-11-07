@@ -7,7 +7,7 @@
  *  E agent      cli agent <subcommand>       IDE 内置 AI agent（非确定性，探索用）
  *
  *  本模块只承载 D/E 与 C 的通用 runner；A/B 的桥仍在 lib/mcp.mjs / lib/ide.mjs。
- *  顶层工具禁止自建桥（test/mn04/no-self-bridge.mjs）。
+ *  顶层工具禁止自建桥。
  */
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'

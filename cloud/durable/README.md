@@ -5,7 +5,7 @@
 | 入口 | 用途 | 测试身份面 | 读取的 env |
 |------|------|------------|------------|
 | `server.mjs` | 生产 | 无（`/dev/*` 不存在） | `TICKET_SECRET` `S3_*` `PUBLIC_BASE` `API_PORT` `API_BIND` |
-| `dev.mjs` | 测试（FRD1 / SSH 隧道） | `/dev/ticket` `/dev/stats` | 上式 + `ADMIN_TOKEN` |
+| `dev.mjs` | 测试（已停用；重建测试环境时启用） | `/dev/ticket` `/dev/stats` | 上式 + `ADMIN_TOKEN` |
 
 `core.mjs` 只承载合同逻辑：worker 五端点委派（state/claim/alarm）、VFS、artifacts、SigV4、`/a/{sha}`。它不 import 测试入口，也不读 `ADMIN_TOKEN`。
 
@@ -22,16 +22,16 @@
 | 入口 | 监听 | 目录 | env | bucket |
 |------|------|------|-----|--------|
 | 生产 `server.mjs` | `127.0.0.1:9097` | `/srv/dsh-mini-prod` | `/etc/dsh-mini-prod/gateway.env` | `dsh-mini-prod` |
-| 测试 `dev.mjs` | `127.0.0.1:9095` | `/srv/dsh-mini-test` | `/etc/dsh-mini-test/gateway.env` | `dsh-mini-test` |
+| 测试 `dev.mjs` | `127.0.0.1:9095`（已停用） | `/srv/dsh-mini-test` | `/etc/dsh-mini-test/gateway.env` | `dsh-mini-test` |
 
-生产由 nginx `dsh-mini.saobao.com` 反代；测试只走 SSH 隧道。生产入口无 `/dev/*`。
-`cloud/test-s3/server.mjs` 只是测试部署 wrapper：`import "../durable/dev.mjs"`，自身不含合同逻辑。
+生产由 nginx `dsh-mini.saobao.com` 反代；测试入口已随测试套件拆除而停止/禁用，重建时只走 SSH 隧道。生产入口无 `/dev/*`。
+`cloud/test-s3/server.mjs` 只是测试部署 wrapper：`import "../durable/dev.mjs"`，自身不含合同逻辑；当前为重建保留。
 
 ## 3. 单向切流 / fss3 退役 runbook（2026-11-07 已执行）
 
 1. **部署**：在生产端部署同版本 `server.mjs` + S3/MinIO，`API_BIND=127.0.0.1`，前置 NPM/反代暴露 HTTPS。
 2. **真 unlock 铸票**：用生产 App 的真 `unlock` 铸票；不得走 `/dev/ticket`。
-3. **生产端点复验**：对生产端点跑 `mp-remote` / `public-surface` / `cold-state`（只读 + 测试 oid）。
+3. **生产端点复验**：按 `test/README-draft.md` 的只读 smoke 线路复验（历史 `mp-remote`/`public-surface`/`cold-state` 已随测试套件拆除）。
 4. **切端点**：切 `DSH_MINI_BASE_URL` / DNS 到新端点；`services/config.ts:12` 是唯一 canonical 常量。
 5. **fss3 停写**：`cloud/pod1/fss3-server.mjs` 代码冻结（不再新增功能），停止接受新写。
 6. **God 验证**：用管理员 S3 只读核对新端点键/字节；确认无新写落到 fss3。
@@ -54,19 +54,14 @@
 ## 4. fss3 冻结
 
 - 文件：`cloud/pod1/fss3-server.mjs`
-- EP-1 结束时的冻结 hash 记录在 `test/mn06/fss3-freeze.json`（由 `docs-check.mjs` 校验）。
+- EP-1 结束时的冻结 hash 记录在 git 历史（原 `test/mn06/fss3-freeze.json` 已随测试套件拆除；fss3 已退役）。
 - 冻结期间只允许 bugfix；任何功能新增都必须先解除冻结并另立扩约。
 
 ## 5. 测试
 
-```bash
-node test/mn06/env.mjs                 # 600/env/端点白名单
-node test/mn06/entry-isolation.mjs     # 生产/测试入口隔离
-node test/mn06/parity.mjs              # 旧 server vs 新 core golden A/B
-node test/mn06/regression.mjs          # 全量回归
-```
+阶段命名测试套件（`test/mn01`–`test/mn06`）已按业主决定拆除；FRD1 测试网关
+`dsh-mini-test-gateway`（`127.0.0.1:9095`）已停止/禁用，测试桶 `dsh-mini-test` 保留。
+`cloud/durable/dev.mjs` 与 `cloud/test-s3` 保留为重建测试环境时的入口壳。
 
-测试身份面/直连检查固定 `http://127.0.0.1:9095`（SSH 隧道）；所有套件由
-`test/mn06/regression.mjs` 注入环境，禁止默认打 POD1。App 的测试数据面另有公网入口
-`https://dsh-mini.saobao.com`（FRD1 nginx → `127.0.0.1:9095`，只放 `/v1/`、`/healthz`、`/a/`，
-`/dev/*` 不公网），见 `cloud/test-s3/README.md`。
+高价值回归线路（业务 E2E、合同、unit、环境要求）登记在 `test/README-draft.md`，
+重建测试体系时按该草稿收敛；不得恢复阶段命名目录。

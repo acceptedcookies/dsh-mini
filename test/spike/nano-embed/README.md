@@ -118,4 +118,4 @@ T4 = `workers/agent-core` 全量闭包 3.03MB/868 文件。三堵墙：
 
 ## §8 转正去向（MN01 完成后追记）
 
-本 spike 的全部结论已产品化转正：`kernel-do.mjs` → `services/nano-mini-host/pump.ts`（+ `scripts/mn01-harness.mjs` 保留 N1-N4+双负例回归）；打包器 → `scripts/build-kernel.mjs`（双出口+kernelPin+jitless banner+--upgrade）；smoke → `test/mn01/smoke.mjs`（三金丝雀）。本目录保留作取证底稿，不再演进——新工作一律在转正件上进行。
+本 spike 的全部结论已产品化转正：`kernel-do.mjs` → `services/nano-mini-host/pump.ts`；打包器 → `scripts/build-kernel.mjs`（双出口+kernelPin+jitless banner+--upgrade）。原 N1-N4 harness 与 `test/mn01/smoke.mjs` 已随阶段测试套件拆除（2026-11-07）；重建回归线路登记在 `test/README-draft.md`。本目录保留作取证底稿，不再演进——新工作一律在转正件上进行。
