@@ -8,11 +8,34 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { readFileSync } from "node:fs";
 import crypto from "node:crypto";
+import { createRequire } from "node:module";
 import { connectIde } from "../../scripts/dev-cli/lib/ide.mjs";
+
+// PITFALL-13 兜底：automator 广播非 JSON 帧时上游 Connection.onMessage 硬崩。
+// 测试进程忽略该帧（广播不影响请求/响应配对），其余异常照常上抛。
+{
+  const req = createRequire(import.meta.url);
+  const Connection = req("miniprogram-automator/out/Connection.js").default;
+  const orig = Connection.prototype.onMessage;
+  Connection.prototype.onMessage = function (e) {
+    try { return orig.call(this, e); }
+    catch (err) {
+      if (String(err?.message ?? err).includes("Unexpected token")) return;
+      throw err;
+    }
+  };
+  process.on("uncaughtException", (e) => {
+    if (String(e?.message ?? e).includes("Unexpected token")) {
+      console.warn("[ide-durable] ignored non-JSON automator frame");
+      return;
+    }
+    throw e;
+  });
+}
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..", "..");
-const DURABLE = "https://dsh-mini.haimang.com.cn";
+const DURABLE = (process.env.DURABLE ?? "https://dsh-mini.haimang.com.cn").replace(/\/$/, "");
 const log = (...a) => console.log("[ide-durable]", ...a);
 const results = [];
 const check = (name, ok, detail = "") => { results.push({ name, ok }); console.log(`${ok ? "PASS" : "FAIL"} ${name}${detail ? ` :: ${detail}` : ""}`); };
@@ -24,7 +47,9 @@ for (const line of readFileSync(join(root, ".env.wx.cloud"), "utf8").split("\n")
   if (m) envFile[m[1]] = m[2].trim();
 }
 const ENV_ID = envFile.WX_CLOUD_ENV_ID ?? "cloud1-d7gar8j7w419589a0";
-const TICKET_SECRET = envFile.TICKET_SECRET;
+const TICKET_SECRET = process.env.TICKET_SECRET ?? envFile.TICKET_SECRET;
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN ?? "";
+const TEST_OID = process.env.TEST_OID ?? "mn02-ide-oid";
 const mint = (oid) => {
   const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
   const h = b64({ alg: "HS256", typ: "JWT" });
@@ -58,6 +83,49 @@ const isSoterBlock = (r) => r && r.err && String(r.err).includes("Soter") || (r 
 
 const mini = await launchAndConnect();
 log("connected");
+
+// ── 测试身份面（仅专用测试端点）：DevTools 无 SOTER，用 gateway /dev/ticket 铸真票。
+// 控制面 mock（challenge/SOTER/unlock），数据面仍走真 gateway + 真 MinIO。
+if (process.env.PATCH_UNLOCK === "1" || DURABLE.includes("127.0.0.1")) {
+  const patched = await mini.evaluate((args) => {
+    // automator evaluate 不支持顶层参数解构（Unexpected token ','）——函数体内解构。
+    const { admin, oid, base } = args;
+    try {
+      const mock = {
+        init() {},
+        callFunction({ name, data }) {
+          if (name === "sweeper") return Promise.resolve({ result: { ok: true, ran: [] } });
+          if (name !== "unlock") return Promise.reject(new Error("mock unlock only"));
+          if (data.action === "challenge") return Promise.resolve({ result: { challenge: "test-challenge", openid: oid } });
+          if (data.action === "unlock") {
+            return new Promise((resolve, reject) => {
+              wx.request({
+                url: `${base}/dev/ticket`, method: "POST",
+                header: { "content-type": "application/json", "x-admin-token": admin },
+                data: { oid, ttl_s: 1800 },
+                success: (r) => resolve({ result: r.data }),
+                fail: (e) => reject(new Error(String(e.errMsg || e))),
+              });
+            });
+          }
+          return Promise.reject(new Error("mock unknown action"));
+        },
+      };
+      Object.defineProperty(wx, "cloud", { configurable: true, value: mock });
+      // cloud 路由 resolveSource 要求已注入供应商记录；测试身份用非密占位记录。
+      wx.setStorageSync("dsh:byok-enrollment:v1", {
+        provider: "byok", upstreamBaseUrl: "http://u.invalid", model: "deepseek-flash", enrolledAt: Date.now(),
+      });
+      wx.startSoterAuthentication = (o) => o.success({ resultJSON: "{}", resultJSONSignature: "test" });
+      wx.checkIsSupportSoterAuthentication = (o) => o.success({ supportMode: ["fingerPrint"] });
+      wx.checkIsSoterEnrolledInDevice = (o) => o.success({ isEnrolled: true });
+      return { patched: true };
+    } catch (e) {
+      return { err: String((e && e.message) || e) };
+    }
+  }, { admin: ADMIN_TOKEN, oid: TEST_OID, base: DURABLE });
+  log("unlock patch:", JSON.stringify(patched));
+}
 
 // ── A: durable 句柄（cloud 路由真接线）──────────────────────────────
 {
