@@ -1503,7 +1503,7 @@ function deriveStatsDock(items: ChatItem[], model: string): StatsDock | undefine
   return {
     activity: activity.join(' · '),
     ...(total > 0 ? { usage: formatCompactTokens(total) } : {}),
-    ...(lastInput !== undefined && window > 0
+    ...(lastInput !== undefined && lastInput > 0 && window > 0
       ? { contextPercent: Math.min(100, Math.max(1, Math.round((lastInput / window) * 100))) }
       : {}),
   }

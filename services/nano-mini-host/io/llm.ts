@@ -71,14 +71,18 @@ function normalizeMessages(messages: unknown[]): ChatMessage[] {
   return out
 }
 
-/** OpenAI usage {prompt_tokens,completion_tokens} → kernel {inputTokens,outputTokens}（F5 修复 NaN）。
- *  双侧缺失时 ?? 0——undefined 参与 reducer 累加会产 NaN 并随 checkpoint 持久化（审查十四轮 L1）。 */
+/** usage 方言归一（与 kernel wire-seams.ts:63-66 同口径）：chat 族
+ *  prompt/completion_tokens、responses 族 input/output_tokens、camel 直通。
+ *  双侧缺席 → undefined 整体缺席（不造假 0）——0 会被 stats dock 当成真计量
+ *  骗出假 1% 上下文环；reducer 累加自带 ?? 0 兜底（reducer.ts:187-188）。 */
 function normalizeUsage(u: unknown): LlmOutput['usage'] {
   const r = (u ?? {}) as Record<string, unknown>
-  return {
-    inputTokens: (r.prompt_tokens ?? r.inputTokens ?? 0) as number | undefined,
-    outputTokens: (r.completion_tokens ?? r.outputTokens ?? 0) as number | undefined,
-  }
+  const num = (v: unknown): number | undefined =>
+    typeof v === 'number' && Number.isFinite(v) ? v : undefined
+  const inputTokens = num(r.prompt_tokens ?? r.input_tokens ?? r.inputTokens)
+  const outputTokens = num(r.completion_tokens ?? r.output_tokens ?? r.outputTokens)
+  if (inputTokens === undefined && outputTokens === undefined) return undefined
+  return { inputTokens, outputTokens }
 }
 
 async function wxRequestJson(url: string, headers: Record<string, string>, data: unknown): Promise<{ status: number; body: unknown }> {
