@@ -34,7 +34,7 @@ for (const section of ['§1 durable 原语语义合同', '§2 键区扩展 SOP',
 }
 check('doc:version v1 + date 2026-11-07', /版本：`v1`/.test(handoff) && has(handoff, '2026-11-07'))
 check('doc:T-O-1..T-O-10 refs', has(handoff, 'T-O-1..T-O-10'))
-check('doc:owner sign-off', /业主 sign-off/.test(handoff) && /发车指令/.test(handoff))
+check('doc:自动验收（无需签发）', /自动验收/.test(handoff) && /无需.*签发/.test(handoff))
 
 const primitives = ['state/get', 'state/put-cas', 'state/del', 'claim', 'alarm/due', 'alarm/claim', 'vfs/put', 'vfs/get', 'vfs/del', 'vfs/list', 'artifacts/publish', '/a/{sha256}']
 for (const p of primitives) check(`doc:primitive ${p}`, has(handoff, `\`${p}`) || has(handoff, p))
