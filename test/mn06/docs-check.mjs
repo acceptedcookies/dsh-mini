@@ -70,7 +70,7 @@ check('acceptance:9 行', rows.length === 9 && new Set(rows).size === 9, `rows=$
 check('acceptance:scope + evidence_state', has(handoff, '| scope | evidence_state |'))
 
 check('readme:mn06 挂载 probe/docs-check/acceptance', ['probe-sop.mjs', 'docs-check.mjs', 'acceptance.mjs'].every((x) => has(readme, x)))
-check('readme:test-s3 删除 8/8 假绿', !/8\/8/.test(testS3) && has(testS3, '8 PASS + 1 NOTE'))
+check('readme:test-s3 删除 8/8 假绿', !/8\/8/.test(testS3) && has(testS3, '6 PASS + 3 NOTE'))
 check('readme:test-s3 指向 durable 生产入口', has(testS3, 'cloud/durable/server.mjs'))
 
 // ── T19b 静态收口 ───────────────────────────────────────────────

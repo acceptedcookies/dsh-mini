@@ -80,8 +80,7 @@ PATCH_UNLOCK=1 AUTO_PORT=9602 node test/mn02/ide-durable.mjs
 - MinIO 条件写：`If-Match` / `If-None-Match:*` 均生效；并发同 etag 两写 → `200,412`（`s3-probe` 9/9）。
 - worker 五端点（state/claim/alarm）经 MinIO 全绿：`cold-state` 10/10、`public-surface` 39/39。
 - VFS 车道全绿：`mp-remote` 27/27、`tool-observability` 21/21。
-- DevTools 真 App → 网关 → MinIO：`ide-durable` **8 PASS + 1 NOTE**（NOTE 单列、不计 PASS；
-  IDE 无 SOTER 的车道按设计面记 NOTE）。不写全绿分母。真机车道另跑。
+- DevTools 真 App → 网关 → MinIO：`ide-durable` **6 PASS + 3 NOTE**（D/E 控制面 mock 记 NOTE；NOTE 单列、不计 PASS）。不写全绿分母。真机车道另跑。
 
 ## 已知限制
 
