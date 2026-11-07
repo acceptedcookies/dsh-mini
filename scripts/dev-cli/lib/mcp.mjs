@@ -18,18 +18,20 @@
 import { spawn } from 'node:child_process'
 import { PROJECT } from './args.mjs'
 import { wrapError } from './pitfalls.mjs'
+import { mcpToken, clientName } from './devtools.mjs'
 
-export const MCP_TOKEN = process.env.WXIDE_MCP_TOKEN ?? 'gckjyDjGMk0RjhIpXpz706E37mrXw2k8'
+/** 兼容导出：旧调用方仍可 import { MCP_TOKEN }。 */
+export const MCP_TOKEN = mcpToken()
 
 /** MCP 桥握手计数（L2 会话复用证据：session 内多动作应=1）。 */
 export let bridgeCount = 0
 
 export class McpClient {
-  static async open({ project = PROJECT, token = MCP_TOKEN, quiet = false } = {}) {
+  static async open({ project = PROJECT, token = mcpToken(), quiet = false, name = clientName() } = {}) {
     const child = spawn('wechatide', ['mcp', `--token=${token}`], {
-      stdio: ['pipe', 'pipe', quiet ? 'ignore' : 'inherit'],
+      stdio: ['pipe', 'pipe', 'pipe'],
     })
-    const c = new McpClient(child, project)
+    const c = new McpClient(child, project, { quiet, name })
     await c.#handshake()
     bridgeCount++
     return c
@@ -37,13 +39,21 @@ export class McpClient {
 
   #child
   #project
+  #quiet
+  #name
   #buf = ''
+  #stderr = ''
   #pending = new Map()
   #seq = 0
+  serverInfo = null
+  capabilities = null
+  initResult = null
 
-  constructor(child, project) {
+  constructor(child, project, { quiet = false, name = clientName() } = {}) {
     this.#child = child
     this.#project = project
+    this.#quiet = quiet
+    this.#name = name
     child.stdout.on('data', (d) => {
       this.#buf += d.toString()
       let idx
@@ -59,7 +69,20 @@ export class McpClient {
         }
       }
     })
+    child.stderr.on('data', (d) => {
+      this.#stderr += d.toString()
+      if (!this.#quiet) process.stderr.write(d)
+    })
+    child.on('exit', () => {
+      for (const resolve of this.#pending.values()) {
+        resolve({ error: { code: -32000, message: 'mcp bridge exited' } })
+      }
+      this.#pending.clear()
+    })
   }
+
+  get stderr() { return this.#stderr }
+  get clientName() { return this.#name }
 
   #send(method, params, id) {
     const frame = { jsonrpc: '2.0', method, params }
@@ -82,11 +105,14 @@ export class McpClient {
   }
 
   async #handshake() {
-    await this.#rpc('initialize', {
+    const init = await this.#rpc('initialize', {
       protocolVersion: '2024-11-05',
       capabilities: {},
-      clientInfo: { name: 'dsh-dev-cli', version: '1.0' },
+      clientInfo: { name: this.#name, version: '1.0' },
     })
+    this.initResult = init?.result ?? init?.error ?? null
+    this.serverInfo = init?.result?.serverInfo ?? null
+    this.capabilities = init?.result?.capabilities ?? null
     this.#send('notifications/initialized', {}, undefined)
     await new Promise((r) => setTimeout(r, 400))
   }
@@ -96,8 +122,20 @@ export class McpClient {
     return this.#rpc(method, params, timeoutMs)
   }
 
+  /** tools/list → 原始工具数组。 */
+  async tools() {
+    const r = await this.rpc('tools/list', {}, 15000)
+    return r?.result?.tools ?? []
+  }
+
+  /** 单个工具 schema（未找到返回 undefined）。 */
+  async tool(name) {
+    return (await this.tools()).find((t) => t.name === name)
+  }
+
   /** 原始 tools/call：返回解析后 JSON-RPC 响应。arguments 自动注入 project。
-   *  r.error → wrapError 抛出（[PITFALL-n] 前缀，T-O-6）。 */
+   *  r.error → wrapError 抛出（[PITFALL-n] 前缀，T-O-6）。
+   *  -32603 / Bad Request = IDE 侧授权弹窗 pending（PITFALL-1），附加 pendingApproval。 */
   async call(name, args = {}, { timeoutMs = 30000 } = {}) {
     const r = await this.#rpc('tools/call', {
       name,
@@ -107,6 +145,7 @@ export class McpClient {
       const e = new Error(r.error.message ?? JSON.stringify(r.error))
       e.code = r.error.code
       e.tool = name
+      if (r.error.code === -32603 || /Bad Request/i.test(e.message)) e.pendingApproval = true
       throw wrapError(e, `mcp.${name}`)
     }
     return r
@@ -147,7 +186,10 @@ export class McpClient {
   }
 
   close() {
-    try { this.#child.kill() } catch {}
+    try { this.#child.stdin.end() } catch {}
+    try { this.#child.kill('SIGKILL') } catch {}
+    try { this.#child.unref() } catch {}
+    this.#pending.clear()
   }
 }
 

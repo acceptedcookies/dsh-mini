@@ -15,7 +15,7 @@ if (!target) {
 }
 if (flags.sel === true && !target.startsWith('@') && !target.startsWith('[')) target = target
 
-const d = await ProbeDriver.open()
+const d = await ProbeDriver.open({ via: flagOf(flags, 'via', undefined) })
 try {
   const r = await regionRun(d, target, flags)
   console.log(JSON.stringify(r, null, 2))

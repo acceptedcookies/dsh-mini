@@ -6,17 +6,17 @@
       "id": "PITFALL-1",
       "symptom": "-32603",
       "where": "mcp",
-      "cause": "IDE 侧 MCP 授权弹窗处于 pending（每个新 stdio 桥会话可能重新要求批准）",
-      "fix": "重试调用前等待业主在 IDE 侧批准授权弹窗",
-      "ownerAction": "在微信开发者工具中批准 MCP 授权弹窗后重跑命令",
+      "cause": "MCP Token 缺失/无效，或 IDE 侧授权未完成；2.02.2609250 起敏感操作改走 pending+taskId（不再只抛 -32603）",
+      "fix": "先 doctor.mjs 查 MCP Token；敏感操作拿 taskId 后用 task.mjs 轮询；不要重发原写操作",
+      "ownerAction": "在微信开发者工具「设置 → 安全」确认 MCP 配置；按 pendingTask 提示完成授权",
       "since": "MN06"
     },
     {
       "id": "PITFALL-2",
       "symptom": "await is only valid",
       "where": "evaluate",
-      "cause": "automation_evaluate 的 fnSource 禁止顶层 await",
-      "fix": "改写为 promise 链或 () => expr；异步返回用 () => new Promise((res)=>{...})",
+      "cause": "automation_evaluate 的 fnSource 禁止 await（2.02.2609250 实测：async 函数内的 await 仍被拒）",
+      "fix": "改写为 promise 链或 () => expr；异步返回用 () => Promise.resolve(...).then(...) 或 () => new Promise(...)",
       "ownerAction": null,
       "since": "MN06"
     },
@@ -24,8 +24,8 @@
       "id": "PITFALL-3",
       "symptom": "timeout waiting for automator",
       "where": "evaluate|refresh",
-      "cause": "simulator_refresh 触发重编译，编译窗内 evaluate/automator 不响应",
-      "fix": "refresh 后留 5-8s 编译沉降再探；长序列把 refresh 排在动作之间并加 wait",
+      "cause": "simulator_refresh 触发重编译，编译窗内 evaluate/automator 不响应（2.02.2609250 实测 500ms 仍失败，2s 恢复）",
+      "fix": "refresh 后留 2-8s 编译沉降；新工具支持 wait/waitForSelector，优先用 waitForSelector 等目标出现",
       "ownerAction": null,
       "since": "MN06"
     },
@@ -42,8 +42,8 @@
       "id": "PITFALL-5",
       "symptom": "Invalid arguments",
       "where": "get_simulator_console|get_simulator_network",
-      "cause": "console/network 工具的 command 参数必须是真 grep 命令串（作用于 IDE 侧日志文件）",
-      "fix": "command 传 'grep -n .'（全量）或 'grep -n -i \"词\"'（过滤）；非 grep 命令（如 cat）被拒",
+      "cause": "console/network 的 command 历史上必须是 grep 命令串；2.02.2609250 实测 command:'all' 已被接受（无行号），但文档仍推荐 grep",
+      "fix": "要行号/过滤用 'grep -n .' / 'grep -n -i \"词\"'；要原始全量可用 'all'（无行号）",
       "ownerAction": null,
       "since": "MN06"
     },
@@ -60,8 +60,8 @@
       "id": "PITFALL-7",
       "symptom": "timeout",
       "where": "automation_navigate",
-      "cause": "automation_navigate 偶发响应超时但实际已完成跳转（假超时）",
-      "fix": "catch 后回读 getCurrentPages().pop().route 确认实际 route，勿凭响应判失败",
+      "cause": "automation_navigate 历史偶发响应超时但实际已完成跳转；2.02.2609250 实测 MCP/skill 双通道均返回 success，未复现",
+      "fix": "仍保留 catch 后回读 getCurrentPages().pop().route 的防御；若复现，用 waitForSelector 等目标页元素",
       "ownerAction": null,
       "since": "MN06"
     },
@@ -69,8 +69,8 @@
       "id": "PITFALL-8",
       "symptom": "Invalid arguments|missing.*argument|required",
       "where": "element_action",
-      "cause": "element_action 的 scrollTo 须同时传 x 与 y，缺一边被拒",
-      "fix": "scrollTo 传 {x:0,y:N} 双参；只滚纵向也显式给 x:0",
+      "cause": "element_action 的 scrollTo 须同时传 x 与 y；且目标必须是 scroll-view（非 scroll-view 会报内部 $$ 错）",
+      "fix": "scrollTo 传 {x:0,y:N} 双参；selector 用 #chat-scroll/.viewport 等 scroll-view；先 geo 确认",
       "ownerAction": null,
       "since": "MN06"
     },
@@ -87,7 +87,7 @@
       "id": "PITFALL-10",
       "symptom": "simulator_screenshot|截图.*(窗口|OS)|coordinates.*window",
       "where": "region|shot|simulator_screenshot",
-      "cause": "automation_simulator_screenshot 截的是 DevTools OS 窗口（受物理屏幕边缘裁切，684x1486≠设备视口），不是页面视口坐标系",
+      "cause": "automation_simulator_screenshot 截的是 DevTools OS 窗口（2.02.2609250 实测 raw 1094x1460 vs 视口 1032x1376），不是页面视口坐标系",
       "fix": "区域截图用 automation_viewport_action screenshot（视口同坐标系）；校比=imgPx/viewportDp 逐帧实测，勿用 wx.getWindowInfo().pixelRatio",
       "ownerAction": "无",
       "since": "2026-11-06"
@@ -160,6 +160,109 @@
       "cause": "IDE 重启后 remote-debug 调试窗未拉起时发 enableRemoteDebug→手机进入「等待调试器接入」长等态；调试窗缺席则永不接通→手机卡死",
       "fix": "先确认 remote-debug 调试窗已在 IDE 侧开启（auto 配置或手动点真机调试）再发 enable；卡死时 Tool.disableRemoteDebug 可释放手机等待态",
       "since": "2026-11-06"
+    },
+    {
+      "id": "PITFALL-19",
+      "symptom": "MCP Token is missing|mcp_token_required",
+      "where": "mcp|skill|doctor",
+      "cause": "DevTools 2.02.2609250 起 MCP 入口强制独立 Token（与 CLI 可选令牌不同源）；缺 Token 时 wechatide mcp 直接拒绝握手",
+      "fix": "从 DevTools 设置 → 安全 → 重新复制 MCP 配置；或设 WXIDE_MCP_TOKEN；不要拿 CLI Token 冒充",
+      "ownerAction": "在微信开发者工具「设置 → 安全」重新复制 MCP 配置并更新 WXIDE_MCP_TOKEN",
+      "since": "2026-11-07"
+    },
+    {
+      "id": "PITFALL-20",
+      "symptom": "versionRelation.*(agent_behind|agent_ahead)|agent_behind|agent_ahead",
+      "where": "skill|doctor",
+      "cause": "agent 侧加载的 wechatide-skill 版本与 DevTools 安装包内 skill 版本不一致（升级 DevTools 后常见）",
+      "fix": "agent_behind → 从 skillPath 整目录覆盖 agent 侧；agent_ahead → 记录风险继续，任务结束升级 DevTools；不要只改 version 字段",
+      "ownerAction": "同步 wechatide-skill 到 agent 侧（整目录覆盖）",
+      "since": "2026-11-07"
+    },
+    {
+      "id": "PITFALL-21",
+      "symptom": "未知参数.*已忽略",
+      "where": "skill",
+      "cause": "skill-cli 对 inputSchema 之外的参数只告警不报错（如 automation_evaluate 的 action 由工具自填）",
+      "fix": "按 tools.yaml inputSchema 传参；先 wechatide <tool> -h 查参数；SkillChannel 已按 schema 过滤 fixed 字段",
+      "since": "2026-11-07"
+    },
+    {
+      "id": "PITFALL-22",
+      "symptom": "agent.*(not started|server not|未启动)|cli agent",
+      "where": "agent",
+      "cause": "cli agent 的 tool/chat/render 依赖常驻 agent automation server；未 start 时原子工具无会话",
+      "fix": "先 node scripts/dev-cli/agent.mjs start（或 cli agent start）拉起常驻 server；agent 为非确定性 AI 面，不要用于验收判定",
+      "ownerAction": "确认 IDE 内置 agent 已登录并启动（cli agent start）",
+      "since": "2026-11-07"
+    },
+    {
+      "id": "PITFALL-23",
+      "symptom": "project_setting_(get|update).*已废弃",
+      "where": "project_setting",
+      "cause": "2.02.2609250 起 project_setting_get/update 废弃，只返回废弃提示",
+      "fix": "直接读写项目根 project.config.json / project.private.config.json（见 wechatide-skill skills/project-config）",
+      "since": "2026-11-07"
+    },
+    {
+      "id": "PITFALL-24",
+      "symptom": "replay-config-path.*(missing|required)|auto-replay",
+      "where": "auto-replay|replay",
+      "cause": "cli auto-replay 需要回放配置；缺 --replay-config-path 时无法定位用例集",
+      "fix": "node scripts/dev-cli/replay.mjs --auto-replay --config <path>（透传 cli auto-replay --replay-all）",
+      "ownerAction": "准备 auto-replay 配置（用例集/路径）",
+      "since": "2026-11-07"
+    },
+    {
+      "id": "PITFALL-25",
+      "symptom": "accounts.*\\[\\]|ticket.*(expired|invalid)",
+      "where": "testaccount",
+      "cause": "测试号未配置或登录 ticket 过期；automation_testaccount list 返回空数组 / getTicket 失效",
+      "fix": "在 DevTools 测试号面板配置测试号；ticket 过期用 refreshTicket 或重新 setTicket",
+      "ownerAction": "在微信开发者工具配置测试号并刷新 ticket",
+      "since": "2026-11-07"
+    },
+    {
+      "id": "PITFALL-26",
+      "symptom": "wechatide-skill.*(not installed|not found)|skill-call.*(not found|failed)",
+      "where": "skill|doctor",
+      "cause": "skill 包未安装/路径漂移，或 skill-cli 无法定位工具",
+      "fix": "确认 /Applications/wechatwebdevtools.app/Contents/Resources/app.asar.unpacked/wechatide-skill 存在；doctor.mjs 会报 skill 版本/路径",
+      "ownerAction": "重装/升级 DevTools 以恢复 wechatide-skill",
+      "since": "2026-11-07"
+    },
+    {
+      "id": "PITFALL-27",
+      "symptom": "polling_task_result.*(not found|expired)|taskId.*(invalid|expired)",
+      "where": "task|polling",
+      "cause": "异步任务已过期/被消费；重复轮询旧 taskId 不会复活任务",
+      "fix": "不要重发原写操作；先查旧 taskId 终态，确认失败后再重新发起并拿新 taskId",
+      "since": "2026-11-07"
+    },
+    {
+      "id": "PITFALL-28",
+      "symptom": "clientName.*(mismatch|不一致)|client=.*(mismatch)",
+      "where": "skill",
+      "cause": "skill-cli 的 -c clientName 与 IDE 授权弹窗记录不一致；同一会话内 clientName 必须稳定",
+      "fix": "用 WXIDE_CLIENT_NAME 固定 clientName（默认 dsh-dev-cli）；不要每次调用换名",
+      "ownerAction": "在 IDE 授权弹窗中确认并保持同一 clientName",
+      "since": "2026-11-07"
+    },
+    {
+      "id": "PITFALL-29",
+      "symptom": "no such element",
+      "where": "element_action|act|region|geo",
+      "cause": "selector/@anchor 当前页不存在或不可见（折叠容器/未导航到宿主页/wx:if 未渲染）",
+      "fix": "先 nav 到锚的宿主页；折叠/抽屉类先 act 展开；region 出屏先滚动或注入使其可见；用 geo/state 确认当前页",
+      "since": "2026-11-07"
+    },
+    {
+      "id": "PITFALL-30",
+      "symptom": "Cannot read properties of undefined \\(reading '\\$\\$'\\)",
+      "where": "element_action|act|scrollTo",
+      "cause": "element_action 对非 scroll-view 选择器执行 scrollTo 时内部 page 对象缺失，报 $$ 未定义（2.02.2609250 实测）",
+      "fix": "scrollTo 目标必须是 scroll-view（如 #chat-scroll/.viewport）；先 geo 确认元素存在且可滚动",
+      "since": "2026-11-07"
     }
   ]
 }

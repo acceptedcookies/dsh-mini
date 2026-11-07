@@ -1,6 +1,6 @@
-// md-visual-probe.mjs · markdown 渲染视觉验证
+// md-visual-probe.mjs · markdown 渲染视觉验证（legacy，已收编 ProbeDriver）
 // 注入分节 assistant 消息 → 逐条 scroll-into-view 定位 → 截图
-import automator from 'miniprogram-automator'
+import { ProbeDriver } from './lib/probe.mjs'
 
 const ENDPOINT = process.env.MP_WS || 'ws://localhost:9602'
 const HARD = setTimeout(() => { console.log(JSON.stringify({ result: 'fail' })); process.exit(2) }, 120000)
@@ -57,7 +57,8 @@ const SECTIONS = [
   ].join('\n'),
 ]
 
-const mp = await automator.connect({ wsEndpoint: ENDPOINT, timeout: 15000 })
+const d = await ProbeDriver.open({ via: 'automator', automatorOpts: { wsEndpoint: ENDPOINT } })
+const mp = d.mp
 
 const inject = await mp.evaluate((sections) => {
   const pages = getCurrentPages()
@@ -89,5 +90,5 @@ for (let i = 0; i < inject.ids.length; i++) {
   await mp.screenshot({ path: p })
   console.log('SHOT', p)
 }
-await mp.disconnect()
+await d.close()
 console.log('DONE')

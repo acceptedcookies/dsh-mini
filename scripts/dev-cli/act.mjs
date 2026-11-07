@@ -30,7 +30,7 @@ for (const k of ['x', 'y']) {
   if (v !== undefined) params[k] = Number(v)
 }
 
-const d = await ProbeDriver.open()
+const d = await ProbeDriver.open({ via: flagOf(flags, 'via', undefined) })
 try {
   const r = await d.act(target, action, params, {
     id: flagOf(flags, 'id', undefined),

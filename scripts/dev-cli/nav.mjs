@@ -16,7 +16,7 @@ if (!ok.has(action)) {
   process.exit(2)
 }
 
-const d = await ProbeDriver.open()
+const d = await ProbeDriver.open({ via: flagOf(flags, 'via', undefined) })
 try {
   const r = await d.nav(action, action === 'navigateBack' ? undefined : url, action === 'navigateBack' ? { delta } : {})
   console.log(JSON.stringify(r))

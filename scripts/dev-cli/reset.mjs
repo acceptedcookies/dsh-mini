@@ -20,7 +20,7 @@ if (!action) {
   process.exit(2)
 }
 
-const d = await ProbeDriver.open()
+const d = await ProbeDriver.open({ via: flagOf(flags, 'via', undefined) })
 try {
   const r = await d.clearCache(action)
   console.log(JSON.stringify({ action, result: r?.result ?? r }))

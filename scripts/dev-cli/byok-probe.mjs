@@ -1,14 +1,16 @@
-// byok-probe —— 真机 BYOK 轮次全链取证：wx.request + wx.cloud.callFunction/
-// callContainer 三钩齐挂（BYOK 链走 wx.cloud 不经 request，单钩 request 必盲）。
+// byok-probe —— 真机 BYOK 轮次全链取证（legacy，已收编 ProbeDriver）：
+// wx.request + wx.cloud.callFunction/callContainer 三钩齐挂
+// （BYOK 链走 wx.cloud 不经 request，单钩 request 必盲）。
 // 用法: node scripts/dev-cli/byok-probe.mjs [--port 9602] [--prompt "文本"]
-import automator from 'miniprogram-automator'
+import { ProbeDriver } from './lib/probe.mjs'
 
 const portIdx = process.argv.indexOf('--port')
 const port = portIdx > -1 ? Number(process.argv[portIdx + 1]) : 9602
 const pIdx = process.argv.indexOf('--prompt')
 const PROMPT = pIdx > -1 ? process.argv[pIdx + 1] : '用 vfs 写一个 hello.txt，内容是 hello world'
 
-const mp = await automator.connect({ wsEndpoint: `ws://127.0.0.1:${port}` })
+const d = await ProbeDriver.open({ via: 'automator', automatorOpts: { port } })
+const mp = d.mp
 const info = await mp.evaluate(() => wx.getDeviceInfo())
 console.log('peer:', info.brand, info.model, info.system)
 if (info.brand === 'devtools') { console.log('ABORT: 对端是模拟器不是真机'); process.exit(2) }
@@ -107,4 +109,4 @@ console.log('=== REQS(llm-ish) ===', JSON.stringify(cap.reqs.filter((r) => !/sta
 console.log('=== RESPS(llm-ish) ===', JSON.stringify(cap.resps.filter((r) => !/state|alarm|vfs/.test(r.url)), null, 1))
 console.log('=== ERRS ===', JSON.stringify(cap.errs.slice(0, 12), null, 1))
 console.log('=== SENDERR ===', cap.sendErr)
-await mp.disconnect()
+await d.close()

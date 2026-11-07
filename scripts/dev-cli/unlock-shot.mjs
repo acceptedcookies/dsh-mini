@@ -1,5 +1,8 @@
-import automator from 'miniprogram-automator'
-const mp = await automator.connect({ wsEndpoint: 'ws://localhost:9602', timeout: 15000 })
+// unlock-shot.mjs · unlock 悬浮/loading 截图（legacy，已收编 ProbeDriver）
+import { ProbeDriver } from './lib/probe.mjs'
+
+const d = await ProbeDriver.open({ via: 'automator', automatorOpts: { port: 9602 } })
+const mp = d.mp
 // 1) 悬浮态截图
 const st = await mp.evaluate(() => {
   const ws = getCurrentPages()[getCurrentPages().length - 1]
@@ -21,4 +24,4 @@ await mp.evaluate(() => {
   const ws = getCurrentPages()[getCurrentPages().length - 1]
   ws.setData({ unlocking: false })
 })
-await mp.disconnect()
+await d.close()

@@ -11,16 +11,67 @@
  */
 import { createRequire } from 'node:module'
 import { spawn } from 'node:child_process'
+import { connect } from 'node:net'
 import { PROJECT } from './args.mjs'
 import { wrapError } from './pitfalls.mjs'
+import { CLI_PATH } from './devtools.mjs'
 
-export const CLI_PATH =
-  process.env.WXIDE_CLI_PATH ?? '/Applications/wechatwebdevtools.app/Contents/MacOS/cli'
+export { CLI_PATH }
 
 const require = createRequire(new URL('../../../package.json', import.meta.url))
 export const automator = require('miniprogram-automator')
 
-export async function connectIde({ port = Number(process.env.AUTO_PORT ?? 9420), project = PROJECT, launchTimeoutMs = 240_000 } = {}) {
+/** TCP 探活（automator ws / remote-debug 桥端口）。 */
+export function portAlive(port, { timeoutMs = 1500 } = {}) {
+  return new Promise((resolve) => {
+    const s = connect({ host: '127.0.0.1', port: Number(port) }, () => { s.end(); resolve(true) })
+    s.on('error', () => resolve(false))
+    setTimeout(() => { s.destroy(); resolve(false) }, timeoutMs)
+  })
+}
+
+/** 官方 CLI 通用 runner：capture=true 返回 {code,stdout,stderr}；false 继承 stdio。 */
+export function cliRun(args = [], { capture = true, timeoutMs = 120000, project = PROJECT, injectProject = true } = {}) {
+  const NO_PROJECT = new Set(['login', 'islogin', 'quit', 'reset-fileutils', '-h', '--help', '-v', '--version', 'engine'])
+  const final = [...args]
+  const cmd = final[0] ?? ''
+  if (injectProject && !NO_PROJECT.has(cmd) && !final.includes('--project')) final.push('--project', project)
+  if (!capture) {
+    return new Promise((resolve) => {
+      const child = spawn(CLI_PATH, final, { stdio: 'inherit' })
+      child.on('error', () => resolve({ ok: false, code: 127, stdout: '', stderr: '' }))
+      child.on('exit', (code) => resolve({ ok: code === 0, code: code ?? 1, stdout: '', stderr: '' }))
+    })
+  }
+  return new Promise((resolve) => {
+    let stdout = ''
+    let stderr = ''
+    let timedOut = false
+    const child = spawn(CLI_PATH, final, { stdio: ['ignore', 'pipe', 'pipe'] })
+    const timer = setTimeout(() => { timedOut = true; child.kill('SIGKILL') }, timeoutMs)
+    child.stdout.on('data', (d) => { stdout += d.toString() })
+    child.stderr.on('data', (d) => { stderr += d.toString() })
+    child.on('error', (e) => {
+      clearTimeout(timer)
+      resolve({ ok: false, code: 127, stdout, stderr: `${stderr}${e.message}`, timedOut })
+    })
+    child.on('close', (code) => {
+      clearTimeout(timer)
+      resolve({ ok: !timedOut && code === 0, code: timedOut ? 124 : (code ?? 1), stdout, stderr, timedOut })
+    })
+  })
+}
+
+export async function connectIde({ port = Number(process.env.AUTO_PORT ?? 9420), wsEndpoint, project = PROJECT, launchTimeoutMs = 240_000 } = {}) {
+  // 0. 显式 wsEndpoint（legacy MP_WS 兼容）
+  if (typeof wsEndpoint === 'string' && wsEndpoint.length > 0) {
+    try {
+      const mp = await automator.connect({ wsEndpoint })
+      return { mp, via: 'ws-endpoint', port: Number(new URL(wsEndpoint).port || 0) }
+    } catch (e) {
+      throw wrapError(e, 'automator.connectIde')
+    }
+  }
   // 1/2. 直连（AUTO_PORT 或默认服务端口）
   try {
     const mp = await automator.connect({ wsEndpoint: `ws://127.0.0.1:${port}` })

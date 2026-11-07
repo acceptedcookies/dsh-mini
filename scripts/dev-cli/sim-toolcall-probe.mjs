@@ -1,12 +1,13 @@
-// sim-toolcall-probe.mjs · 模拟器 tool-call 全链验证
+// sim-toolcall-probe.mjs · 模拟器 tool-call 全链验证（legacy，已收编 ProbeDriver）
 // 证: io.llm FILE_TOOL_ENVELOPE 上 wire → 模型回 tool_calls → io.tool 执行 VFS → 终态 idle
-import automator from 'miniprogram-automator'
+import { ProbeDriver } from './lib/probe.mjs'
 
 const ENDPOINT = process.env.MP_WS || 'ws://localhost:9602'
 const HARD = setTimeout(() => { console.log(JSON.stringify({ result: 'fail', machineReason: 'hard-timeout' })); process.exit(2) }, 150000)
 HARD.unref()
 
-const mp = await automator.connect({ wsEndpoint: ENDPOINT, timeout: 15000 })
+const d = await ProbeDriver.open({ via: 'automator', automatorOpts: { wsEndpoint: ENDPOINT } })
+const mp = d.mp
 
 // 1) wx.request + console 全钩
 const hooks = await mp.evaluate(() => {
@@ -84,7 +85,7 @@ const resp = await mp.evaluate(() => (globalThis.__probe.resps || []).map(r => (
 console.log('WIRE', JSON.stringify(wire))
 console.log('RESP', JSON.stringify(resp))
 
-await mp.disconnect()
+await d.close()
 const sawToolCall = final && final.kinds && final.kinds.some(k => k.k === 'tool_call')
 const sawToolResult = final && final.kinds && final.kinds.some(k => k.k === 'tool_result')
 console.log(JSON.stringify({

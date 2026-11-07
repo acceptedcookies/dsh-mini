@@ -18,7 +18,7 @@ const wait = flagOf(flags, 'wait', null)
 const waitFor = flagOf(flags, 'for', null)
 const extra = { ...(wait ? { wait: Number(wait) } : {}), ...(waitFor ? { waitForSelector: waitFor } : {}) }
 
-const d = await ProbeDriver.open()
+const d = await ProbeDriver.open({ via: flagOf(flags, 'via', undefined) })
 try {
   const r = sim
     ? await d.text('simulator_screenshot', { path: out, ...extra })

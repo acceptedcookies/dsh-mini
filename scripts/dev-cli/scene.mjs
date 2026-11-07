@@ -9,7 +9,7 @@ import { ProbeDriver } from './lib/probe.mjs'
 import { parseArgs, flagOf } from './lib/args.mjs'
 
 const { flags, positional } = parseArgs()
-const d = await ProbeDriver.open()
+const d = await ProbeDriver.open({ via: flagOf(flags, 'via', undefined) })
 try {
   const mode = positional[0]
   if (mode === 'dark' || mode === 'light' || mode === 'system') {

@@ -21,7 +21,7 @@ if (modes.length !== 1) {
   process.exit(2)
 }
 
-const d = await ProbeDriver.open()
+const d = await ProbeDriver.open({ via: flagOf(flags, 'via', undefined) })
 try {
   let r
   if (flags.data !== undefined) {

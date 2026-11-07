@@ -1,5 +1,8 @@
-import automator from 'miniprogram-automator'
-const mp = await automator.connect({ wsEndpoint: 'ws://localhost:9602', timeout: 15000 })
+// md-dark.mjs · markdown 暗色截图（legacy 专项探针，已收编 ProbeDriver）
+import { ProbeDriver } from './lib/probe.mjs'
+
+const d = await ProbeDriver.open({ via: 'automator', automatorOpts: { port: 9602 } })
+const mp = d.mp
 const r = await mp.evaluate(() => {
   const ws = getCurrentPages()[getCurrentPages().length - 1]
   ws.setData({ theme: 'dark', view: 'chat' })
@@ -20,4 +23,4 @@ for (const i of [0, 1, 2]) {
   await mp.screenshot({ path: `/tmp/md-dark-${i}.png` })
   console.log('SHOT', `/tmp/md-dark-${i}.png`)
 }
-await mp.disconnect()
+await d.close()

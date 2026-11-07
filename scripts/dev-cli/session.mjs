@@ -17,17 +17,22 @@
 //   reset [--type action]
 //   region @anchor [-o dir]
 //   console [--grep g] | network [--grep g] | diag [--full]
+//   skill <tool> '<json>' | testaccount <action> [--ticket t] | task <taskId>
+//   catalog [--full] | tools | doctor | agent <sub> [...]
+//   channel                              → 当前通道/统计
 //   route                                → 当前 route
 //   bridge                               → MCP 桥握手计数（复用证据）
 //   exit | quit                          → 关闭会话（先 restore 全部 mock）
+// 启动: session.mjs [--via mcp|skill] [-f steps.txt]
 import { readFileSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 import { ProbeDriver } from './lib/probe.mjs'
 import { bridgeCount } from './lib/mcp.mjs'
 import { parseArgs, flagOf } from './lib/args.mjs'
 
-const d = await ProbeDriver.open()
-console.log('[session] bridge opened (mcp); anchors loaded')
+const { flags: bootFlags } = parseArgs()
+const d = await ProbeDriver.open({ via: flagOf(bootFlags, 'via', undefined) })
+console.log(`[session] bridge opened (${d.channel}); anchors loaded`)
 
 /** 引号感知分词：'--data {"a":1}' 与 'eval "src with spaces"' 不在引号内断。 */
 function tokenize(line) {
@@ -157,14 +162,42 @@ async function runLine(line) {
     case 'console': return out(await d.consoleSnapshot(flagOf(flags, 'grep', null)))
     case 'network': return out(await d.networkSnapshot(flagOf(flags, 'grep', null)))
     case 'diag': return out(await d.diag(flags.full === true))
+    case 'skill': {
+      const [tool, argsJson] = rest
+      if (!tool) return out('skill 需要 <tool> [json]')
+      const args = argsJson ? JSON.parse(argsJson) : {}
+      return out(d.skill ? await d.skillCall(tool, args) : await d.call(tool, args))
+    }
+    case 'testaccount': {
+      const action = rest[0]
+      if (!action) return out('testaccount 需要 list|getTicket|setTicket|refreshTicket')
+      return out(await d.testaccount(action, flagOf(flags, 'ticket', undefined) !== undefined ? { ticket: flagOf(flags, 'ticket') } : {}))
+    }
+    case 'task': {
+      const taskId = rest[0]
+      if (!taskId) return out('task 需要 <taskId>')
+      return out(await d.task(taskId, {
+        timeoutMs: Number(flagOf(flags, 'timeout', '90000')),
+        intervalMs: Number(flagOf(flags, 'interval', '4000')),
+      }))
+    }
+    case 'catalog': return out(await d.catalog({ refresh: flags.refresh === true }))
+    case 'tools': return out(await d.tools())
+    case 'doctor': return out(await d.doctor({ offline: flags.offline === true, probe: flags.probe === true }))
+    case 'agent': {
+      const [sub, ...args] = rest
+      if (!sub) return out('agent 需要 <start|tool|chat|render|card-click|get-dom|get-card-image|clear|debug|overlay|detail-close>')
+      return out(await d.agentRun(sub, args))
+    }
+    case 'channel': return out({ channel: d.channel, via: d.via, stats: d.stats, mocks: d.pendingMocks })
     case 'route': return out(await d.route())
     case 'bridge': return out({ bridgeCount })
     case 'exit': case 'quit': return 'bye'
-    default: return out(`未知命令 '${cmd}'——act/inject/eval/state/geo/shot/nav/refresh/reset/scene/console/network/diag/route/bridge/exit`)
+    default: return out(`未知命令 '${cmd}'——act/inject/eval/state/geo/shot/nav/refresh/reset/scene/console/network/diag/skill/testaccount/task/catalog/tools/doctor/agent/channel/route/bridge/exit`)
   }
 }
 
-const file = flagOf(parseArgs().flags, 'f', null)
+const file = flagOf(bootFlags, 'f', null)
 const lines = file ? readFileSync(file, 'utf8').split('\n').filter((l) => l.trim() && !l.trim().startsWith('#')) : null
 
 try {

@@ -18,7 +18,7 @@ if (!src) {
 const isFn = /^\s*(\(|function|async|() =>|\(\)\s*=>|new\s+Promise)/.test(src)
 if (!isFn) src = `() => (${src})`
 
-const d = await ProbeDriver.open()
+const d = await ProbeDriver.open({ via: flagOf(flags, 'via', undefined) })
 try {
   const r = await d.eval(src)
   console.log(JSON.stringify(r, null, 2))

@@ -10,7 +10,7 @@ const results = []
 const check = (name, ok, detail = '') => { results.push({ name, ok }); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` — ${detail}` : ''}`) }
 
 const BRIDGE_RE = /McpClient\.open|\bnew\s+McpClient\b|connectIde\s*\(|automator\.(connect|launch)|launchAndConnect|['"]miniprogram-automator['"]|new\s+WebSocket\s*\(|spawn\s*\(|createRequire/
-const EXEMPT = new Set(['cli.mjs'])                      // 生命周期 CLI 道本务（spawn 直通无桥语义）
+const EXEMPT = new Set(['cli.mjs', 'index.mjs'])          // cli=生命周期直通；index=纯命令分发器（不建桥）
 const EXEMPT_PARTIAL = new Set(['console.mjs'])           // --via auto 段豁免（仅允许 connectIde/pipeConsole 词位）
 
 const walk = (dir, out = []) => {
@@ -42,7 +42,9 @@ check('顶层工具零自建桥（除 cli.mjs / console --via auto）', offender
 // 反向闸：lib/ide.mjs 与 lib/mcp.mjs 的桥构造在 lib 内部（收编位置存在）
 const mcp = readFileSync(`${DIR}/lib/mcp.mjs`, 'utf8')
 const ide = readFileSync(`${DIR}/lib/ide.mjs`, 'utf8')
+const channels = readFileSync(`${DIR}/lib/channels.mjs`, 'utf8')
 check('桥构造集中在 lib（mcp.open + ide.connectIde）', /class McpClient/.test(mcp) && /export async function connectIde/.test(ide))
+check('通道构造集中在 lib/channels（skill/agent/cli）', /class SkillChannel/.test(channels) && /class AgentChannel/.test(channels) && /class CliChannel/.test(channels))
 check('bridgeCount 计数存在', /bridgeCount/.test(mcp))
 
 const pass = results.filter((r) => r.ok).length

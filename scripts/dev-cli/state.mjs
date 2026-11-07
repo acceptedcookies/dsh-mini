@@ -25,7 +25,7 @@ const fnSource = `() => {
   return out
 }`
 
-const d = await ProbeDriver.open()
+const d = await ProbeDriver.open({ via: flagOf(flags, 'via', undefined) })
 try {
   console.log(JSON.stringify(await d.eval(fnSource), null, 2))
 } finally {

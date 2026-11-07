@@ -14,13 +14,18 @@ const check = (name, ok, detail = '') => { results.push({ name, ok }); console.l
     ['clear_cache', 'mcp'], ['preview', 'mcp'],
     ['device.remote', 'automator'], ['console.listen', 'automator'],
     ['lifecycle', 'cli'],
+    ['status', 'skill'], ['doctor', 'skill'], ['testaccount', 'skill'],
+    ['catalog', 'mcp'], ['task', 'mcp'],
+    ['agent', 'agent'], ['agent.chat', 'agent'], ['agent.render', 'agent'],
     ['nonexistent-cap', 'mcp'],           // 缺省回退
     ['anything', 'automator', 'auto'],    // via='auto' 覆写
     ['anything', 'mcp', 'mcp'],           // via 显式
+    ['anything', 'skill', 'skill'],       // skill 显式
     ['device.remote', 'mcp', 'mcp'],      // via 覆写高于表
+    ['device.remote', 'skill', 'skill'],  // skill 覆写高于表
   ]
   const bad = grid.filter(([cap, want, via]) => laneFor(cap, via) !== want)
-  check('laneFor 择路表全格映射', bad.length === 0, bad.length ? bad.map(([c, w, v]) => `${c}(via=${v})→${laneFor(c, v)}≠${w}`).join(';') : '13 格全中')
+  check('laneFor 择路表全格映射', bad.length === 0, bad.length ? bad.map(([c, w, v]) => `${c}(via=${v})→${laneFor(c, v)}≠${w}`).join(';') : `${grid.length} 格全中`)
 }
 
 // 动态行锚 disc 合法性（注册表层契约：resolveAnchor --id 拼 [disc="v"] 的前件）
