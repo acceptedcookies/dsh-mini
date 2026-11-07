@@ -1,6 +1,6 @@
 # test/simulation — Simulation 测试登记
 
-> 唯一登记真源：本文件。`test/README-draft.md` §7 是模型分析草稿；数量、命名、口径冲突时以本文件为准。
+> 唯一登记真源：本文件。旧 `test/README-draft.md` 只保留历史作废说明。
 > 本目录不参与小程序打包、构建、上传或发布；独立删除 `test/simulation/` 不影响发布。
 > 当前状态：v1 已登记，测试实现待建。
 
@@ -15,46 +15,22 @@
 | P-05 | 与 spike 一样，不能反向成为 release gate | simulation 是证据工具，不是发布审批器 | 不注册 npm script、不接 CI、不被 `app.json`/构建引用；删掉本目录仍可发布 | 设“sim 全绿才能发版”、把 sim 接入上传/发布流水线、要求业主签发 |
 | P-06 | 命名规范 `sim-{slug}`；语言不限 | 目录名就是测试名；实现语言服从测试要求 | 每条一个 `sim-{slug}` 目录；可用 mjs/py/ts/sh | `mn01`/`ep1`/`wave1` 等阶段名、按层分 `unit/contract/e2e` 目录 |
 | P-07 | 合同与 E2E 全部在 simulation 内完成 | 合同断言是业务旅程中的检查点，不是独立层 | CAS 412、票据隔离、VFS 上限、claim 冲突等嵌入对应 sim | 另建 contract/unit 套件、把合同测试从业务旅程中抽离 |
-| P-08 | 不得过度仪式 | 只保留业务价值高的线路；能删就删 | 第一波只建 8 条核心；P2 后置；不做静态文档对账 | 阶段验收矩阵、docs-check、soak 闸、无业务价值的 golden A/B |
+| P-08 | 不得过度仪式 | 只保留业务价值高的线路；登记即测，不测不登记 | 不设优先级或其他分类；不做静态文档对账 | 阶段验收矩阵、docs-check、soak 闸、无业务价值的 golden A/B |
 
 ## 2. Simulation 条目登记
 
-第一波：**8 条核心 + 2 条 P2**。每条都按 `mock-pass → live-pass` 双形态设计。
+当前登记 8 条，全部按下表执行；不设优先级或其他分类。每条都按 `mock-pass → live-pass` 双形态设计。
 
-### 2.1 核心 8 条
-
-| # | 条目 | 业务旅程 | 负责的测试价值 | 具体表达（接口/状态/UI/数据） |
-|---|------|----------|----------------|-------------------------------|
-| 1 | `sim-boot-session` | 冷启动 → 主题/壳 → unlock → durable session → prompt → turn → 杀进程/重载 → 续跑 | 证明 App 从零到可对话、再到崩溃恢复的完整生命周期 | `/healthz`、`/dev/ticket`、`/v1/state/*`、session store、checkpoint、transcript；UI：启动/会话/续跑 |
-| 2 | `sim-agentic-chat` | 输入 prompt → 流式 → tool call → cancel → 上游错误/重试 | 证明 agentic 对话主链在正常、取消、错误三种用户路径下都成立 | LLM 流式、tool 结果、transcript、error center 分类；UI：正常/取消/错误三态 |
-| 3 | `sim-vfs-roundtrip` | 写文件 → 列表 → 读 → range → 删 → artifact publish → 公网 `/a/` 回读 | 证明 VFS 与 artifact 的读写闭环、字节一致性和边界限制 | `vfs/{put,get,del,list}`、`artifacts/publish`、`/a/{sha}`、8MB/256KB/list 上限；UI：文件列表/预览 |
-| 4 | `sim-vfs-offline` | 断票/离线写删 → 恢复 → reconcile → 删除不复活 | 证明离线期间不丢写、不复活删除，恢复后能收敛到远端真源 | 本地行/墓碑、pending summary、远端 row/object、LWW；UI：离线提示/收敛后状态 |
-| 5 | `sim-claim-conflict` | shadow 持 claim → App prompt → 「会话写者冲突」→ 释放 → 重试 | 证明多写者不会静默分叉，冲突会被用户看见并恢复 | `/v1/claim`、holder、state CAS、冲突 toast/diag；UI：冲突/恢复 |
-| 6 | `sim-alarm-resume` | 建 due alarm → sweeper tick → resume → tool 恰一次 | 证明 30s 闹钟能恢复挂起 turn，且不会重复执行 tool | `/v1/alarm/{due,claim}`、sweeper、resume 状态、tool 计数；UI：恢复中/完成 |
-| 7 | `sim-engine-routing` | 设置页 provider/model/engine（local/cloud/magpie）→ bio 门禁 → enroll → 真轮 | 证明引擎、模型、凭证三者的路由与白名单在真实设置流程中成立 | 设置页、enroll/bio、引擎戳记、模型白名单、会话车道；UI：设置/注入/真轮 |
-| 8 | `sim-production-surface` | 生产只读：healthz、无票 401、真实 oid `state/get` + `vfs/list`、`/dev/*` 404 | 证明生产入口对外只暴露合同面，鉴权与 oid 隔离有效，测试入口不外泄 | `https://dsh-mini.saobao.com` 只读、401/404、跨 oid 隔离；UI：App 生产配置只读页 |
-
-### 2.2 P2 两条
-
-| # | 条目 | 业务旅程 | 负责的测试价值 | 具体表达（接口/状态/UI/数据） |
-|---|------|----------|----------------|-------------------------------|
-| 9 | `sim-image-vision` | 上传图片 → `data:` / `https:` artifact → 视觉识别 | 证明两种图片承载形态都能进入视觉模型并返回可展示结果 | image block、artifact 字节、视觉响应；UI：图片气泡/识别结果 |
-| 10 | `sim-visual-modes` | 浅色/深色 × 桌面/手机：启动、设置、会话、VFS 文件页 | 证明主题与布局在两种视口下不破版、关键交互仍可见 | 关键文本/元素/布局、截图基线；UI：四组合截图 |
-
-### 2.3 每条的双形态起点 / 终点
-
-| # | 条目 | mock-pass 起点 | live-pass 终点 |
-|---|------|----------------|----------------|
-| 1 | `sim-boot-session` | `cloud/sim` + scripted LLM + 合成 oid | FRD1 测试网关 + 真 durable + 真票（SOTER 标注 `control_mock`） |
-| 2 | `sim-agentic-chat` | scripted LLM/tool/error | 真 magpie + 测试网关 |
-| 3 | `sim-vfs-roundtrip` | 本地测试网关 + 测试桶 | FRD1 9095 + `dsh-mini-test` MinIO |
-| 4 | `sim-vfs-offline` | 强制离线 + 测试网关回放 | 真测试网关 + MinIO |
-| 5 | `sim-claim-conflict` | shadow Node 客户端 + 测试网关 | 真测试网关 claim |
-| 6 | `sim-alarm-resume` | 本地 sweeper + 受控时钟 | 云函数 sweeper + 真 30s + 测试网关 |
-| 7 | `sim-engine-routing` | `cloud/sim` + mock bio/challenge | 真测试网关 + 真 magpie；真 SOTER 仅真机，否则 `device-deferred` |
-| 8 | `sim-production-surface` | 本地测试网关 + 合成 oid | `https://dsh-mini.saobao.com` 只读 |
-| 9 | `sim-image-vision` | scripted vision | 真 magpie |
-| 10 | `sim-visual-modes` | mock 数据 | 测试网关真数据 |
+| # | 条目 | 业务旅程 | 负责的测试价值 | 具体表达（接口/状态/UI/数据） | mock-pass 起点 | live-pass 终点 |
+|---|------|----------|----------------|-------------------------------|----------------|----------------|
+| 1 | `sim-boot-session` | 冷启动 → 主题/壳 → unlock → durable session → prompt → turn → 杀进程/重载 → 续跑 | 证明 App 从零到可对话、再到崩溃恢复的完整生命周期 | `/healthz`、`/dev/ticket`、`/v1/state/*`、session store、checkpoint、transcript；UI：启动/会话/续跑 | `cloud/sim` + scripted LLM + 合成 oid | FRD1 测试网关 + 真 durable + 真票（SOTER 标注 `control_mock`） |
+| 2 | `sim-agentic-chat` | 输入 prompt → 流式 → tool call → cancel → 上游错误/重试 | 证明 agentic 对话主链在正常、取消、错误三种用户路径下都成立 | LLM 流式、tool 结果、transcript、error center 分类；UI：正常/取消/错误三态 | scripted LLM/tool/error | 真 magpie + 测试网关 |
+| 3 | `sim-vfs-roundtrip` | 写文件 → 列表 → 读 → range → 删 → artifact publish → 公网 `/a/` 回读 | 证明 VFS 与 artifact 的读写闭环、字节一致性和边界限制 | `vfs/{put,get,del,list}`、`artifacts/publish`、`/a/{sha}`、8MB/256KB/list 上限；UI：文件列表/预览 | 本地测试网关 + 测试桶 | FRD1 9095 + `dsh-mini-test` MinIO |
+| 4 | `sim-vfs-offline` | 断票/离线写删 → 恢复 → reconcile → 删除不复活 | 证明离线期间不丢写、不复活删除，恢复后能收敛到远端真源 | 本地行/墓碑、pending summary、远端 row/object、LWW；UI：离线提示/收敛后状态 | 强制离线 + 测试网关回放 | 真测试网关 + MinIO |
+| 5 | `sim-claim-conflict` | shadow 持 claim → App prompt → 「会话写者冲突」→ 释放 → 重试 | 证明多写者不会静默分叉，冲突会被用户看见并恢复 | `/v1/claim`、holder、state CAS、冲突 toast/diag；UI：冲突/恢复 | shadow Node 客户端 + 测试网关 | 真测试网关 claim |
+| 6 | `sim-alarm-resume` | 建 due alarm → sweeper tick → resume → tool 恰一次 | 证明 30s 闹钟能恢复挂起 turn，且不会重复执行 tool | `/v1/alarm/{due,claim}`、sweeper、resume 状态、tool 计数；UI：恢复中/完成 | 本地 sweeper + 受控时钟 | 云函数 sweeper + 真 30s + 测试网关 |
+| 7 | `sim-engine-routing` | 设置页 provider/model/engine（local/cloud/magpie）→ bio 门禁 → enroll → 真轮 | 证明引擎、模型、凭证三者的路由与白名单在真实设置流程中成立 | 设置页、enroll/bio、引擎戳记、模型白名单、会话车道；UI：设置/注入/真轮 | `cloud/sim` + mock bio/challenge | 真测试网关 + 真 magpie；真 SOTER 仅真机，否则 `device-deferred` |
+| 8 | `sim-production-surface` | 生产只读：healthz、无票 401、真实 oid `state/get` + `vfs/list`、`/dev/*` 404 | 证明生产入口对外只暴露合同面，鉴权与 oid 隔离有效，测试入口不外泄 | `https://dsh-mini.saobao.com` 只读、401/404、跨 oid 隔离；UI：App 生产配置只读页 | 本地测试网关 + 合成 oid | `https://dsh-mini.saobao.com` 只读 |
 
 ## 3. 当前 sim 合集代表的正面价值 / 接口
 
@@ -64,13 +40,11 @@
 | 对话主链 | 流式、tool call、cancel、error center、transcript | `sim-agentic-chat` |
 | durable 状态 | `state/{get,put-cas}`、checkpoint、CAS 条件写 | `sim-boot-session`、`sim-claim-conflict` |
 | VFS | 五根、`vfs/{put,get,del,list}`、range、本地行/墓碑 | `sim-vfs-roundtrip`、`sim-vfs-offline` |
-| Artifact | `artifacts/publish`、`/a/{sha}`、内容寻址 | `sim-vfs-roundtrip`、`sim-image-vision` |
+| Artifact | `artifacts/publish`、`/a/{sha}`、内容寻址 | `sim-vfs-roundtrip` |
 | 多写者协调 | `claim`、holder、冲突 UI、释放重试 | `sim-claim-conflict` |
 | 闹钟恢复 | `alarm/{due,claim}`、sweeper、resume、恰一次 | `sim-alarm-resume` |
 | 鉴权与隔离 | ticket、无票 401、oid 注入、跨 oid 隔离、生产 `/dev/*` 404 | `sim-production-surface`、`sim-engine-routing` |
 | 引擎与模型 | local/cloud/magpie 路由、provider/model 白名单、bio/enroll | `sim-engine-routing` |
-| 多模态与视觉 | `data:`/`https:` 图片、视觉识别 | `sim-image-vision` |
-| 视觉一致性 | 浅/深色、桌面/手机布局 | `sim-visual-modes` |
 
 这些条目代表的是**用户可完成的业务闭环**，不是接口覆盖率数字。
 
@@ -98,7 +72,7 @@ test/simulation/                         # 仿真测试根；不打包、不接 
 ├── README.md                            # 本文件：唯一登记真源（原则/条目/正反价值/拓扑/版本）
 ├── lib/                                 # 共享仿真底座（待建；只放跨 sim 能力）
 │   ├── devtools.mjs                     # DevTools/automator 连接、AUTO_PORT、页面 route
-│   ├── mock-upstream.mjs                # 外部边界 mock：LLM/vision/cloud/SOTER/clock
+│   ├── mock-upstream.mjs                # 外部边界 mock：LLM/cloud/SOTER/clock
 │   ├── fixtures.mjs                     # 合成 oid、文件、消息、错误样本
 │   ├── evidence.mjs                     # result.json 信封与 .anote 证据路径
 │   ├── assertions.mjs                   # page data/storage/VFS/远端读回断言
@@ -113,9 +87,7 @@ test/simulation/                         # 仿真测试根；不打包、不接 
 ├── sim-claim-conflict/{README.md,run.mjs,fixtures/}
 ├── sim-alarm-resume/{README.md,run.mjs,fixtures/}
 ├── sim-engine-routing/{README.md,run.mjs,fixtures/}
-├── sim-production-surface/{README.md,run.mjs,fixtures/}
-├── sim-image-vision/{README.md,run.mjs,fixtures/}          # P2
-└── sim-visual-modes/{README.md,run.mjs,fixtures/}          # P2
+└── sim-production-surface/{README.md,run.mjs,fixtures/}
 ```
 
 | 层级 | 用途 | 约束 |
@@ -125,13 +97,12 @@ test/simulation/                         # 仿真测试根；不打包、不接 
 | `lib/` | 跨 sim 的 DevTools/mock/截图/断言能力 | 不 import 小程序源码内部；只经公开页面/接口 |
 | `sim-{slug}/` | 一条完整业务旅程 | 目录名即测试名；禁止阶段名或分层名 |
 | `run.mjs`（或 py/ts/sh） | 该条入口；`--mode {both,mock,live}` | 默认 both；live 缺失报 `live-blocked` |
-| `fixtures/` | 该条 mock 数据、scripted LLM/vision/tool | 固定可复现；不写真实 oid |
+| `fixtures/` | 该条 mock 数据、scripted LLM/tool | 固定可复现；不写真实 oid |
 | `README.md`（条目内） | 业务旅程、前置、断言、截图点 | 与根 README 不重复维护规则 |
 | `.anote/simulation/sim-{slug}/{mode}/{UTC}/` | 运行证据（repo 外） | `result.json` + `shots/*.png` + 数据快照；不入仓 |
 
 ## 6. 延伸阅读
 
-- `test/README-draft.md` §7：Simulation 模型的分析草稿与本文件的关系。
 - `scripts/dev-cli/README.md`：DevTools 五通道、automator、ProbeDriver、真机 dump。
 - `cloud/durable/README.md`：durable 合同、生产/测试双入口、fss3 退役记录。
 - `cloud/test-s3/README.md`：FRD1 测试网关、测试桶、生产切流历史。
@@ -148,6 +119,5 @@ test/simulation/                         # 仿真测试根；不打包、不接 
 | 版本 | `v1` |
 | 日期 | 2026-11-07 |
 | 状态 | 已登记，待建 |
-| 范围 | 8 条核心 + 2 条 P2；全部 `sim-{slug}` |
-| 取代 | `test/README-draft.md` §2–§6 的 unit/contract/e2e 分类；§7 仅保留分析 |
+| 范围 | 8 条；全部 `sim-{slug}` |
 | 变更 | v1 初版：原则表、条目表、正/反价值、拓扑、延伸阅读 |
