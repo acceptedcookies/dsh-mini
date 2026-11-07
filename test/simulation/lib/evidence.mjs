@@ -28,6 +28,14 @@ export function openEvidence(simDir, mode) {
     },
     finish(extra) {
       const failed = checks.some((c) => !c.ok)
+      const endpoint = String(extra.endpoint ?? '')
+      const phonePath = endpoint.startsWith('https://')
+      let status = extra.status
+      if (status == null) {
+        if (failed) status = 'fail'
+        else if (mode === 'live' && !phonePath) status = 'not-phone-path'
+        else status = `${mode}-pass`
+      }
       const payload = {
         sim: extra.sim,
         mode,
@@ -37,7 +45,7 @@ export function openEvidence(simDir, mode) {
         deferred: extra.deferred ?? [],
         checks,
         shots: extra.shots ?? [],
-        status: extra.status ?? (failed ? 'fail' : `${mode}-pass`),
+        status,
         note: extra.note ?? '',
         ran_at: new Date().toISOString(),
       }

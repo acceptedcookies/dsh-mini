@@ -6,7 +6,7 @@ import { bootWorkspace, currentText, typeAndSend } from '../lib/app.mjs'
 import { openEvidence } from '../lib/evidence.mjs'
 import { modeOf, runModes } from '../lib/run.mjs'
 import { TEST_OID } from '../lib/env.mjs'
-import { startLiveGateway, devTicket, post } from '../lib/gateway.mjs'
+import { devTicket, openFrd1, post, startLiveGateway } from '../lib/gateway.mjs'
 import { startScriptedLlm } from '../lib/mock-upstream.mjs'
 
 const dir = dirname(fileURLToPath(import.meta.url))
@@ -57,9 +57,10 @@ await runModes({
       return await journey('mock', gw.base, await devTicket(gw.base, gw.admin, TEST_OID))
     } finally { await gw.close() }
   },
-  live: async () => openEvidence(dir, 'live').finish({
-    sim: 'sim-boot-session', status: 'live-blocked', endpoint: 'http://127.0.0.1:9095', shots: [],
-    control_mock: ['soter-devtools'],
-    note: 'FRD1 测试网关已停止；本地内存 S3 不记 live-pass',
-  }),
+  live: async () => {
+    const gw = await openFrd1()
+    try {
+      return await journey('live', gw.base, await devTicket(gw.base, gw.admin, TEST_OID))
+    } finally { await gw.close() }
+  },
 })

@@ -2,7 +2,7 @@
 
 > 唯一登记真源：本文件。旧 `test/README-draft.md` 只保留历史作废说明。
 > 本目录不参与小程序打包、构建、上传或发布；独立删除 `test/simulation/` 不影响发布。
-> 当前状态：v3 已实现。mock 均已跑通；live 仅 `sim-production-surface` 为 live-pass，其余因 FRD1 测试网关停用或真 magpie/真机 SOTER 缺席记 live-blocked。
+> 当前状态：v4。mock 已跑。`live-pass` 只认手机也会走的公网 `https://`。`127.0.0.1` SSH 隧道只证明网关进程，不是发布后的用户路径，结果记 `not-phone-path`，不作 live-pass。
 
 ## 1. 业主原则与心智模型
 
@@ -66,7 +66,48 @@
 | mock 冒充 live | 只跑 mock、control-plane mock 未标注 | 所有条目 | 报告分列 `mock-pass`/`live-pass`/`control_mock`；缺 live 为 `live-blocked` |
 | 发布耦合 | simulation 被构建/CI 引用 | 目录拓扑本身 | 删除 `test/simulation/` 后 typecheck/编译/上传/发布不受影响 |
 
-## 5. Simulation 文件夹拓扑
+## 5. Simulation 回顾与加强方法
+
+> 这一节是**回顾方法**，不是新的测试层、不是 release gate、不是评分表。用于定期检查任意一条 sim 是否仍在其核心叙事内、证据是否支撑声称、mock/live 是否成立。输出是一份很短的“缺口 + 最小下一步”，记录在该 sim 的 README（必要时更新根 README 的登记行），不另立文件。
+
+### 5.1 四个镜头
+
+| 镜头 | 必答问题 | 看什么证据 | 合格标准 | 常见反模式 |
+|------|----------|------------|----------|------------|
+| **深度（Depth）** | 这条 sim 声称的价值，最后一步是什么？测试是否真的走到最后一步？ | sim README 的 journey；run.mjs 的 checks；result.json 的 checks/shots；状态/计数断言 | 声称的每一步都有对应 check；关键失败至少有一个负例；终态有数据断言，不只看 exit 0 | 只测 transport 就宣称 journey；用截图/输入可见代替状态断言；happy path 全绿 |
+| **宽度（Width）** | 这个能力的核心爆炸面有哪些？哪些在 scope 内但没测？ | 根 README 的正反价值表；接口/状态机/拓扑；代码锚；现有 checks 的覆盖 | scope 内的核心面有覆盖；没覆盖的显式登记为空白/`live-blocked`/`deferred` | 只测一个 endpoint；把全量错误枚举塞进来；把别的 sim 的面重复测 |
+| **Scope** | 每个 check 对应哪条业务价值？有没有测试别的 sim 的东西？ | 根 README 条目；sim README；check 名称与断言 | 每个 check 能映射到本 sim 的核心叙事；越界项移走/删除；欠界项补链或降级登记 | 用 App prompt 冒充 alarm；重复 sim-boot-session；把 UI smoke 当业务闭环 |
+| **Mock/Live** | mock 替换了什么外部提供方？live 出口是否真实可达？ | lib/gateway、mock-upstream、result.json 的 control_mock/status/endpoint | mock 只替外部提供方；live 有真实可达出口或显式 `live-blocked`；mock 数据/工具足够复现 | mock App 内部/传输层；live 终点拓扑不可达；只跑 mock 报全绿；control_mock 列了没用的东西 |
+
+### 5.2 回顾步骤
+
+1. **提取声称**：读根 README 的登记行 + 该 sim 的 README，用一句话写出“它声称证明什么”。
+2. **对齐证据**：把 `result.json` 的每个 check 映射到声称的步骤，标成 `proven` / `claimed-not-proven` / `proven-not-claimed`。
+3. **四维扫描**：按 §5.1 的四个镜头列缺口；缺口只写“缺什么面/缺什么负例/越界/拓扑不成立”，不写长报告。
+4. **选最小加强**：只选能闭合核心叙事的最小一组；优先 consumer/execution 链，其次关键负例；不建新框架、不建新目录、不建 release gate。
+5. **登记与复跑**：更新该 sim 的 README（必要时根 README 的登记行），重跑 mock/live；`live-blocked`/`ui-deferred` 如实保留；evidence 仍落该 sim 的 `evidence/`。
+
+### 5.3 判定规则
+
+- **声称的最后一步没有被 check 覆盖** → 要么补链，要么把 sim 降级为 contract smoke 并改根 README 的登记行；不能两者都不做。
+- **一个 check 不能映射到本 sim 的价值** → 移到对应 sim 或删除；不要用“多测一点”当理由。
+- **mock 替换了 App 内部/传输层** → 违反 P-02，必须改成只替外部提供方。
+- **live 出口拓扑不可达** → 改登记（换 live 定义/标 `live-blocked`），不要用 mock 冒充 live-pass。
+- **live 需要生产写入** → opt-in，不放进默认 `both`；必须有清理步骤和残留登记。
+- **负例** → 只加 contract 边缘和本 sim 的核心失败面；不加全量错误枚举。
+- **回顾输出** → 3–5 条缺口 + 1 个最小下一步；不评分、不排优先级分类、不另立文件。
+
+### 5.4 什么时候回顾
+
+- 一条 sim 第一次 `mock-pass` 之后；
+- 准备声称 `live-pass` 之前；
+- 生产事件/closure blocker 变化后；
+- 新增公共合同面或新 lane 后；
+- 阶段收口时做一次批量回顾（不是固定日历，不设 CI）。
+
+> 方法本身不产生新测试；它只决定“下一条最小加强是什么”。任何新增测试仍按 §2 登记、按 P-05/P-08 保持非 release gate、非仪式。
+
+## 6. Simulation 文件夹拓扑
 
 ```text
 test/simulation/                         # 仿真测试根；不打包、不接 CI
@@ -105,7 +146,7 @@ test/simulation/                         # 仿真测试根；不打包、不接 
 | `evidence/`（条目内） | 该条运行证据：`{mode}/{UTC}/result.json`、`shots/*.png`、artifacts | 必须在本 sim 文件夹内；全部 gitignore；不跨 sim 共用 |
 | `README.md`（条目内） | 业务旅程、前置、断言、截图点 | 与根 README 不重复维护规则 |
 
-## 6. 延伸阅读
+## 7. 延伸阅读
 
 - `scripts/dev-cli/README.md`：DevTools 五通道、automator、ProbeDriver、真机 dump。
 - `cloud/durable/README.md`：durable 合同、生产/测试双入口、fss3 退役记录。
@@ -116,12 +157,12 @@ test/simulation/                         # 仿真测试根；不打包、不接 
 - `AGENTS.md`：项目原则（单向访问、命名中立、单一真源、不得过度仪式、不得擅自扩约）。
 - 微信小程序开发文档：`https://developers.weixin.qq.com/miniprogram/dev/framework/quickstart/`
 
-## 7. 日期与版本
+## 8. 日期与版本
 
 | 项 | 值 |
 |----|----|
-| 版本 | `v3` |
+| 版本 | `v4` |
 | 日期 | 2026-11-07 |
-| 状态 | 8 条已实现 |
+| 状态 | 8 条已实现；§5 回顾方法已登记 |
 | 范围 | 8 条；全部 `sim-{slug}` |
-| 变更 | v2 登记 P-09；v3 落地 lib 与 8 条 run.mjs。mock-pass 已取证；写面 live 在测试网关停用期间为 live-blocked |
+| 变更 | v2 登记 P-09；v3 落地 lib 与 8 条 run.mjs。mock-pass 已取证；写面 live 在测试网关停用期间为 live-blocked；v4 新增 §5 回顾与加强方法（四维：深度/宽度/Scope/Mock-Live） |

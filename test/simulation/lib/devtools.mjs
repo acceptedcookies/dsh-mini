@@ -1,11 +1,13 @@
 // DevTools automator。只连接，不关闭开发者工具。
 import { connectIde } from '../../../scripts/dev-cli/lib/ide.mjs'
 
-export async function openApp() {
-  const ide = await connectIde({ port: Number(process.env.AUTO_PORT ?? 9420) })
+export async function openApp({ device = false } = {}) {
+  const ide = await connectIde({ port: Number(process.env.AUTO_PORT ?? 9602) })
   const mp = ide.mp
+  const attached = device ? await attachDevice(mp) : null
   const page = await currentPage(mp)
   return {
+    device: attached,
     via: ide.via,
     port: ide.port,
     mp,
@@ -54,6 +56,32 @@ export async function openApp() {
       if (ide.proc !== undefined && ide.proc.exitCode === null) ide.proc.kill('SIGTERM')
     },
   }
+}
+
+async function attachDevice(mp) {
+  const info = async () => mp.evaluate(() => {
+    const d = wx.getDeviceInfo()
+    return { brand: d.brand, model: d.model, platform: d.platform, system: d.system }
+  }).catch(() => null)
+  let dev = await info()
+  if (dev && dev.brand !== 'devtools' && dev.platform !== 'devtools') return dev
+  for (let attempt = 0; attempt < 2 && (!dev || dev.platform === 'devtools'); attempt += 1) {
+    if (attempt === 1) {
+      await mp.send('Tool.disableRemoteDebug').catch(() => {})
+      await new Promise((r) => setTimeout(r, 1500))
+    }
+    mp.remote(true).catch(() => {})
+    await new Promise((resolve, reject) => {
+      mp.connection.once('Tool.onRemoteDebugConnected', resolve)
+      setTimeout(() => reject(new Error('remote-timeout')), 20000)
+    }).catch(() => {})
+    dev = await info()
+  }
+  if (!dev || dev.platform === 'devtools') {
+    await mp.send('Tool.disableRemoteDebug').catch(() => {})
+    throw new Error('真机未连上：remote 后仍是模拟器')
+  }
+  return dev
 }
 
 async function currentPage(mp) {

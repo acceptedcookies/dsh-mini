@@ -23,6 +23,9 @@ export function loadGatewayEnv() {
 
 export const PRODUCTION_BASE = 'https://dsh-mini.saobao.com'
 export const SIM_BASE = 'http://127.0.0.1:3426'
+export const MAGPIE_BASE = 'http://127.0.0.1:3425/v1'
+/** FRD1 测试写面：本机隧道 → 9095 dev.mjs → MinIO dsh-mini-test。9097 是生产入口，没有 /dev/ticket。 */
+export const FRD1_WRITE_BASE = 'http://127.0.0.1:9095'
 export const TEST_OID = 'sim-test-oid'
 export const OTHER_OID = 'sim-other-oid'
 

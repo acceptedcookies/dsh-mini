@@ -6,14 +6,13 @@ import { bootWorkspace, currentText, typeAndSend } from '../lib/app.mjs'
 import { openEvidence } from '../lib/evidence.mjs'
 import { modeOf, runModes } from '../lib/run.mjs'
 import { TEST_OID } from '../lib/env.mjs'
-import { devTicket, post, startLiveGateway } from '../lib/gateway.mjs'
+import { devTicket, openFrd1, post, startLiveGateway } from '../lib/gateway.mjs'
 
 const dir = dirname(fileURLToPath(import.meta.url))
 const prompt = readFileSync(join(dir, 'fixtures/prompt.txt'), 'utf8').trim()
 
-async function conflict(mode) {
+async function conflict(mode, gw) {
   const evidence = openEvidence(dir, mode)
-  const gw = await startLiveGateway()
   const app = await openApp()
   try {
     const start = await bootWorkspace(app, evidence)
@@ -34,7 +33,6 @@ async function conflict(mode) {
     })
   } finally {
     await app.close()
-    await gw.close()
   }
 }
 
@@ -42,9 +40,12 @@ const mode = modeOf()
 await runModes({
   sim: 'sim-claim-conflict',
   mode,
-  mock: () => conflict('mock'),
-  live: async () => openEvidence(dir, 'live').finish({
-    sim: 'sim-claim-conflict', status: 'live-blocked', endpoint: 'http://127.0.0.1:9095', shots: [],
-    note: 'FRD1 测试网关已停止',
-  }),
+  mock: async () => {
+    const gw = await startLiveGateway()
+    try { return await conflict('mock', gw) } finally { await gw.close() }
+  },
+  live: async () => {
+    const gw = await openFrd1()
+    try { return await conflict('live', gw) } finally { await gw.close() }
+  },
 })

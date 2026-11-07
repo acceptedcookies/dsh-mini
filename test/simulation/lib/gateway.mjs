@@ -1,8 +1,21 @@
 // live 写面：本地 dev.mjs + 内存 S3。真实 /v1/* 与 /dev/ticket，不碰生产桶。
 import { spawn } from 'node:child_process'
 import { join } from 'node:path'
-import { REPO, loadGatewayEnv, liveWriteBase } from './env.mjs'
+import { FRD1_WRITE_BASE, REPO, loadGatewayEnv, liveWriteBase } from './env.mjs'
 import { startMemoryS3 } from './memory-s3.mjs'
+
+export async function openFrd1() {
+  const envFile = loadGatewayEnv()
+  const admin = clean(envFile.ADMIN_TOKEN)
+  const health = await fetch(`${FRD1_WRITE_BASE}/healthz`).then((r) => r.json()).catch(() => null)
+  if (health?.ok !== true) throw new Error(`FRD1 写面不可用 ${FRD1_WRITE_BASE}`)
+  return {
+    base: FRD1_WRITE_BASE,
+    admin,
+    bucket: health.bucket ?? '',
+    async close() {},
+  }
+}
 
 export async function startLiveGateway() {
   const envFile = loadGatewayEnv()
