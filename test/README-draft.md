@@ -4,6 +4,7 @@
 > 用途：阶段命名测试拆除后，登记值得重建的高价值线路；重建时由业主决定取舍。
 > 旧 `test/mn01`–`test/mn06` 已按业主决定整体删除；`test/spike` 保留为 fx/wasm 取证工作区，不是测试层。
 > 当前 `scripts/dev-cli` 保留，仅保留 `__diagnostics` / `__errorBus` 两枚 DevTools 调试钩子；其余测试钩子已从 `app.ts` 拆除。
+> **2026-11-07 业主否决**：§2–§6 的 unit / contract / e2e 分类与清单全部作废，仅作历史草稿保留；当前唯一测试模型见 §7 Simulation。
 
 ## 1. 重建原则
 
@@ -92,3 +93,95 @@
 - 真机窗口：SOTER/unlock 与物理 OS kill 是否纳入本轮验收。
 - 是否保留 `scripts/dev-cli` 的 `__diagnostics` / `__errorBus` 两枚调试钩子（当前保留）。
 - 测试 oid 命名与清理策略（单一合成 oid，禁止真实 openid）。
+
+---
+
+## 7. Simulation 测试（业主模型，2026-11-07；取代 §2–§6）
+
+### 7.1 定义
+
+Simulation 不是 unit / contract / e2e 分层，而是**基于微信开发者工具的真实业务 E2E**：
+
+- 每条 simulation 都是一条完整业务旅程，从真实 App 页面/组件进入，经过真实 wx API、真实 VFS、真实 kernel/fx、真实 HTTP/WS 传输，最后落到真实 durable 网关与对象存储。
+- 合同断言不单独成层，而是嵌入业务旅程：CAS 412 由多写者流程触发，VFS 上限由真实上传触发，票据隔离由真实 App/第二身份触发。
+- mock 只允许发生在**外部提供方边界**：LLM 上游、微信云控制面/SOTER、可控时钟/故障注入。接口形状、App 内部服务、VFS、durable 客户端、网络传输不得 mock。
+- 每条 simulation 必须同时具备 **mock-pass** 与 **live-pass**；两者都跑完才算完整，不能用 mock 结果冒充 live。
+- live 的定义是真实业务 + 真实数据面 + 真实接口。DevTools 没有真机时，SOTER/微信云控制面只能是受控 mock，必须在结果中标注 `control_mock`，不得写成 live 全绿。
+
+### 7.2 形态
+
+一条 simulation = 一个 `test/simulation/sim-{slug}/` 目录：
+
+```
+test/simulation/
+  lib/                         # DevTools 连接、截图、mock 上游、数据断言（不打包）
+  sim-{slug}/
+    run.mjs                    # 入口；语言不限，py/ts/sh 均可
+    fixtures/                  # mock 数据、scripted LLM/vision/tool 响应
+    README.md                  # 业务旅程、mock/live 前置、证据口径
+```
+
+推荐入口统一支持：
+
+```bash
+node test/simulation/sim-{slug}/run.mjs --mode both   # 默认；先 mock 后 live
+node test/simulation/sim-{slug}/run.mjs --mode mock
+node test/simulation/sim-{slug}/run.mjs --mode live   # 缺 live 条件时报 live-blocked，不报 PASS
+```
+
+证据统一落 `.anote/simulation/sim-{slug}/{mode}/{UTC}/`：`result.json` + `shots/*.png` + 数据快照。`test/simulation/` 不进入小程序包、不注册 npm script、不接 CI。
+
+### 7.3 当前建议构建数量与命名
+
+**第一波 8 条核心 + 2 条 P2**。核心覆盖“启动/对话/文件/离线/多写者/闹钟/引擎/生产面”八条真实业务线；P2 覆盖多模态与视觉模式。再多会变成仪式，无法逐条维护双形态证据。
+
+| # | 名称 | 业务旅程 | mock-pass 起点 | live-pass 终点 | 数据验证 + 截图验证 |
+|---|------|----------|----------------|----------------|----------------------|
+| 1 | `sim-boot-session` | 冷启动 → 主题/壳 → unlock → durable session → prompt → turn → 杀进程/重载 → 续跑 | `cloud/sim` + scripted LLM + 合成 oid | FRD1 测试网关 + 真 durable + 真票（SOTER 在 DevTools 标注 `control_mock`） | `state/{sid}` checkpoint、transcript 不重复、turn 续跑；截图：启动页/会话页/续跑后 |
+| 2 | `sim-agentic-chat` | 输入 prompt → 流式 → tool call → cancel → 上游错误/重试 | scripted LLM/tool/error | 真 magpie + 测试网关 | 消息、tool 结果、transcript、error center 分类；截图：正常/取消/错误三态 |
+| 3 | `sim-vfs-roundtrip` | 写文件 → 列表 → 读 → range → 删 → artifact publish → 公网 `/a/` 回读 | 本地测试网关 + 测试桶 | FRD1 9095 + `dsh-mini-test` MinIO | 字节/sha/远端 row/object、8MB/256KB/list 上限、`/a/` 字节一致；截图：文件列表/artifact 预览 |
+| 4 | `sim-vfs-offline` | 断票/离线写删 → 恢复 → reconcile → 删除不复活 | 强制离线 + 测试网关回放 | 真测试网关 + MinIO | 本地行/墓碑、远端行/对象、pending 清零、LWW；截图：离线提示/收敛后状态 |
+| 5 | `sim-claim-conflict` | shadow 持 claim → App prompt → 「会话写者冲突」→ 释放 → 重试 | shadow Node 客户端 + 测试网关 | 真测试网关 claim | holder、冲突 UI、重试后 state；截图：冲突提示/恢复 |
+| 6 | `sim-alarm-resume` | 建 due alarm → sweeper tick → resume → tool 恰一次 | 本地 sweeper + 受控时钟 | 云函数 sweeper + 真 30s + 测试网关 | alarm 消费恰一次、tool 计数=1、resume 完成；截图：恢复中/完成 |
+| 7 | `sim-engine-routing` | 设置页 provider/model/engine（local/cloud/magpie）→ bio 门禁 → enroll → 真轮 | `cloud/sim` + mock bio/challenge | 真测试网关 + 真 magpie；真 SOTER 仅真机，否则 deferred | 引擎戳记、模型白名单、会话车道、设置页状态；截图：设置/注入/真轮 |
+| 8 | `sim-production-surface` | 生产只读：healthz、无票 401、真实 oid state/get + vfs/list、`/dev/*` 404 | 本地测试网关 + 合成 oid | `https://dsh-mini.saobao.com` 只读 | 状态码/响应形状/跨 oid 隔离；禁止写真实 oid；截图：App 生产配置只读页 |
+| 9 | `sim-image-vision` | 上传图片 → `data:` / `https:` artifact → 视觉识别 | scripted vision | 真 magpie | 图片 block、识别文本、artifact 字节；截图：图片气泡/识别结果 |
+| 10 | `sim-visual-modes` | 浅色/深色 × 桌面/手机：启动、设置、会话、VFS 文件页 | mock 数据 | 测试网关真数据 | 关键文本/元素/布局，截图基线 diff（仅稳定页面，不做像素级 release gate） |
+
+### 7.4 mock-pass / live-pass 口径
+
+- `--mode both` 是默认：先跑 mock-pass，再跑 live-pass；任一缺失即 `incomplete`，不冒充全绿。
+- mock-pass 只替换外部提供方，App 代码、页面路由、VFS、kernel/fx、HTTP 客户端、durable 合同全部是真的。
+- live-pass 必须打真实测试网关与真实对象存储；`sim-production-surface` 只读打生产，任何写操作禁止。
+- 报告必须分列 `mock-pass` / `live-pass` / `control_mock` / `deferred`；不得合并成一个 PASS 数字。
+- 真机 SOTER、物理 OS kill 等 DevTools 不可覆盖项，登记为 `device-deferred`，不阻塞 simulation 其余部分。
+
+### 7.5 数据验证与截图验证
+
+- **数据验证**：每个检查点读 App 侧 page data / storage / VFS / diagnostics，再经测试网关或 MinIO 只读读远端 row/object/alarm/claim，断言具体值；不以 exit code 代替。
+- **截图验证**：每条 simulation 至少 3 张截图（起点、动作后、终态/错误）；用 automator 断言当前 route 与关键元素/文本存在，截图作为证据落 `.anote/`；稳定页面可做基线 diff，但不做像素级 release gate。
+- **证据信封**：`result.json` 记录 `sim`、`mode`、`git_head`、`endpoint`、`checks[]`、`shots[]`、`control_mock`、`deferred`；任何一项缺失即不算完整。
+
+### 7.6 与发布的关系
+
+- `test/simulation/` 不被 `app.json`/`package.json`/构建脚本引用；独立删除整个目录，`npm run typecheck`、开发者工具编译、上传、发布均不受影响。
+- 不设 CI、不设 release gate、不设“必须 sim 全绿才能发布”的规则；simulation 结果只作为业主决策的参考证据。
+- 不建立阶段命名目录、不建立 unit/contract/e2e 子层、不建立静态文档对账。
+
+### 7.7 建议建设顺序
+
+1. `sim-boot-session`（打通 DevTools + mock/live 双形态 + 截图/数据证据骨架）
+2. `sim-agentic-chat`（真轮、流式、tool、错误 UI）
+3. `sim-vfs-roundtrip`（文件与 artifact 主线）
+4. `sim-vfs-offline`（恢复与墓碑）
+5. `sim-claim-conflict`（多写者）
+6. `sim-alarm-resume`（30s 闹钟）
+7. `sim-engine-routing`（引擎/模型/设置）
+8. `sim-production-surface`（生产只读）
+9. P2：`sim-image-vision`、`sim-visual-modes`
+
+### 7.8 需要业主确认的假设
+
+- live-pass 中 SOTER/微信云控制面在 DevTools 仍为受控 mock；真机验证是否另列 `device-deferred`。
+- 测试网关重建位置：FRD1 `9095`，还是本地 `cloud/durable/dev.mjs` + SSH 隧道。
+- 截图基线是否入库；建议只存 `.anote/`，仓库只留脚本与 fixture。
