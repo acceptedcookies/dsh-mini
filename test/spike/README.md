@@ -19,6 +19,7 @@
 | `env-array-buffer-wasm/` | 「wasm 密文下发」前提：`WXWebAssembly.Module(bytes)`/`Instance` 字节实例化路径 + 真实量级（fx-core-async ≈4MB）fetch→解密→编译→链接分段耗时 | 本机 Node · DevTools 模拟器 · 真机 | 已执行（2026-11-06）：H 3/3 PASS，S 3/3 **RED**——**WXWebAssembly 是纯包内文件 API**，bytes/view/tmp文件/wxfile/usr/http 全拒、仅收包内 .wasm/.wasm.br 路径；密文下发前提 S1 级否决；R×2 NOT_RUN |
 | `env-celld-wasm/` | celld 决策核（`context/celld` `crates/logic`，13.4k 行零依赖同步 Rust）→ `wasm32-unknown-unknown` → `WXWebAssembly`：DO 冷激活链语义等价性 + 尺寸 | 本机 Node + cargo · DevTools 模拟器 · 真机 | 已执行（2026-11-06）：H/S/R 13/14 PASS（H1/H2/S1-S4/R2-R5），仅 R1（iOS）NOT_RUN；**S1/L3/L4/L1 在模拟器与三星 Android 16 真机双端全绿**——含 QuickJS 裸 C API 真机执行 JS（1+1=2、42）；300KB wasm / 1 import / QuickJS 637KB |
 | `nano-tools/` | fake-bash 53 个 canonical tool 在 Node / 模拟器 / 真机上的真实行为矩阵，供 Q6 档位裁决 | 本机 Node · DevTools 模拟器 · 真机 Android | 已执行：H1 54 pass / 1 degraded / 0 unavailable；S1 与 R2 各 53/1/1；fake=0；三端差异仅 `span`（小程序无 WebAssembly） |
+| `mini-skin/` | MS01 token→skin 真源/投影/投递：`@media` dark 全键兜底、`var()` 二级引用、surfaces `url()` 值域、五产物与迁移前有效值等价 | 本机 Node（静态/纯函数）· DevTools 模拟器（MCP） | 进行中：P0 基线已落（149 token/1461 消费点/12 场景图），P6 收口回填 |
 
 每个工作区的方法、判读门槛和结论以其自己的 `README.md` 为准。
 
