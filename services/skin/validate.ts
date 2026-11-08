@@ -209,6 +209,7 @@ export function validate(skinJson: unknown, vocab: VocabLike): ValidateResult {
   for (const mode of ['light', 'dark']) {
     const block = skin[mode]
     if (!isObject(block)) continue
+    const seenTokenKeys = new Set<string>()
     for (const family of Object.keys(block)) {
       if (!MODE_FAMILIES.has(family)) {
         push(errors, `$.${mode}.${family}`, 'L2.unknown-family', `未知 mode 族: ${family}`)
@@ -235,8 +236,11 @@ export function validate(skinJson: unknown, vocab: VocabLike): ValidateResult {
           continue
         }
         if (family === 'effects') {
-          if (!EFFECT_KEYS.has(key)) { push(errors, path, 'L2.unknown-key', `未知 effects 键: ${key}`); continue }
-          checkValueDomain(path, family, 'filter', value, errors)
+          if (EFFECT_KEYS.has(key)) {
+            push(errors, path, 'L6.capability.unsupported', 'effects 为 provisional，MS01 构建不投影（unsupported-in-this-build）')
+          } else {
+            push(errors, path, 'L2.unknown-key', `未知 effects 键: ${key}`)
+          }
           continue
         }
         if (family === 'assets') {
@@ -247,6 +251,9 @@ export function validate(skinJson: unknown, vocab: VocabLike): ValidateResult {
         if ((vocab.derivedKeys ?? []).includes(key)) { push(errors, path, 'L2.derived', `derived 键不可覆写: ${key}`); continue }
         const token = vocab.tokens[key]
         if (token === undefined) { push(errors, path, 'L2.unknown-key', `未知 token: ${key}`); continue }
+        if (seenTokenKeys.has(key)) { push(errors, path, 'L2.duplicate-key', `同 mode 跨族重复键: ${key}`); continue }
+        seenTokenKeys.add(key)
+        if (token.family !== family) { push(errors, path, 'L2.family-mismatch', `token ${key} 属 ${token.family}，不得写入 ${family}`); continue }
         if (token.invariant) { push(errors, path, 'L2.invariant', `invariant 键不可覆写: ${key}`); continue }
         if (token.derived) { push(errors, path, 'L2.derived', `derived 键不可覆写: ${key}`); continue }
         checkValueDomain(path, family, token.domain, value, errors)
@@ -283,17 +290,15 @@ export function validate(skinJson: unknown, vocab: VocabLike): ValidateResult {
     seenEmits.add(surface.emits)
   }
 
-  // L6 capability（E4：MS01 构建不支持的能力一律拒绝；dsh-default 空三族豁免）
-  if (skin.slug !== 'dsh-default') {
-    if (skin.fonts !== undefined && (!Array.isArray(skin.fonts) || skin.fonts.length > 0)) {
-      push(errors, '$.fonts', 'L6.capability.unsupported', 'fonts 消费面在 MS01 构建不可用（unsupported-in-this-build）')
-    }
-    if (skin.sounds !== undefined && (!isObject(skin.sounds) || Object.keys(skin.sounds).length > 0)) {
-      push(errors, '$.sounds', 'L6.capability.unsupported', 'sounds 消费面在 MS01 构建不可用（unsupported-in-this-build）')
-    }
-    if (skin.meta !== undefined && isObject(skin.meta) && skin.meta.lockMode !== undefined) {
-      push(errors, '$.meta.lockMode', 'L6.capability.unsupported', 'meta.lockMode 在 v1 不实现（unsupported-in-this-build）')
-    }
+  // L6 capability（E4：MS01 构建不支持的能力一律拒绝；空三族按「值本身为空」判定，不按 slug）
+  if (skin.fonts !== undefined && (!Array.isArray(skin.fonts) || skin.fonts.length > 0)) {
+    push(errors, '$.fonts', 'L6.capability.unsupported', 'fonts 消费面在 MS01 构建不可用（unsupported-in-this-build）')
+  }
+  if (skin.sounds !== undefined && (!isObject(skin.sounds) || Object.keys(skin.sounds).length > 0)) {
+    push(errors, '$.sounds', 'L6.capability.unsupported', 'sounds 消费面在 MS01 构建不可用（unsupported-in-this-build）')
+  }
+  if (skin.meta !== undefined && isObject(skin.meta) && skin.meta.lockMode !== undefined) {
+    push(errors, '$.meta.lockMode', 'L6.capability.unsupported', 'meta.lockMode 在 v1 不实现（unsupported-in-this-build）')
   }
 
   return { ok: errors.length === 0, errors }

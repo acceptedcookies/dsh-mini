@@ -343,6 +343,18 @@ check('G19 合法 surface 值（var 引用）', () => {
   const r = validate(baseSkin({ light: { surfaces: { 'chat.bubble-user': 'var(--dsw-specific-bubble)' } } }), vocab)
   assert(r.ok, `合法 surface 被拒: ${JSON.stringify(r.errors)}`)
 })
+check('G22 伪 dsh-default 非空 fonts/sounds/lockMode 仍拒绝（E4）', () => {
+  expectRule({ $schema: 'dsh-mini.skin.v1', slug: 'dsh-default', name: '伪默认', light: {}, fonts: [{ family: 'X', src: 'https://x/y.woff' }] }, 'L6.capability.unsupported')
+  expectRule({ $schema: 'dsh-mini.skin.v1', slug: 'dsh-default', name: '伪默认', light: {}, sounds: { 'ui.tap': 'https://x/y.mp3' } }, 'L6.capability.unsupported')
+  expectRule({ $schema: 'dsh-mini.skin.v1', slug: 'dsh-default', name: '伪默认', light: {}, meta: { lockMode: 'lock' } }, 'L6.capability.unsupported')
+})
+check('G23 跨族重复/错误族归属拒绝', () => {
+  expectRule(baseSkin({ light: { palette: { '--dsw-alias-bg-base': '#fff' }, shape: { '--dsw-alias-bg-base': '#fff' } } }), 'L2.duplicate-key')
+  expectRule(baseSkin({ light: { shape: { '--dsw-alias-label-primary': '#fff' } } }), 'L2.family-mismatch')
+})
+check('G24 provisional effects 拒绝（不静默丢弃）', () => {
+  expectRule(baseSkin({ light: { effects: { '--dsw-blur-surface': 'blur(20px)' } } }), 'L6.capability.unsupported')
+})
 check('G21 url 仅限 surfaces/assets/fonts（palette 注入拒绝）', () => {
   expectRule(baseSkin({ light: { palette: { '--dsw-alias-bg-base': 'url(https://evil.example/x.png)' } } }), 'L3.url.domain')
 })
@@ -619,6 +631,15 @@ check('K5 非法皮肤 applySkin 拒绝（fail-closed）', () => {
     threw = err instanceof Error && err.name === 'SkinValidationError' && Array.isArray(err.errors) && err.errors.some((x) => x.rule === 'L2.unknown-key')
   }
   assert(threw, '非法皮肤未抛 SkinValidationError/L2.unknown-key')
+})
+check('K7 skin 覆写 bg 时 setBackgroundColor 跟随 resolved bg', () => {
+  const e = loadEngine({ theme: 'light' })
+  e.applySkin({ $schema: 'dsh-mini.skin.v1', slug: 'bg-probe', name: 'BG Probe', light: { palette: { '--dsw-alias-bg-base': '#123456' } } })
+  e.applyChrome('light', 'base')
+  const bg = e.calls.bg[e.calls.bg.length - 1]
+  eq(bg.backgroundColor, '#123456', 'backgroundColor')
+  eq(bg.backgroundColorTop, '#123456', 'backgroundColorTop')
+  eq(bg.backgroundColorBottom, '#123456', 'backgroundColorBottom')
 })
 check('K6 null 重置默认 + 伪 dsh-default 不得免检', () => {
   const e = loadEngine({ theme: 'light' })

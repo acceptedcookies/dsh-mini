@@ -167,9 +167,13 @@ export function watchMode(cb: (eff: SkinMode) => void): () => void {
 export function applyChrome(eff: SkinMode, surface: 'base' | 'layer-2' = 'base'): void {
   const chrome = state.eff === eff ? state.chrome : resolveChrome(eff, state.skin)
   const tokens = state.eff === eff ? state.tokens : resolveTokens(eff, state.skin)
-  const background = surface === 'layer-2'
-    ? (tokens['--dsw-alias-bg-layer-2'] ?? defaultsFor(eff)['--dsw-alias-bg-layer-2'])
-    : (tokens['--dsw-alias-bg-base'] ?? defaultsFor(eff)['--dsw-alias-bg-base'])
+  const bgKey = surface === 'layer-2' ? '--dsw-alias-bg-layer-2' : '--dsw-alias-bg-base'
+  const background = tokens[bgKey] ?? defaultsFor(eff)[bgKey]
+  // page 底：默认取 chrome.pullBackground（保持迁移前 #f7f7f8 等价）；皮肤显式覆写 bg 时跟随 resolved bg
+  const block = state.skin !== null && isRecord(state.skin[eff]) ? state.skin[eff] : undefined
+  const palette = block !== undefined && isRecord(block.palette) ? block.palette : undefined
+  const customBg = palette !== undefined && typeof palette[bgKey] === 'string' ? palette[bgKey] : undefined
+  const pullBackground = customBg ?? chrome.pullBackground
   try {
     wx.setNavigationBarColor({
       frontColor: chrome.navFront,
@@ -177,9 +181,9 @@ export function applyChrome(eff: SkinMode, surface: 'base' | 'layer-2' = 'base')
       animation: { duration: 120, timingFunc: 'easeIn' },
     })
     wx.setBackgroundColor({
-      backgroundColor: chrome.pullBackground,
-      backgroundColorTop: chrome.pullBackground,
-      backgroundColorBottom: chrome.pullBackground,
+      backgroundColor: pullBackground,
+      backgroundColorTop: pullBackground,
+      backgroundColorBottom: pullBackground,
     })
   } catch {
     // Node 短验/旧基础库无该 API——静默降级，不影响 resolved 状态

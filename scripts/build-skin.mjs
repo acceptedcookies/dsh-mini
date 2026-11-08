@@ -87,9 +87,8 @@ for (const file of contractFiles) {
   contracts.push({ name, manifest })
 }
 const componentNames = new Set(COMPONENT_ENTRIES.map((c) => c.name).concat(contracts.map((c) => c.name)))
-for (const c of contracts) {
-  if (!COMPONENT_ENTRIES.some((x) => x.name === c.name)) problems.push(`contract 未收编进 components registry: ${c.name}`)
-}
+const contractNames = contracts.map((c) => c.name)
+if (new Set(contractNames).size !== contractNames.length) problems.push('contract name 重复')
 if (problems.length > 0) {
   console.error('FATAL: build-skin 契约断言失败：\n - ' + problems.join('\n - '))
   process.exit(1)
