@@ -299,6 +299,14 @@
       "fix": "eval 内先 wx.cloud.init({env:'cloud1-d7gar8j7w419589a0'}) 再 callFunction（phone.mjs 已内置）",
       "ownerAction": "无",
       "since": "2026-11-08"
+    },
+    {
+      "id": "PITFALL-35",
+      "symptom": "Uncaught Cannot read properties of undefined \\(reading '__diagnostics'\\)",
+      "where": "device\\.mjs.*dump",
+      "cause": "dump 四件套采集失败: Uncaught Cannot read properties of undefined (reading '__diagnostics')",
+      "fix": "确认真机会话存活后重跑；evaluate 失败多半是 remote 会话掉线",
+      "since": "2026-11-08"
     }
   ]
 }
