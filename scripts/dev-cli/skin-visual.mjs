@@ -74,19 +74,22 @@ try {
   await shot('06-trajectory-dark')
 
   // 7. model picker 浮面（dark）
+  await pageSetData({ view: 'trajectory' })
   await d.callMethod('openModelPicker', [])
+  await pageSetData({ view: 'trajectory' })
   await wait(700)
   await shot('07-model-picker-dark')
 
   // 8. up-drawer 引擎抽屉（dark）
   await d.callMethod('closeModelPicker', [])
+  await pageSetData({ view: 'trajectory' })
   await d.callMethod('openWorkspaceMenu', [])
   await wait(700)
   await shot('08-up-drawer-dark')
   await d.callMethod('closeEngineDrawer', [])
 
   // 9. dsh-menu 浮面（dark）
-  await d.eval(`() => { const p = getCurrentPages().pop(); p.setData({ menuVisible: true, menuTitle: '会话操作', menuItems: [{ id: 'rename', label: '重命名', icon: 'pencil-outline' }, { id: 'delete', label: '删除', icon: 'trash-outline' }], menuStyle: 'left: 12px; top: 96px; width: 176px;', menuContext: 'session', menuTargetId: 'demo' }); return true }`)
+  await d.eval(`() => { const p = getCurrentPages().pop(); p.setData({ view: 'trajectory', menuVisible: true, menuTitle: '会话操作', menuItems: [{ id: 'rename', label: '重命名', icon: 'pencil-outline' }, { id: 'delete', label: '删除', icon: 'trash-outline' }], menuStyle: 'left: 12px; top: 96px; width: 176px;', menuContext: 'session', menuTargetId: 'demo' }); return true }`)
   await wait(500)
   await shot('09-menu-dark')
   await d.callMethod('closeMenu', [])
