@@ -80,10 +80,22 @@ node scripts/skin-equiv-check.mjs --self-test
 > 本文件在 MS01 收口时回填：各 Test-ID verdict、环境、`headSha`、证据路径与残余 RED。
 
 | Test-ID | verdict | 环境 | 证据 |
-|---|---|---|---|
+|---|---|---|
+| `T01` | `PASS` | H1 | `node-checks §A` A1–A10 |
+| `T02` | `PASS` | H1 | `node-checks §B` B1–B5（15 键/23 points） |
+| `T03` | `PASS` | H1 | `node-checks §C` C1–C6（151/134/less-free/cross-product） |
+| `T04` | `PASS` | H1 | `node-checks §D` D1–D3 |
+| `T05` | `PASS` | H1 | `build-skin --check` + `.anote/ms01-p6/negative-gates.json` |
 | `T06` | `PASS` | S1 | `evidence/t06/*`（plant 摘 import → rgba(0,0,0,0)，复原 rgb(255,255,255)） |
-| `T11` | `PASS` | S1 | `evidence/t11/*`（settings 三档 + models/workspace appStyle 5879） |
-| `T13` | `PASS` | H1 | `.anote/ms01-p6/equiv-p6.json`（0 errors/0 diffs/12 intended/15 tokenization） |
+| `T07` | `PASS` | H1 | `token-audit total=0` + 负例 `tokenDef=1` |
+| `T08` | `PASS` | H1 | `node-checks §E` E1–E4 |
+| `T09` | `PASS` | H1 | `node-checks §F` F1–F2 |
+| `T10` | `PASS` | H1 | `node-checks §G` G1–G21（19 负例逐 rule） |
+| `T11` | `PASS` | S1 | `evidence/t11/*`（settings 三档 + models/workspace appStyle 5879 + chrome） |
+| `T12` | `PASS` | H1 | `node-checks §H-P4/§H-P5` H1–H9 |
+| `T13` | `PASS` | H1 | `.anote/ms01-p6/equiv-p6.json`（0 errors/0 diffs/12 intended/15 tokenization）+ self-test |
+| `T14` | `PASS` | H1 | `node-checks §I` I1–I4 |
 | `T15` | `PASS` | S1 | `.anote/ms01-p6/visual-diff.json`（12 场景 max 0.044/0.06%） |
-| `T17` | `deferred`（media）/`PASS`（var/url） | S1 | `evidence/t17/*`（reason `media-dark-not-triggerable-in-devtools`） |
+| `T16` | `PASS` | H1 | `node-checks §J` J1–J5 |
+| `T17` | `NOT_RUN`（media）/`PASS`（var/url） | S1 | `evidence/t17/*`（reason `media-dark-not-triggerable-in-devtools`；真机交 MS03） |
 | `T18` | `PASS` | S1+H1 | `evidence/t18/*`（forest #2f855a/#f7fdf9/149 keys） |
