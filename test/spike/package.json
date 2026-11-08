@@ -10,5 +10,10 @@
     "miniprogram-automator": "^0.13.0",
     "wabt": "^1.0.39",
     "zod": "^4.6.7"
+  },
+  "dependencies": {
+    "tree-sitter-javascript": "^0.25.0",
+    "tree-sitter-python": "^0.25.0",
+    "web-tree-sitter": "^0.25.10"
   }
 }

@@ -1,0 +1,8 @@
+**/evidence/
+**/artifacts/
+**/shots/
+**/screenshots/
+# esbuild 产物，build.mjs 再生成
+bundle/
+mp/vendor/
+mp/lib/rows.js

@@ -1,0 +1,887 @@
+{
+  "fixtures": {
+    "/data/spike/a.txt": "alpha\nbeta\ngamma\nbeta\ndelta\n",
+    "/data/spike/b.txt": "beta\ndelta\nepsilon\n",
+    "/data/spike/nums.txt": "3\n1\n2\n10\n",
+    "/data/spike/csv.txt": "a,1\nb,2\nc,3\n",
+    "/data/spike/sub/nested.txt": "nested-content\n",
+    "/data/spike/code.js": "function foo(){return 1}\nconst bar=2\nclass Klass{m(){return 3}}\n",
+    "/data/spike/big.txt": "__BIG__"
+  },
+  "big_lines": 200,
+  "rows": [
+    {
+      "id": "cat",
+      "mode": "tool",
+      "args": {
+        "path": "/data/spike/a.txt"
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "alpha",
+          "delta"
+        ]
+      }
+    },
+    {
+      "id": "cat-multi",
+      "mode": "tool",
+      "tool": "cat",
+      "args": {
+        "paths": [
+          "/data/spike/a.txt",
+          "/data/spike/b.txt"
+        ]
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "alpha",
+          "epsilon"
+        ]
+      }
+    },
+    {
+      "id": "ls",
+      "mode": "tool",
+      "args": {
+        "path": "/data/spike"
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "a.txt",
+          "b.txt"
+        ]
+      }
+    },
+    {
+      "id": "find",
+      "mode": "tool",
+      "args": {
+        "path": "/data/spike",
+        "name": "*.txt",
+        "type": "f"
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "a.txt"
+        ]
+      }
+    },
+    {
+      "id": "rg",
+      "mode": "tool",
+      "args": {
+        "pattern": "beta",
+        "path": "/data/spike"
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "a.txt"
+        ],
+        "note": "kernel = wasm (H1) / TS sim (mp); both must agree"
+      }
+    },
+    {
+      "id": "write",
+      "mode": "tool",
+      "args": {
+        "path": "/data/spike/w.txt",
+        "content": "written-by-spike\n"
+      },
+      "expect": {
+        "kind": "ok"
+      },
+      "verify": {
+        "read": "/data/spike/w.txt",
+        "contains": "written-by-spike"
+      }
+    },
+    {
+      "id": "edit",
+      "mode": "tool",
+      "args": {
+        "path": "/data/spike/a.txt",
+        "edits": [
+          {
+            "old_string": "alpha",
+            "new_string": "ALPHA"
+          }
+        ]
+      },
+      "expect": {
+        "kind": "ok"
+      },
+      "verify": {
+        "read": "/data/spike/a.txt",
+        "contains": "ALPHA"
+      }
+    },
+    {
+      "id": "cp",
+      "mode": "tool",
+      "args": {
+        "source": "/data/spike/b.txt",
+        "destination": "/data/spike/b-copy.txt"
+      },
+      "expect": {
+        "kind": "ok"
+      },
+      "verify": {
+        "read": "/data/spike/b-copy.txt",
+        "contains": "epsilon"
+      }
+    },
+    {
+      "id": "mv",
+      "mode": "tool",
+      "args": {
+        "source": "/data/spike/b-copy.txt",
+        "destination": "/data/spike/b-moved.txt"
+      },
+      "expect": {
+        "kind": "ok"
+      },
+      "verify": {
+        "read": "/data/spike/b-moved.txt",
+        "contains": "epsilon"
+      }
+    },
+    {
+      "id": "mkdir",
+      "mode": "tool",
+      "args": {
+        "path": "/data/spike/newdir"
+      },
+      "expect": {
+        "kind": "ok"
+      },
+      "verify": {
+        "read": "/data/spike/newdir",
+        "isDir": true
+      }
+    },
+    {
+      "id": "rm",
+      "mode": "tool",
+      "args": {
+        "path": "/data/spike/b-moved.txt"
+      },
+      "expect": {
+        "kind": "ok"
+      },
+      "verify": {
+        "read": "/data/spike/b-moved.txt",
+        "missing": true
+      }
+    },
+    {
+      "id": "stat",
+      "mode": "tool",
+      "args": {
+        "path": "/data/spike/a.txt"
+      },
+      "expect": {
+        "kind": "ok"
+      }
+    },
+    {
+      "id": "tree",
+      "mode": "tool",
+      "args": {
+        "path": "/data/spike",
+        "maxDepth": 4
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "a.txt",
+          "nested.txt"
+        ]
+      }
+    },
+    {
+      "id": "head",
+      "mode": "tool",
+      "args": {
+        "path": "/data/spike/a.txt",
+        "lines": 2
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "ALPHA",
+          "beta"
+        ],
+        "absent": [
+          "delta"
+        ]
+      }
+    },
+    {
+      "id": "tail",
+      "mode": "tool",
+      "args": {
+        "path": "/data/spike/a.txt",
+        "lines": 2
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "delta"
+        ],
+        "absent": [
+          "alpha"
+        ]
+      }
+    },
+    {
+      "id": "sed",
+      "mode": "tool",
+      "args": {
+        "expression": "s/beta/BETA/",
+        "stdinText": "beta\nbeta\n"
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "BETA"
+        ]
+      }
+    },
+    {
+      "id": "awk",
+      "mode": "tool",
+      "args": {
+        "program": "{print $2}",
+        "stdinText": "x y\na b\n"
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "y",
+          "b"
+        ]
+      }
+    },
+    {
+      "id": "sort",
+      "mode": "tool",
+      "args": {
+        "path": "/data/spike/nums.txt",
+        "numeric": true
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "1",
+          "2",
+          "3",
+          "10"
+        ]
+      }
+    },
+    {
+      "id": "uniq",
+      "mode": "tool",
+      "args": {
+        "stdinText": "a\na\nb\n"
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "a",
+          "b"
+        ]
+      }
+    },
+    {
+      "id": "wc",
+      "mode": "tool",
+      "args": {
+        "path": "/data/spike/a.txt"
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "5"
+        ]
+      }
+    },
+    {
+      "id": "diff",
+      "mode": "tool",
+      "args": {
+        "left": "/data/spike/a.txt",
+        "right": "/data/spike/b.txt"
+      },
+      "expect": {
+        "kind": "ok"
+      }
+    },
+    {
+      "id": "echo",
+      "mode": "tool",
+      "args": {
+        "message": "hello-spike"
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "hello-spike"
+        ]
+      }
+    },
+    {
+      "id": "pwd",
+      "mode": "tool",
+      "args": {},
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "/"
+        ]
+      }
+    },
+    {
+      "id": "which",
+      "mode": "tool",
+      "args": {
+        "command": "cat"
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "cat"
+        ]
+      }
+    },
+    {
+      "id": "git",
+      "mode": "tool",
+      "args": {
+        "subcommand": "status"
+      },
+      "expect": {
+        "kind": "any",
+        "absent": [
+          "__crash__"
+        ],
+        "note": "workspace-view subset; mock has no git metadata — honest degraded/error acceptable"
+      }
+    },
+    {
+      "id": "curl",
+      "mode": "tool",
+      "args": {
+        "url": "https://dsh-mini.saobao.com/robots.txt"
+      },
+      "expect": {
+        "kind": "any",
+        "note": "live network to owner-controlled domain; offline → honest error acceptable"
+      }
+    },
+    {
+      "id": "ts-exec",
+      "mode": "tool",
+      "args": {
+        "code": "1+1"
+      },
+      "expect": {
+        "kind": "err",
+        "contains": [
+          "no-target",
+          "service-binding"
+        ],
+        "note": "typed dispatch target is service-binding; no target registered → honest no-target (validate-only local handler unreachable via typed path)"
+      }
+    },
+    {
+      "id": "span",
+      "mode": "tool",
+      "args": {
+        "path": "/data/spike/code.js",
+        "selector": "function:foo"
+      },
+      "expect": {
+        "kind": "any",
+        "note": "tree-sitter wasm stubbed in spike bundle — honest error/unavailable expected"
+      }
+    },
+    {
+      "id": "bash-pipeline",
+      "mode": "tool",
+      "args": {
+        "command": "cat /data/spike/a.txt | sort | head -n 2"
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "ALPHA",
+          "beta"
+        ],
+        "absent": [
+          "gamma"
+        ]
+      }
+    },
+    {
+      "id": "memory",
+      "mode": "tool",
+      "args": {
+        "op": "put",
+        "key": "k1",
+        "content": "v1"
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "intent"
+        ]
+      }
+    },
+    {
+      "id": "todo",
+      "mode": "tool",
+      "args": {
+        "op": "head"
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "agent-state-sync-read"
+        ]
+      }
+    },
+    {
+      "id": "ask_user",
+      "mode": "tool",
+      "args": {
+        "questions": [
+          {
+            "id": "q1",
+            "question": "pick?",
+            "options": [
+              {
+                "label": "a"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "intent"
+        ]
+      }
+    },
+    {
+      "id": "file_focus",
+      "mode": "tool",
+      "args": {
+        "op": "head"
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "intent"
+        ]
+      }
+    },
+    {
+      "id": "context_inspect",
+      "mode": "tool",
+      "args": {},
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "intent"
+        ]
+      }
+    },
+    {
+      "id": "describe_skill",
+      "mode": "tool",
+      "args": {
+        "skill_name": "x"
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "intent"
+        ]
+      }
+    },
+    {
+      "id": "invoke_skill",
+      "mode": "tool",
+      "args": {
+        "skill_name": "x"
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "intent"
+        ]
+      }
+    },
+    {
+      "id": "artifact_export",
+      "mode": "tool",
+      "args": {
+        "path": "/data/spike/a.txt",
+        "name": "a"
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "intent"
+        ]
+      }
+    },
+    {
+      "id": "workspace_verify",
+      "mode": "tool",
+      "args": {
+        "virtual_path": "/data/spike/a.txt",
+        "expected_content_sha256": "file-sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "max_object_bytes": 1024
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "intent"
+        ]
+      }
+    },
+    {
+      "id": "basename",
+      "mode": "bash",
+      "line": "basename /data/spike/a.txt",
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "a.txt"
+        ]
+      }
+    },
+    {
+      "id": "dirname",
+      "mode": "bash",
+      "line": "dirname /data/spike/sub/nested.txt",
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "/data/spike/sub"
+        ]
+      }
+    },
+    {
+      "id": "printf",
+      "mode": "bash",
+      "line": "printf 'x=%s\\n' 7",
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "x=7"
+        ]
+      }
+    },
+    {
+      "id": "seq",
+      "mode": "bash",
+      "line": "seq 1 3",
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "1",
+          "2",
+          "3"
+        ]
+      }
+    },
+    {
+      "id": "sleep",
+      "mode": "bash",
+      "line": "sleep 0.05",
+      "expect": {
+        "kind": "ok"
+      }
+    },
+    {
+      "id": "tee",
+      "mode": "bash",
+      "line": "echo teed | tee /tmp/spike-tee.txt",
+      "expect": {
+        "kind": "any",
+        "note": "tee is ask-gated + fs-write; auto-allowed via hook; /tmp lane may be read-only — honest reject acceptable"
+      }
+    },
+    {
+      "id": "date",
+      "mode": "bash",
+      "line": "date",
+      "expect": {
+        "kind": "ok"
+      }
+    },
+    {
+      "id": "env",
+      "mode": "bash",
+      "line": "env",
+      "expect": {
+        "kind": "any",
+        "note": "env surface is platform-defined"
+      }
+    },
+    {
+      "id": "expr",
+      "mode": "bash",
+      "line": "expr 2 + 3",
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "5"
+        ]
+      }
+    },
+    {
+      "id": "true",
+      "mode": "bash",
+      "line": "true",
+      "expect": {
+        "kind": "ok"
+      }
+    },
+    {
+      "id": "false",
+      "mode": "bash",
+      "line": "false",
+      "expect": {
+        "kind": "err",
+        "contains": [
+          "returned non-zero status"
+        ],
+        "note": "bash 语义：false 必须以非零退出；util.ts:39 明确抛 execution-failed（设计如此，非能力缺失）"
+      }
+    },
+    {
+      "id": "comm",
+      "mode": "bash",
+      "line": "comm /data/spike/a.txt /data/spike/b.txt",
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "beta",
+          "epsilon"
+        ]
+      }
+    },
+    {
+      "id": "cut",
+      "mode": "bash",
+      "line": "cut -d, -f1 /data/spike/csv.txt",
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "a",
+          "b",
+          "c"
+        ]
+      }
+    },
+    {
+      "id": "tr",
+      "mode": "bash",
+      "line": "echo abc | tr a-z A-Z",
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "ABC"
+        ]
+      }
+    },
+    {
+      "id": "timeout",
+      "mode": "bash",
+      "line": "timeout 2 echo ok",
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "ok"
+        ]
+      }
+    },
+    {
+      "id": "xargs",
+      "mode": "bash",
+      "line": "echo 'one two' | xargs echo",
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "one",
+          "two"
+        ]
+      }
+    },
+    {
+      "id": "bash-cat",
+      "mode": "bash",
+      "line": "cat /data/spike/a.txt | head -n 2",
+      "expect": {
+        "kind": "any",
+        "note": "H1 observed head -n flag dropped inside pipeline (full cat output) — record actual"
+      }
+    },
+    {
+      "id": "bash-echo",
+      "mode": "bash",
+      "line": "echo hello-bash",
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "hello-bash"
+        ]
+      }
+    },
+    {
+      "id": "bash-ls",
+      "mode": "bash",
+      "line": "ls /data/spike",
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "a.txt"
+        ]
+      }
+    },
+    {
+      "id": "rej-sudo",
+      "mode": "bash",
+      "line": "sudo ls",
+      "expect": {
+        "kind": "err",
+        "contains": [
+          "architectural-impossible"
+        ]
+      }
+    },
+    {
+      "id": "rej-python",
+      "mode": "bash",
+      "line": "python -c 'print(1)'",
+      "expect": {
+        "kind": "err",
+        "contains": [
+          "architectural-impossible"
+        ]
+      }
+    },
+    {
+      "id": "rej-tar",
+      "mode": "bash",
+      "line": "tar czf /tmp/x.tar /data/spike",
+      "expect": {
+        "kind": "err",
+        "contains": [
+          "blocked"
+        ]
+      }
+    },
+    {
+      "id": "rej-readlink",
+      "mode": "bash",
+      "line": "readlink /data/spike/a.txt",
+      "expect": {
+        "kind": "err",
+        "contains": [
+          "not-yet-supported"
+        ]
+      }
+    },
+    {
+      "id": "rej-unknown",
+      "mode": "bash",
+      "line": "frobnicate x",
+      "expect": {
+        "kind": "err",
+        "contains": [
+          "not registered"
+        ]
+      }
+    },
+    {
+      "id": "rej-traversal",
+      "mode": "tool",
+      "tool": "cat",
+      "args": {
+        "path": "/data/spike/../escape.txt"
+      },
+      "expect": {
+        "kind": "err",
+        "note": "traversal must be rejected by path law"
+      }
+    },
+    {
+      "id": "rej-badroot",
+      "mode": "tool",
+      "tool": "cat",
+      "args": {
+        "path": "/etc/passwd"
+      },
+      "expect": {
+        "kind": "err",
+        "note": "non-workspace root must be rejected"
+      }
+    },
+    {
+      "id": "PLANT-1",
+      "mode": "tool",
+      "tool": "cat",
+      "args": {
+        "path": "/data/spike/nonexistent.txt"
+      },
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "ghost-content"
+        ]
+      },
+      "plant": true
+    },
+    {
+      "id": "PLANT-2",
+      "mode": "bash",
+      "line": "sudo ls",
+      "expect": {
+        "kind": "ok",
+        "contains": [
+          "a.txt"
+        ]
+      },
+      "plant": true
+    },
+    {
+      "id": "PLANT-3",
+      "mode": "tool",
+      "tool": "write",
+      "args": {
+        "path": "/data/spike/plant.txt",
+        "content": "p"
+      },
+      "expect": {
+        "kind": "ok"
+      },
+      "verify": {
+        "read": "/data/spike/plant.txt",
+        "missing": true
+      },
+      "plant": true
+    }
+  ]
+}

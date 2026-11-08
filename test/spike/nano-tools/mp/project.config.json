@@ -1,0 +1,15 @@
+{
+  "appid": "wx356d3abb52825466",
+  "compileType": "miniprogram",
+  "libVersion": "latest",
+  "projectname": "spike-nano-tools",
+  "setting": {
+    "urlCheck": false,
+    "es6": false,
+    "postcss": false,
+    "minified": false,
+    "ignoreUploadUnusedFiles": false,
+    "uploadWithSourceMap": false
+  },
+  "condition": {}
+}
