@@ -151,7 +151,7 @@ test/simulation/                         # 仿真测试根；不打包、不接 
 - `scripts/dev-cli/README.md`：DevTools 五通道、automator、ProbeDriver、真机 dump。
 - `cloud/durable/README.md`：durable 合同、生产/测试双入口、fss3 退役记录。
 - `cloud/test-s3/README.md`：FRD1 测试网关、测试桶、生产切流历史。
-- `docs/truth/mini-nano/MN06-ep2-handoff.md`：§1 原语语义合同、§5 已知限制。
+- `docs/truth/mini-nano/MN06-qna.md`：`T-O` 台账（原语语义合同、`T-O-11`/`T-O-12`/`T-O-13` 裁决）。
 - `docs/closure/mini-nano/1st-wave/MN06-closure.md`：§8 EP-2 前 blocker 唯一真源。
 - `test/spike/README.md`：spike 的证据纪律；simulation 与其同属“非发布闸”。
 - `AGENTS.md`：项目原则（单向访问、命名中立、单一真源、不得过度仪式、不得擅自扩约）。

@@ -73,7 +73,7 @@ export async function openApp({ device = false } = {}) {
   }
 }
 
-async function attachDevice(mp) {
+export async function attachDevice(mp) {
   const log = (msg) => console.log(`[attachDevice] ${msg}`)
   const info = async () => mp.evaluate(() => {
     const d = wx.getDeviceInfo()
