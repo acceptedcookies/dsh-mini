@@ -9,7 +9,7 @@ export const SURFACE_ENTRIES: SurfaceEntry[] = [
     points: [
       { file: 'pages/workspace/workspace.less', line: 6, use: '--dsw-alias-bg-base' },
       { file: 'pages/settings/settings.less', line: 5, use: '--dsw-alias-bg-base' },
-      { file: 'app.less', line: 271, use: '--dsw-alias-bg-base' },
+      { file: 'app.less', line: 36, use: '--dsw-alias-bg-base' },
     ],
   },
   {
@@ -61,7 +61,7 @@ export const SURFACE_ENTRIES: SurfaceEntry[] = [
     key: 'card',
     emits: '--dsw-surface-card',
     default: 'var(--dsw-alias-bg-layer-1)',
-    points: [{ file: 'app.less', line: 292, use: '--dsw-alias-bg-layer-1' }],
+    points: [{ file: 'app.less', line: 57, use: '--dsw-alias-bg-layer-1' }],
   },
   {
     key: 'banner.notice',

@@ -1,4 +1,4 @@
-<view class="ec-root theme-{{theme}}">
+<view class="ec-root">
   <view class="ec-toast-stack">
     <view
       wx:for="{{toastViews}}"

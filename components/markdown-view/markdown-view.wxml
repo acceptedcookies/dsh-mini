@@ -1,6 +1,6 @@
 <block wx:for="{{segments}}" wx:key="index">
   <rich-text wx:if="{{item.kind === 'html'}}" class="md" nodes="{{item.html}}"></rich-text>
-  <view wx:elif="{{item.kind === 'table'}}" class="md-table theme-{{theme}}">
+  <view wx:elif="{{item.kind === 'table'}}" class="md-table">
     <scroll-view scroll-x enhanced show-scrollbar="{{false}}" class="md-table-scroll">
       <view class="md-t">
         <view wx:if="{{item.header}}" class="md-tr md-th">
@@ -19,7 +19,7 @@
       </view>
     </scroll-view>
   </view>
-  <view wx:else class="code-card theme-{{theme}}">
+  <view wx:else class="code-card">
     <view class="code-head">
       <text class="code-lang">{{item.lang || '代码'}}</text>
       <view class="code-actions">

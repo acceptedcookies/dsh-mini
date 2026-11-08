@@ -1,4 +1,4 @@
-<view wx:if="{{visible}}" class="right-panel {{docked ? 'right-panel-docked' : ''}} theme-{{theme}}" data-anchor-exempt="gesture-shield" catchtap="noop">
+<view wx:if="{{visible}}" class="right-panel {{docked ? 'right-panel-docked' : ''}}" data-anchor-exempt="gesture-shield" catchtap="noop">
   <view class="rp-strip">
     <dsh-tabs class="rp-tabs" variant="pill" tabs="{{tabs}}" active="{{active}}" theme="{{theme}}" bind:change="select" />
     <view class="rp-close" data-anchor="rp.close" bindtap="close">

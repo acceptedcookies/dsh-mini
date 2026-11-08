@@ -251,12 +251,12 @@ function scanConsumptionPoints(files, defs) {
 }
 
 // ── 非 less 值源快照 ──────────────────────────────────────────────────────
-function snapshotNonLess() {
-  const themeTs = readFileSync(join(ROOT, 'services/theme.ts'), 'utf8')
-  const front = /frontColor:\s*theme === 'dark' \? '(#[0-9a-fA-F]+)' : '(#[0-9a-fA-F]+)'/.exec(themeTs)
-  const layer2 = /surface === 'layer-2'\s*\n?\s*\? \(theme === 'dark' \? '([^']+)' : '([^']+)'\)/.exec(themeTs)
-  const base = /:\s*\(theme === 'dark' \? '([^']+)' : '([^']+)'\)/.exec(themeTs)
-  const pull = /const bg = theme === 'dark' \? '([^']+)' : '([^']+)'/.exec(themeTs)
+function snapshotNonLess(includeThemeTs = true) {
+  const themeTs = includeThemeTs && existsSync(join(ROOT, 'services/theme.ts')) ? readFileSync(join(ROOT, 'services/theme.ts'), 'utf8') : ''
+  const front = themeTs.length === 0 ? null : /frontColor:\s*theme === 'dark' \? '(#[0-9a-fA-F]+)' : '(#[0-9a-fA-F]+)'/.exec(themeTs)
+  const layer2 = themeTs.length === 0 ? null : /surface === 'layer-2'\s*\n?\s*\? \(theme === 'dark' \? '([^']+)' : '([^']+)'\)/.exec(themeTs)
+  const base = themeTs.length === 0 ? null : /:\s*\(theme === 'dark' \? '([^']+)' : '([^']+)'\)/.exec(themeTs)
+  const pull = themeTs.length === 0 ? null : /const bg = theme === 'dark' \? '([^']+)' : '([^']+)'/.exec(themeTs)
   const chrome = {
     navFront: front === null ? null : { light: front[2], dark: front[1] },
     navBackgroundBase: base === null ? null : { light: base[2], dark: base[1] },
@@ -466,29 +466,31 @@ function compare(phase) {
     if (!baselineByKey.has(now.key)) errors.push(`新增消费点（需登记）: ${now.file}:${now.line} ${now.selector} { ${now.prop} }`)
   }
 
-  // 3) 非 less 值源
-  const nonLess = snapshotNonLess()
+  // 3) 非 less 值源（P5 后 theme.ts 已删：chrome 期望值从 vocab 推导）
   const baseNon = baseline.nonLess
-  for (const area of ['chrome']) {
-    for (const [k, old] of Object.entries(baseNon[area])) {
-      const now = nonLess[area][k]
-      for (const mode of ['light', 'dark']) {
-        if (old?.[mode] !== now?.[mode]) errors.push(`${area}.${k}.${mode}: ${old?.[mode]} → ${now?.[mode]}`)
-      }
+  const chromeNow = {
+    navFront: { light: vocab.chrome.navFront.light, dark: vocab.chrome.navFront.dark },
+    navBackgroundBase: { light: vocab.tokens['--dsw-alias-bg-base'].light, dark: vocab.tokens['--dsw-alias-bg-base'].dark },
+    navBackgroundLayer2: { light: vocab.tokens['--dsw-alias-bg-layer-2'].light, dark: vocab.tokens['--dsw-alias-bg-layer-2'].dark },
+    pullBackground: { light: vocab.chrome.pullBackground.light, dark: vocab.chrome.pullBackground.dark },
+  }
+  for (const [k, old] of Object.entries(baseNon.chrome)) {
+    const now = chromeNow[k]
+    for (const mode of ['light', 'dark']) {
+      if (old?.[mode] !== now?.[mode]) errors.push(`chrome.${k}.${mode}: ${old?.[mode]} → ${now?.[mode]}`)
     }
   }
   for (const mode of ['light', 'dark']) {
     for (const field of Object.keys(baseNon.palette[mode])) {
-      const tokenKey = paletteMap[field]
-      if (tokenKey === undefined) { errors.push(`palette-map 缺字段: ${field}`); continue }
-      const entry = vocab.tokens[tokenKey]
-      if (entry === undefined) { errors.push(`palette-map 指向未知 token: ${field} → ${tokenKey}`); continue }
-      const newVal = norm(entry[mode])
+      const map = paletteMap[field]
+      if (map === undefined) { errors.push(`palette-map 缺字段: ${field}`); continue }
+      const newVal = 'token' in map ? (vocab.tokens[map.token]?.[mode] ?? '') : map.literal[mode]
       const oldVal = norm(baseNon.palette[mode][field])
-      if (newVal !== oldVal) errors.push(`markdown palette ${mode}.${field}: ${oldVal} → ${newVal}`)
+      if (norm(newVal) !== oldVal) errors.push(`markdown palette ${mode}.${field}: ${oldVal} → ${norm(newVal)}`)
     }
   }
-  if (nonLess.menlo.length !== baseNon.menlo.length) errors.push(`Menlo 字面量计数 ${baseNon.menlo.length} → ${nonLess.menlo.length}`)
+  const mdSrc = readFileSync(join(ROOT, 'services/markdown.ts'), 'utf8')
+  if (mdSrc.includes('Menlo,monospace')) errors.push('markdown.ts 仍有 Menlo,monospace 字面量')
   const codeFont = vocab.tokens['--ds-font-family-code']
   if (codeFont === undefined) errors.push('缺 --ds-font-family-code')
   else if (norm(codeFont.light) !== 'Menlo,"SFMono-Regular",Consolas,monospace') {

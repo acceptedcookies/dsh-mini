@@ -1,4 +1,4 @@
-<view wx:if="{{render}}" class="feedback-layer theme-{{theme}} {{closing ? 'feedback-closing' : ''}}" style="{{kb > 0 ? 'padding-bottom: calc(' + kb + 'px + 16px)' : ''}}" catchtouchmove="noop" data-anchor-exempt="gesture-shield">
+<view wx:if="{{render}}" class="feedback-layer {{closing ? 'feedback-closing' : ''}}" style="{{kb > 0 ? 'padding-bottom: calc(' + kb + 'px + 16px)' : ''}}" catchtouchmove="noop" data-anchor-exempt="gesture-shield">
   <view class="feedback-mask" data-anchor="feedback.mask" bindtap="cancel"></view>
   <view class="feedback-card" data-anchor-exempt="gesture-shield" catchtap="noop">
     <view class="feedback-header">

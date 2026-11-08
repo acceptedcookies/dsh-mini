@@ -1,4 +1,4 @@
-<view wx:if="{{render}}" class="toast theme-{{theme}} {{closing ? 'toast-closing' : ''}}">
+<view wx:if="{{render}}" class="toast {{closing ? 'toast-closing' : ''}}">
   <dsh-icon
     wx:if="{{tone === 'success' || tone === 'warning' || tone === 'error'}}"
     name="{{tone === 'success' ? 'check-circle-outline' : (tone === 'error' ? 'close-circle-fill' : 'warning-triangle-outline')}}"

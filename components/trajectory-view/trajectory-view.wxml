@@ -1,4 +1,4 @@
-<view class="trajectory-root theme-{{theme}}">
+<view class="trajectory-root">
   <view class="traj-toolbar">
     <view class="traj-toolbar-inner">
       <view class="traj-toolbar-actions">

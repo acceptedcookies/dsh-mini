@@ -1,4 +1,4 @@
-<view class="app {{isWide ? 'app-wide' : ''}} theme-{{theme}}" style="{{appStyle}}">
+<view class="app {{isWide ? 'app-wide' : ''}}" style="{{appStyle}}">
   <!-- kernel 分包零闪引导：组件挂载即驱动分包下载+分包上下文 require，
        替代占位页 navigateTo（白闪根因）。display:none，无视觉成本。 -->
   <kernel-boot id="kernel-boot" style="display:none" />
@@ -349,7 +349,7 @@
           </view>
           <view wx:if="{{statsDock.contextPercent !== undefined}}" class="stats-context" data-anchor="stats.context">
             <view class="stats-ring" style="background: conic-gradient(var(--dsw-alias-label-tertiary) {{statsDock.contextPercent * 3.6}}deg, var(--dsw-alias-border-l3) 0);">
-              <view class="stats-ring-hole theme-{{theme}}"></view>
+              <view class="stats-ring-hole"></view>
             </view>
             <text class="stats-context-label">{{statsDock.contextPercent}}%</text>
           </view>

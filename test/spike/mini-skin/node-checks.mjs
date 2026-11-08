@@ -171,10 +171,10 @@ check('C1 五产物齐备', () => {
     assert(existsSync(resolve(ROOT, f)), `缺产物 ${f}`)
   }
 })
-check('C2 skin.gen page 134 / @media 55', () => {
+check('C2 skin.gen page 149（134 token + 15 surface）/ @media 55', () => {
   const css = readFileSync(resolve(ROOT, 'skin.gen.wxss'), 'utf8')
   const page = css.slice(css.indexOf('page {'), css.indexOf('@media'))
-  eq((page.match(/^\s{2}--/gm) ?? []).length, 134, 'light 键数')
+  eq((page.match(/^\s{2}--/gm) ?? []).length, 149, 'light 键数')
   const dark = css.slice(css.indexOf('@media'))
   eq((dark.match(/^\s{4}--/gm) ?? []).length, 55, 'dark 键数')
 })
@@ -481,6 +481,68 @@ check('J5 非登记点保持 alias（防越界）', () => {
     const src = readFileSync(resolve(ROOT, file), 'utf8').split('\n')[line - 1]
     assert(src.includes(key), `${file}:${line} 非登记点被误改: ${src.trim()}`)
   }
+})
+
+
+// ── §H-P5 退役残留（P5 阶段：全零） ──────────────────────────────────────
+section('H-P5')
+function productFiles(exts) {
+  const out = ['app.ts']
+  const walk = (dir) => {
+    for (const e of readdirSync(resolve(ROOT, dir), { withFileTypes: true })) {
+      const rel = `${dir}/${e.name}`
+      if (e.isDirectory()) { if (e.name !== 'node_modules') walk(rel) }
+      else if (exts.some((x) => e.name.endsWith(x))) out.push(rel)
+    }
+  }
+  walk('pages'); walk('components'); walk('services'); walk('scripts')
+  return out
+}
+check('H4 .theme-dark 注释剥离后全零', () => {
+  for (const file of productFiles(['.less', '.ts', '.wxml'])) {
+    const src = readFileSync(resolve(ROOT, file), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+    assert(!src.includes('.theme-dark'), `${file} 仍含 .theme-dark`)
+  }
+})
+check('H5 theme-{{ 空格变体零残留', () => {
+  for (const file of productFiles(['.wxml'])) {
+    const src = readFileSync(resolve(ROOT, file), 'utf8')
+    assert(!/theme-\s*\{\{/.test(src), `${file} 仍含 theme-{{`)
+  }
+})
+check('H6 TS 拼接 theme-${ / theme- + 零残留', () => {
+  for (const file of productFiles(['.ts'])) {
+    const src = readFileSync(resolve(ROOT, file), 'utf8')
+    assert(!/theme-\$\{/.test(src), `${file} 仍含 theme-\${`)
+    assert(!/'theme-'\s*\+/.test(src), `${file} 仍含 'theme-' +`)
+  }
+})
+check('H7 services/theme AST import 全零（含 import type）', () => {
+  const hits = []
+  for (const file of productFiles(['.ts'])) {
+    const src = readFileSync(resolve(ROOT, file), 'utf8')
+    const sf = ts.createSourceFile(file, src, ts.ScriptTarget.ES2020, true, ts.ScriptKind.TS)
+    for (const stmt of sf.statements) {
+      if (ts.isImportDeclaration(stmt) && ts.isStringLiteral(stmt.moduleSpecifier) && /(^|\/)services\/theme$/.test(stmt.moduleSpecifier.text)) {
+        hits.push(`${file}:${sf.getLineAndCharacterOfPosition(stmt.getStart()).line + 1}`)
+      }
+    }
+  }
+  eq(JSON.stringify(hits), '[]', 'services/theme import')
+})
+check('H8 build-theme / 旧键 / dotted emits 零残留', () => {
+  for (const file of productFiles(['.ts', '.mjs', '.less', '.json'])) {
+    if (file === 'scripts/skin-equiv-check.mjs') continue // 等价核对器需引用旧名做映射，不属产品消费面
+    const src = readFileSync(resolve(ROOT, file), 'utf8')
+    for (const bad of ['build-theme', '--dsw-shadow-lv3', '--dsw-alias-warning-primary', '--dsw-alias-positive-primary']) {
+      assert(!src.includes(bad), `${file} 仍含 ${bad}`)
+    }
+    assert(!/--dsw-surface-[a-z0-9-]+\./.test(src), `${file} 仍含 dotted surface emit`)
+  }
+})
+check('H9 theme.ts/build-theme.mjs 物理删除', () => {
+  assert(!existsSync(resolve(ROOT, 'services/theme.ts')), 'services/theme.ts 仍存在')
+  assert(!existsSync(resolve(ROOT, 'scripts/build-theme.mjs')), 'scripts/build-theme.mjs 仍存在')
 })
 
 // ── 输出 ─────────────────────────────────────────────────────────────────

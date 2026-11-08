@@ -7,7 +7,7 @@
  *   2. services/skin/vocab.ts           运行时词表（token/surfaces/sounds/assets/chrome/components）
  *   3. services/skin/palette-map.ts     markdown Palette 11 字段映射
  *   4. assets/skins/dsh-default.json    默认皮肤参照件（skin v1 同构件）
- *   5. theme.json                       平台静态 chrome（替代 build-theme.mjs）
+ *   5. theme.json                       平台静态 chrome（由 truth chrome 族续产）
  *
  * 用法:
  *   node scripts/build-skin.mjs           重建全部产物 + 更新 app.less GEN 注释行
@@ -96,10 +96,12 @@ function cssDecls(entries, mode) {
   return entries.map((e) => `  ${e.key}: ${mode === 'light' ? e.light : e.dark};`).join('\n')
 }
 const darkEntries = PROJECTED_ENTRIES.filter((e) => e.darkOverridden || e.dark !== e.light)
+const surfaceDecls = SURFACE_ENTRIES.map((s) => `  ${s.emits}: ${s.default};`).join('\n')
 const skinGen = [
   '/* GENERATED — do not edit. source: skin/truth/*.ts (MS01) */',
   'page {',
   cssDecls(PROJECTED_ENTRIES, 'light'),
+  surfaceDecls,
   '}',
   '',
   '@media (prefers-color-scheme: dark) {',

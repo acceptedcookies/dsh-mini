@@ -1598,7 +1598,7 @@ export const VOCAB = {
       },
       {
         "file": "app.less",
-        "line": 271,
+        "line": 36,
         "use": "--dsw-alias-bg-base"
       }
     ]
@@ -1688,7 +1688,7 @@ export const VOCAB = {
     "points": [
       {
         "file": "app.less",
-        "line": 292,
+        "line": 57,
         "use": "--dsw-alias-bg-layer-1"
       }
     ]

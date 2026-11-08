@@ -134,6 +134,21 @@ page {
   --dsw-elevation-soft: 0 1px 2px rgba(15, 17, 21, 0.04), 0 4px 16px rgba(15, 17, 21, 0.04);
   --dsw-elevation-sidebar: 12px 0 40px rgba(0, 0, 0, 0.16);
   --dsw-elevation-drawer: -12px 0 40px rgba(0, 0, 0, 0.14);
+  --dsw-surface-chat-interface: var(--dsw-alias-bg-base);
+  --dsw-surface-sidebar: var(--dsw-specific-sidebar-fill);
+  --dsw-surface-nav-bar: var(--dsw-alias-bg-base);
+  --dsw-surface-chat-bubble-user: var(--dsw-specific-bubble);
+  --dsw-surface-chat-bubble-assistant: var(--dsw-alias-bg-base);
+  --dsw-surface-composer: var(--dsw-specific-input-major);
+  --dsw-surface-right-panel: var(--dsw-alias-bg-base);
+  --dsw-surface-settings: var(--dsw-alias-bg-layer-2);
+  --dsw-surface-card: var(--dsw-alias-bg-layer-1);
+  --dsw-surface-banner-notice: var(--dsw-alias-state-warn-tertiary);
+  --dsw-surface-menu-surface: var(--dsw-menu-surface-fill);
+  --dsw-surface-dialog-mask: var(--dsw-alias-bg-mask-1);
+  --dsw-surface-toast: var(--dsw-alias-toast-bg);
+  --dsw-surface-workspace-mask: var(--dsw-alias-bg-mask-3);
+  --dsw-surface-markdown-code: var(--dsw-alias-markdown-code-block);
 }
 
 @media (prefers-color-scheme: dark) {

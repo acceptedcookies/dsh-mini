@@ -1,4 +1,4 @@
-<view wx:if="{{render}}" class="dialog-layer theme-{{theme}} {{closing ? 'dialog-closing' : ''}}" style="{{kb > 0 ? 'padding-bottom: calc(' + kb + 'px + 16px)' : ''}}" catchtouchmove="noop" data-anchor-exempt="gesture-shield">
+<view wx:if="{{render}}" class="dialog-layer {{closing ? 'dialog-closing' : ''}}" style="{{kb > 0 ? 'padding-bottom: calc(' + kb + 'px + 16px)' : ''}}" catchtouchmove="noop" data-anchor-exempt="gesture-shield">
   <view class="dialog-mask" data-anchor="dialog.mask" bindtap="cancel"></view>
   <view class="dialog-card dialog-{{tone}}" data-anchor-exempt="gesture-shield" catchtap="noop">
     <view class="dialog-header">

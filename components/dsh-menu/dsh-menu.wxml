@@ -1,5 +1,5 @@
 <view wx:if="{{render}}" class="menu-layer" data-anchor="menu.mask" catchtap="close" catchtouchmove="noop">
-  <view class="menu-surface theme-{{theme}} {{closing ? 'menu-closing' : ''}}" style="{{surfaceStyle}}" data-anchor-exempt="gesture-shield" catchtap="noop">
+  <view class="menu-surface {{closing ? 'menu-closing' : ''}}" style="{{surfaceStyle}}" data-anchor-exempt="gesture-shield" catchtap="noop">
     <view wx:if="{{title}}" class="menu-title">{{title}}</view>
     <scroll-view class="menu-scroll" scroll-y>
       <view
