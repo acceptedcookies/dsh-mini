@@ -14,6 +14,11 @@ const ROOT = new URL('..', import.meta.url).pathname
 const SCAN_DIRS = ['components', 'pages']
 const EXTRA_FILES = ['app.less']
 
+// ── 文件级豁免：生成物整文件豁免（T-O-9：审计边界=文件边界）──
+const EXEMPT_FILE_RE = /(^|\/)(skin-test\.gen|skin)\.gen\.(wxss|less)$/
+// 生成物内允许的自定义属性命名空间（T-O-7 surface 白名单）
+const SURFACE_VAR_RE = /^--dsw-surface-[a-z0-9-]+$/
+
 // ── 白名单（合法语义，不计违规）────────────────────────────
 const RADIUS_ALLOW = new Set(['0', '0px'])
 // 横向 pinned 组件几何：非阶梯成员的冻结字面量（阶梯值 {2,4,6,8,10,12,14,16,20,24,32} 必须走 var）
@@ -86,18 +91,26 @@ function horizontalPxTokens(prop, value) {
   return [toks[1], toks[3]].map(pick).filter(Boolean)
 }
 
-const violations = { color: [], radius: [], fontSize: [], lineHeight: [], tracking: [], weight: [], gutter: [] }
+const violations = { color: [], radius: [], fontSize: [], lineHeight: [], tracking: [], weight: [], gutter: [], tokenDef: [] }
 const push = (k, file, line, text) => violations[k].push({ file, line, text })
 
 for (const abs of files) {
   const rel = relative(ROOT, abs)
+  if (EXEMPT_FILE_RE.test(rel)) continue // 生成物全文件豁免
   const lines = readFileSync(abs, 'utf8').split('\n')
   let inBlock = false
   lines.forEach((raw, idx) => {
     const { text, inBlock: nb } = stripComments(raw, inBlock)
     inBlock = nb
     const line = text.trim()
-    if (!line || /^\s*--[\w-]+\s*:/.test(raw)) { return } // token 定义行豁免
+    if (!line) { return }
+    // 手写段禁 `--x:` 定义行（P5-01 后 app.less 仅结构规则）
+    if (/^\s*--[\w-]+\s*:/.test(raw)) {
+      if (rel === 'app.less' && !SURFACE_VAR_RE.test(raw.trim().split(':')[0].trim())) {
+        push('tokenDef', rel, idx + 1, raw.trim())
+      }
+      return
+    }
     const ln = idx + 1
 
     // 1. 色彩（mask-image 的 #000 是不透明遮罩实现细节，豁免）

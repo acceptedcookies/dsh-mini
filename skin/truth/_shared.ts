@@ -51,6 +51,8 @@ export interface TokenEntry {
   retired: boolean
   /** 联动簇建议共改（validator 告警级，非拒绝） */
   linkedWith: string[]
+  /** 原 `.theme-dark{}` 是否覆写该键（55 键口径的组成部分） */
+  darkOverridden: boolean
   /** 真源可追溯锚：`app.less:NN` */
   source: string
 }

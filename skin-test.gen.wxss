@@ -1,5 +1,0 @@
-page { --skin-test-import: rgb(30, 31, 32); }
-
-@media (prefers-color-scheme: light) {
-  page { --skin-test-media: rgb(40, 41, 42); }
-}
