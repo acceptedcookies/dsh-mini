@@ -44,7 +44,6 @@ function requireTs(file) {
 
 const truth = requireTs(join(ROOT, 'skin/truth/index.ts'))
 const { ALL_TOKEN_ENTRIES, PROJECTED_ENTRIES, SURFACE_ENTRIES, ASSET_ENTRIES, CHROME_ENTRIES, SOUND_ENTRIES, COMPONENT_ENTRIES, CONTRACT_FILE_GLOB } = truth
-const { EMPTY_COMPONENTS } = { EMPTY_COMPONENTS: COMPONENT_ENTRIES }
 
 // ── 契约断言 ─────────────────────────────────────────────────────────────
 const problems = []

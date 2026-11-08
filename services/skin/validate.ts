@@ -129,9 +129,13 @@ function checkValueDomain(path: string, family: string, domain: string, value: u
     errors.push({ path, rule: 'L3.value.css-injection', message: `禁止 CSS 规则串/注入字符: ${value}` })
     return
   }
+  const urls = urlsOf(value)
   checkUrlEndpoints(path, value, errors)
-  if (urlsOf(value).length > 0) {
-    if (urlsOf(value).length > 3) errors.push({ path, rule: 'L3.url.nesting', message: 'url() 最多 3 层' })
+  if (urls.length > 0) {
+    if (!['surfaces', 'assets', 'fonts'].includes(family)) {
+      errors.push({ path, rule: 'L3.url.domain', message: `url() 仅允许 surfaces/assets/fonts 族: ${value}` })
+    }
+    if (urls.length > 3) errors.push({ path, rule: 'L3.url.nesting', message: 'url() 最多 3 层' })
     return
   }
   switch (domain) {

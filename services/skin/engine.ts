@@ -166,9 +166,10 @@ export function watchMode(cb: (eff: SkinMode) => void): () => void {
 /** 原生外壳：nav 色取 resolved bg-base/bg-layer-2；page 底走 setBackgroundColor（E6-2）。 */
 export function applyChrome(eff: SkinMode, surface: 'base' | 'layer-2' = 'base'): void {
   const chrome = state.eff === eff ? state.chrome : resolveChrome(eff, state.skin)
+  const tokens = state.eff === eff ? state.tokens : resolveTokens(eff, state.skin)
   const background = surface === 'layer-2'
-    ? (state.tokens['--dsw-alias-bg-layer-2'] ?? defaultsFor(eff)['--dsw-alias-bg-layer-2'])
-    : (state.tokens['--dsw-alias-bg-base'] ?? defaultsFor(eff)['--dsw-alias-bg-base'])
+    ? (tokens['--dsw-alias-bg-layer-2'] ?? defaultsFor(eff)['--dsw-alias-bg-layer-2'])
+    : (tokens['--dsw-alias-bg-base'] ?? defaultsFor(eff)['--dsw-alias-bg-base'])
   try {
     wx.setNavigationBarColor({
       frontColor: chrome.navFront,

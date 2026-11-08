@@ -323,6 +323,9 @@ check('G19 合法 surface 值（var 引用）', () => {
   const r = validate(baseSkin({ light: { surfaces: { 'chat.bubble-user': 'var(--dsw-specific-bubble)' } } }), vocab)
   assert(r.ok, `合法 surface 被拒: ${JSON.stringify(r.errors)}`)
 })
+check('G21 url 仅限 surfaces/assets/fonts（palette 注入拒绝）', () => {
+  expectRule(baseSkin({ light: { palette: { '--dsw-alias-bg-base': 'url(https://evil.example/x.png)' } } }), 'L3.url.domain')
+})
 check('G20 url https 合法', () => {
   const { validate, vocab } = loadValidate()
   const r = validate(baseSkin({ light: { surfaces: { 'chat-interface': 'url(https://dsh-mini.saobao.com/a/x.png)' } } }), vocab)
