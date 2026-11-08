@@ -149,7 +149,7 @@ export default {
 
     /** 线键 `{kind}/{rest}` → 全键 `dsh-mini/{kind}/{openid}/{rest}`；openid 注入。 */
     const full = (key) => {
-      const m = typeof key === "string" && key.match(/^(state|claims|alarms)\/(.+)$/);
+      const m = typeof key === "string" && key.match(/^(state|claims|alarms|episodes)\/(.+)$/);
       // rest 段拒 `..`/`//`/前导 `/`——对会做路径归一化的后端防穿越（审查 P2）；
       // 'dsh-mini' 按段锚定——子串拒会误伤合法文件名（审查 B8）
       if (m === null || /(^|\/)\.\.(\/|$)|\/\/|^\/|(^|\/)dsh-mini(\/|$)/.test(m[2])) return null;
@@ -171,6 +171,23 @@ export default {
         const r = await casPut(env, k, body, j.cond ?? {});
         if (r.backendError === true) return json({ error: `backend ${r.status}` }, r.status);
         return r.status === 200 ? json({ etag: r.etag }) : json({ error: "etag-conflict" }, 412);
+      }
+      if (ep === "state/del") {
+        // T-O-11：kind 白名单 state|claims——alarms 必须走 alarm/claim 原子消费，
+        // episodes 账行 append-only 永不删除。
+        const km = typeof j.key === "string" && j.key.match(/^(state|claims)\//);
+        if (km === null) return json({ error: "state/del kind must be state|claims" }, 400);
+        const k = full(j.key);
+        if (k === null) return json({ error: "bad key shape" }, 400);
+        const cur = await casGet(env, k);
+        if (cur === null) return json({ error: "not-found" }, 404);
+        // ifMatch 可选：与 put-cas 同一 fencing 词汇（etag 不匹配如实 412）。
+        if (typeof j.ifMatch === "string" && j.ifMatch !== cur.etag) return json({ error: "etag-conflict" }, 412);
+        const d = await casDel(env, k, { ifMatch: cur.etag });
+        if (d.status === 412) return json({ error: "etag-conflict" }, 412);
+        if (d.status === 404) return json({ error: "not-found" }, 404);
+        if (!d.ok) return json({ error: `backend ${d.status}` }, d.status);
+        return json({ deleted: true });
       }
       if (ep === "claim") {
         const k = full(`claims/${j.key}`);

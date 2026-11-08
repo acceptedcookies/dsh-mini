@@ -128,6 +128,50 @@ export interface Io {
   llm(messages: unknown[]): Promise<LlmOutput>
   tool(name: string, args: unknown): Promise<ToolCallResult>
   state: IoState
+  /**
+   * artifacts 发布面（可选，T-O-12）：JSON 文档 → content-hash sha256。
+   * 缺席时 compact 按降级面如实走（账行 summary_sha 缺位 + summary_text 内嵌）。
+   */
+  artifacts?: {
+    publishJson(obj: unknown): Promise<{ sha256: string } | null>
+  }
+}
+
+// ── episode/compaction durable 形状（T-O-12 冻结四格）─────────────────────
+/** episodes/ 账行（append-only，ifNoneMatch 写一次永不改写/删除）。 */
+export interface EpisodeLedgerRow {
+  episode_uuid: string
+  trigger: 'auto' | 'manual' | 'manual_async_control'
+  trigger_kind: string
+  opened_at: string // ISO8601
+  parent_episode_uuid?: string
+  summary_sha?: string
+  /** additive：回放 artifact sha（summary/replay 分离挂账） */
+  replay_sha?: string
+  /** additive：无 artifacts 车道降级时 summary 内嵌（诚实降级非静默丢弃） */
+  summary_text?: string
+  head_event_seq: number
+}
+
+/** 回放事件——nacp stream-event 对齐字段（event_uuid/episode_uuid/event_seq）+ 宿主决策载荷。 */
+export interface EpisodeEvent {
+  event_uuid: string
+  episode_uuid: string
+  event_seq: number
+  kind: 'step_decision'
+  decision: string
+  reason?: string
+  at: number // epoch ms
+}
+
+/** snapshot 行内嵌 episode 段（checkpoint↔episode 关系格）。 */
+export interface EpisodeRef {
+  uuid: string
+  /** session 级单调回放游标（episode 边界不复位——nacp event_seq 语义）。 */
+  seq: number
+  /** 当前 episode 未落盘的待回放事件（随 snapshot CAS 走，kill 不丢）。 */
+  events: EpisodeEvent[]
+  summary_sha?: string
 }
 
 // ── durable 记录形状（T-O-5 键区 dsh-mini/{state,claims,alarms,vfs}/）─

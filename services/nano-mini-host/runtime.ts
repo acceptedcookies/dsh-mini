@@ -19,7 +19,8 @@ import { markdownToHtml, plainText } from '../markdown'
 import { reportSilent } from '../error-report'
 import { storage } from '../storage'
 import { randomId } from '../../utils/uuid'
-import { ioStateFor, ensureDurableTicket } from '../state/provider'
+import { ioStateFor, ensureDurableTicket, vfsRemoteFor } from '../state/provider'
+import { encodeUtf8 } from '../fx/utf8'
 import { pendingEngine, routeDefaultEngine } from '../session-engine'
 import { hasFreshTicket } from '../fx/ticket'
 import { loadDevConfig } from '../fx/dev'
@@ -342,6 +343,20 @@ export class KernelMiniRuntime {
     const io: Io = {
       // durable lane 按会话引擎裁决：nano-agent→remoteCas（POD1），magpie→localCas
       state: ioStateFor(engine),
+      // compaction 账行挂账面（T-O-12）：vfsRemoteFor 缺位→null，pump 降级内嵌。
+      artifacts: {
+        async publishJson(obj) {
+          const r = vfsRemoteFor()
+          if (r === null) return null
+          try {
+            const res = await r.publishArtifact(encodeUtf8(JSON.stringify(obj)).buffer as ArrayBuffer, 'application/json')
+            return { sha256: res.sha256 }
+          } catch (e) {
+            reportSilent(e, { op: 'artifact-publish', lane: 'background', sessionId })
+            return null
+          }
+        },
+      },
       llm: async (messages) => {
         // 跨轮历史 prepend（worker runtime-mainline 同构）：kernel turn.messages
         // 只装当前 turn，历史由宿主从 UI 转录本临时前置、不回写 kernel buffer。

@@ -42,11 +42,11 @@ async function call(openid, ep, payload) {
 /** remote CAS（worker 五端点）：与 services/state/remote-cas.ts 同线格式 {kind}/{rest}。 */
 function ioState(openid) {
   const wire = (full) => {
-    const m = full.match(/^dsh-mini\/(state|claims|alarms)\/[^/]+\/(.+)$/);
+    const m = full.match(/^dsh-mini\/(state|claims|alarms|episodes)\/[^/]+\/(.+)$/);
     return m !== null ? `${m[1]}/${m[2]}` : full.replace(/^dsh-mini\//, "");
   };
   const unwire = (w) => {
-    const m = w.match(/^(state|claims|alarms)\/(.+)$/);
+    const m = w.match(/^(state|claims|alarms|episodes)\/(.+)$/);
     return m !== null ? `dsh-mini/${m[1]}/${openid}/${m[2]}` : w;
   };
   return {
@@ -72,12 +72,33 @@ function ioState(openid) {
       return (r.body.keys ?? []).map(unwire);
     },
     async del(key) {
-      // alarm 行：接 alarm/claim 原子消费（否则远端行永不消费）；claim 行靠 TTL 过期。
+      // alarm 行：接 alarm/claim 原子消费（否则远端行永不消费）；episodes 账行 append-only。
       const m = key.match(/^dsh-mini\/alarms\/[^/]+\/(.+)$/);
-      if (m === null) return;
-      const r = await call(openid, "alarm/claim", { key: m[1], holder: `sweeper-${Date.now()}` });
-      // 404 = 已被并发消费者取走（at-least-once 容忍）；其余失败如实抛——不静默漏消费。
-      if (r.status !== 200 && r.status !== 404) throw new Error(`alarm/claim ${m[1]} → ${r.status}`);
+      if (m !== null) {
+        const r = await call(openid, "alarm/claim", { key: m[1], holder: `sweeper-${Date.now()}` });
+        // 404 = 已被并发消费者取走（at-least-once 容忍）；其余失败如实抛——不静默漏消费。
+        if (r.status !== 200 && r.status !== 404) throw new Error(`alarm/claim ${m[1]} → ${r.status}`);
+        return;
+      }
+      if (/^dsh-mini\/episodes\//.test(key)) return;
+      // state/claims 行：T-O-11 /v1/state/del；404 幂等容忍，其余如实抛。
+      if (/^dsh-mini\/(state|claims)\/[^/]+\//.test(key)) {
+        const r = await call(openid, "state/del", { key: wire(key) });
+        if (r.status !== 200 && r.status !== 404) throw new Error(`state/del ${wire(key)} → ${r.status}`);
+      }
+    },
+  };
+}
+
+/** io.artifacts：compaction 账行挂账的 summary/replay 发布面（T-O-12，同 /v1/* 票据车道）。 */
+function ioArtifacts(openid) {
+  return {
+    async publishJson(obj) {
+      const r = await call(openid, "artifacts/publish", {
+        bytes_b64: Buffer.from(JSON.stringify(obj), "utf8").toString("base64"),
+        mime: "application/json",
+      });
+      return r.status === 200 ? { sha256: r.body.sha256 } : null;
     },
   };
 }
@@ -130,7 +151,7 @@ exports.main = async () => {
   for (const openid of openids) {
     const ctx = {
       kernel: kernel.kernel ?? kernel,
-      io: { llm: ioLlm(openid, modelOf[openid] ?? "unknown"), tool: ioTool(), state: ioState(openid) },
+      io: { llm: ioLlm(openid, modelOf[openid] ?? "unknown"), tool: ioTool(), state: ioState(openid), artifacts: ioArtifacts(openid) },
       owner: openid,
       holder: `sweeper-${Date.now()}`,
     };

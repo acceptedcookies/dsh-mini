@@ -105,7 +105,7 @@ const now = Date.now()
   const first = await host.sweepTick(ctx(io), { batchLimit: 10 })
   const state = cas.get(`dsh-mini/state/local/${sid}`)
   let phase = null
-  try { phase = JSON.parse(state.body).session?.phase } catch { /* ignore */ }
+  try { const b = JSON.parse(state.body); phase = (b.frag ?? b).session?.phase } catch { /* ignore */ }
   check('m2:tool-exactly-once', first.length === 1 && first[0].outcome === 'completed' && counts.tool === 1 && counts.llm === 1 && phase === 'idle', JSON.stringify({ first, counts, phase }))
 }
 
@@ -165,7 +165,7 @@ const now = Date.now()
   const second = await host.runPump(ctx(io), sid)
   const state = cas.get(`dsh-mini/state/local/${sid}`)
   let phase = null
-  try { phase = JSON.parse(state.body).session?.phase } catch { /* ignore */ }
+  try { const b = JSON.parse(state.body); phase = (b.frag ?? b).session?.phase } catch { /* ignore */ }
   check('m2:kill-after-resume', first.outcome === 'killed' && second.outcome === 'completed' && counts.tool === 1 && phase === 'idle', JSON.stringify({ first: first.outcome, second: second.outcome, counts, phase }))
 }
 

@@ -7,6 +7,8 @@
 
 import type {
   AlarmRecord,
+  EpisodeLedgerRow,
+  EpisodeRef,
   Io,
   KernelModule,
   KernelSnapshot,
@@ -21,6 +23,15 @@ import { errorBus, reportSilent } from '../error-report'
 const ST = 'dsh-mini/state'
 const CL = 'dsh-mini/claims'
 const AL = 'dsh-mini/alarms'
+const EP = 'dsh-mini/episodes'
+
+/** 事件 uuid：mp 无 crypto.randomUUID 保证——本地 v4-ish 生成（仅回放去重键，非安全面）。 */
+const evUuid = (): string =>
+  `${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}-${Math.random().toString(16).slice(2, 10)}`
+
+/** snapshot 行内嵌 ep 段的 pending 事件上限：防长 episode 逼近 256KB 行上限；
+ *  溢出如实计数（dropped），回放 artifact 记录 drop 数——不静默丢。 */
+const EP_EVENTS_CAP = 256
 
 export interface PumpCtx {
   kernel: KernelModule
@@ -51,32 +62,146 @@ async function claim(ctx: PumpCtx, sessionId: string, ttlMs: number): Promise<Cl
   return r.status === 200 ? { status: 200 } : { status: 412 }
 }
 
-async function loadSnap(ctx: PumpCtx, sessionId: string): Promise<{ snap: KernelSnapshot | null; etag: string | null; reset?: boolean }> {
+async function loadSnap(ctx: PumpCtx, sessionId: string): Promise<{ snap: KernelSnapshot | null; etag: string | null; ep: EpisodeRef | null; reset?: boolean }> {
   const row = await ctx.io.state.get(`${ST}/${ctx.owner}/${sessionId}`)
-  if (row === null) return { snap: null, etag: null }
+  if (row === null) return { snap: null, etag: null, ep: null }
   // 腐行/版本错位（KERNEL_VERSION 升级、JSON 截断、zod 失格）不得永砖会话——
   // 原样传播会让每次 prompt 同点抛出且无复位路径（审查十四轮 M5）。
   // 如实 warn 后按空快照重建：kernel 状态丢但 UI 转录在 s.items 保留；
   // saveSnap 持既有 etag 覆写同键（旧行不复存=取舍在案：永砖更差）。
   // reset 标志上抛——宿主落账「执行态已重置」注记，不伪造无恢复（E2 契约更新）。
   let frag: unknown
+  let ep: EpisodeRef | null = null
   try {
-    frag = JSON.parse(row.body)
-    return { snap: ctx.kernel.restoreFromFragment(frag), etag: row.etag }
+    const parsed = JSON.parse(row.body) as { frag?: unknown; ep?: EpisodeRef }
+    // T-O-12 信封行 {frag, ep}；旧裸 frag 行向后兼容（ep 段缺位→下行补 genesis）。
+    frag = parsed !== null && typeof parsed === 'object' && parsed.frag !== undefined ? parsed.frag : parsed
+    ep = parsed !== null && typeof parsed === 'object' && parsed.ep !== undefined ? parsed.ep : null
+    return { snap: ctx.kernel.restoreFromFragment(frag), etag: row.etag, ep }
   } catch (e) {
     console.warn(`[pump] loadSnap ${sessionId} 快照不可恢复（按新会话重建）:`, e instanceof Error ? e.message : e)
-    return { snap: null, etag: row.etag, reset: true }
+    return { snap: null, etag: row.etag, ep: null, reset: true }
   }
 }
 
-async function saveSnap(ctx: PumpCtx, sessionId: string, snap: KernelSnapshot, etag: string | null): Promise<string | { fenced: true }> {
+async function saveSnap(ctx: PumpCtx, sessionId: string, snap: KernelSnapshot, etag: string | null, ep?: EpisodeRef | null): Promise<string | { fenced: true }> {
   const frag = ctx.kernel.buildCheckpointFragment(snap)
+  // ep 段存在时写信封行 {frag, ep}（T-O-12 checkpoint↔episode 格）；无 ep 保旧裸 frag 形态。
+  const body = ep !== undefined && ep !== null ? { frag, ep } : frag
   const cond = etag !== null ? { ifMatch: etag } : { ifNoneMatch: '*' as const }
-  const r = await ctx.io.state.putCas(`${ST}/${ctx.owner}/${sessionId}`, JSON.stringify(frag), cond)
+  const r = await ctx.io.state.putCas(`${ST}/${ctx.owner}/${sessionId}`, JSON.stringify(body), cond)
   if (r.status === 200 && r.etag !== undefined) return r.etag
   if (r.status === 412) return { fenced: true }
   // 非 CAS 冲突的真实故障（413 超限/500 后端）不得误报「写者冲突」（审查 B4）
   throw new Error(`saveSnap putCas ${r.status}: 非 412 故障不作 fenced 语义`)
+}
+
+/** episodes/ 账行写入：append-only（ifNoneMatch 一次写定）。best-effort——账行是
+ *  回放/索引面不是 canonical checkpoint；写败如实 silent 台账，不砖会话。 */
+async function writeEpisodeRow(ctx: PumpCtx, sessionId: string, row: EpisodeLedgerRow): Promise<void> {
+  try {
+    const r = await ctx.io.state.putCas(`${EP}/${ctx.owner}/${row.episode_uuid}`, JSON.stringify(row), { ifNoneMatch: '*' })
+    if (r.status !== 200 && r.status !== 412) {
+      reportSilent(new Error(`episode 账行写 status=${r.status}`), { op: 'episode-ledger', lane: 'background', sessionId })
+    }
+    // 412 = 同 uuid 行已在（重试幂等）——append-only 语义不覆写。
+  } catch (e) {
+    reportSilent(e, { op: 'episode-ledger', lane: 'background', sessionId })
+  }
+}
+
+/** in-flight compaction 临界区（claims/ kind，T-O-12）：单写者标记 + TTL 兜底 +
+ *  完成后显式 del（T-O-11）。返回 true=取得标记。 */
+async function takeCompactMark(ctx: PumpCtx, sessionId: string): Promise<boolean> {
+  const key = `${CL}/${ctx.owner}/compact-${sessionId}`
+  const row = await ctx.io.state.get(key)
+  if (row !== null) {
+    try {
+      const c = JSON.parse(row.body) as { holder: string; expires: string }
+      if (c.holder !== ctx.holder && Date.parse(c.expires) > Date.now()) return false
+    } catch { /* 坏行可覆盖 */ }
+  }
+  const body = JSON.stringify({ holder: ctx.holder, expires: new Date(Date.now() + 60000).toISOString() })
+  const r = await ctx.io.state.putCas(key, body, row !== null ? { ifMatch: row.etag } : { ifNoneMatch: '*' })
+  return r.status === 200
+}
+
+/** 新 episode 开账：ledger 行 + 返回新 EpisodeRef（seq 延续——session 单调不复位）。 */
+async function openEpisode(ctx: PumpCtx, sessionId: string, row: EpisodeLedgerRow, seq: number): Promise<EpisodeRef> {
+  await writeEpisodeRow(ctx, sessionId, row)
+  return { uuid: row.episode_uuid, seq, events: [], summary_sha: row.summary_sha }
+}
+
+/**
+ * T-O-12 compaction 正路：claims 临界区 → io.llm summarize → replay/summary artifacts →
+ * 新 episode 账行（父产出挂账）。返回 {ep, messages, tokensFreed} 供 kernel compact_done；
+ * 标记未取到 → null（调用方按 suspended 收，不 resume 防双开 episode）。
+ */
+async function runCompaction(
+  ctx: PumpCtx,
+  sessionId: string,
+  turn: { messages?: unknown[] } | null | undefined,
+  ep: EpisodeRef | null,
+): Promise<{ ep: EpisodeRef; messages: unknown[]; tokensFreed: number } | null> {
+  const marked = await takeCompactMark(ctx, sessionId)
+  if (!marked) return null
+  try {
+    const closedEvents = ep !== null ? [...ep.events] : []
+    const closedUuid = ep?.uuid
+    const headSeq = ep?.seq ?? 0
+    const msgs = turn?.messages ?? []
+    // summarize：kernel 当前 turn messages 序列化后求摘要（截断 60K 防超载）。
+    const sum = await ctx.io.llm([{
+      role: 'user',
+      content: `Summarize this agent conversation for continuation. Preserve durable facts, tool results and pending decisions; drop chatter. Conversation JSON:\n${JSON.stringify(msgs).slice(0, 60000)}`,
+    }])
+    const summaryText = sum.text ?? ''
+    // 回放 artifact：被关闭 episode 的 step_decision JSONL（dropped 如实计数非静默丢）。
+    let replaySha: string | undefined
+    if (ctx.io.artifacts !== undefined) {
+      const rl = await ctx.io.artifacts.publishJson({
+        kind: 'episode-replay', episode_uuid: closedUuid, head_event_seq: headSeq,
+        events: closedEvents, dropped: Math.max(0, headSeq - closedEvents.length),
+      })
+      replaySha = rl?.sha256
+    }
+    // summary artifact：挂 replay_sha；无 artifacts 车道降级 → summary_text 内嵌账行。
+    let summarySha: string | undefined
+    let summaryInline: string | undefined
+    if (ctx.io.artifacts !== undefined) {
+      const sp = await ctx.io.artifacts.publishJson({
+        kind: 'episode-summary', episode_uuid: closedUuid, replay_sha: replaySha, summary: summaryText,
+      })
+      summarySha = sp?.sha256
+    } else {
+      summaryInline = summaryText
+    }
+    // kernel compact_done 语义：activeTurn.messages 整体置换 = [摘要 system 消息] + 小尾保留。
+    // 尾部只留 ≤4KB 消息——大载荷（tool 回包/长回答）全归摘要，否则压实不生效每步重发 compact。
+    const tail = Array.isArray(msgs)
+      ? msgs.filter((m) => JSON.stringify(m).length <= 4096).slice(-4)
+      : []
+    const compacted: unknown[] = [
+      { role: 'system', content: `[compaction summary · episode ${closedUuid ?? 'genesis'}]\n${summaryText}` },
+      ...tail,
+    ]
+    // tokensFreed：char/4 估算（kernel 仅递减计数器，如实标注估算非精确计）。
+    const tokensFreed = Math.max(0, Math.floor((JSON.stringify(msgs).length - JSON.stringify(compacted).length) / 4))
+    ep = await openEpisode(ctx, sessionId, {
+      episode_uuid: evUuid(),
+      trigger: 'auto',
+      trigger_kind: 'compact_required',
+      opened_at: new Date().toISOString(),
+      parent_episode_uuid: closedUuid,
+      summary_sha: summarySha,
+      replay_sha: replaySha,
+      summary_text: summaryInline,
+      head_event_seq: headSeq,
+    }, headSeq)
+    return { ep, messages: compacted, tokensFreed }
+  } finally {
+    try { await ctx.io.state.del(`${CL}/${ctx.owner}/compact-${sessionId}`) } catch { /* 标记靠 TTL 兜底 */ }
+  }
 }
 
 /** timed-wait alarm 写入面（当前 InterruptReason 闭集无定时等待——保留供扩约后的 timed-wait）。 */
@@ -104,15 +229,33 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
   }
 
   const loaded = await loadSnap(ctx, sessionId)
-  let { snap, etag } = loaded
+  let { snap, etag, ep } = loaded
   // reset 透传所有返回面——宿主（runtime/sweeper）据此落账重置注记（审查十四轮 M5）。
   const ret = (r: PumpResult): PumpResult => loaded.reset === true ? { ...r, reset: true } : r
+  // episode genesis：新会话与旧裸 frag 行升级都在此补账（T-O-12；账行 best-effort）。
+  // 先于首写建立——首次 saveSnap 即带 ep 段，省一次 CAS。
+  if (ep === null) {
+    ep = await openEpisode(ctx, sessionId, {
+      episode_uuid: evUuid(),
+      trigger: 'auto',
+      trigger_kind: 'genesis',
+      opened_at: new Date().toISOString(),
+      head_event_seq: 0,
+    }, 0)
+  }
   if (snap === null) {
     snap = ctx.kernel.createKernelSnapshot(ctx.kernel.createInitialSessionState())
     snap = ctx.kernel.applyAction(snap, { type: 'start_turn', turnId: opts.turnId ?? `t-${sessionId}` })
-    const wr = await saveSnap(ctx, sessionId, snap, etag)
+    const wr = await saveSnap(ctx, sessionId, snap, etag, ep)
     if (typeof wr === 'object') return ret({ outcome: 'fenced', trace: [] })
     if (typeof wr === 'string') etag = wr
+  }
+  const pushEvent = (d: StepDecision): void => {
+    if (ep === null) return
+    ep.seq += 1
+    if (ep.events.length < EP_EVENTS_CAP) {
+      ep.events.push({ event_uuid: evUuid(), episode_uuid: ep.uuid, event_seq: ep.seq, kind: 'step_decision', decision: d.kind, reason: d.reason, at: Date.now() })
+    }
   }
   // idle 会话新一轮：complete_turn 后 phase=idle/activeTurn=null——须先 start_turn
   // 再经下方正路播种；此前该路径缺失，scheduleNextStep 对 idle 快照照发 llm_call
@@ -122,7 +265,7 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
     if (opts.input === undefined || phase === 'ended') return ret({ outcome: 'completed', trace: [] })
     const turnCount = (snap.session as { turnCount?: number }).turnCount ?? 0
     snap = ctx.kernel.applyAction(snap, { type: 'start_turn', turnId: opts.turnId ?? `t-${sessionId}-t${turnCount}` })
-    const wr = await saveSnap(ctx, sessionId, snap, etag)
+    const wr = await saveSnap(ctx, sessionId, snap, etag, ep)
     if (typeof wr === 'object') return ret({ outcome: 'fenced', trace: [] })
     if (typeof wr === 'string') etag = wr
     phase = 'turn_running'
@@ -137,7 +280,7 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
       snap = ctx.kernel.applyAction(snap, { type: 'input_arrived', input: opts.input })
     }
     snap = ctx.kernel.applyAction(snap, { type: 'resume' })
-    const wr = await saveSnap(ctx, sessionId, snap, etag)
+    const wr = await saveSnap(ctx, sessionId, snap, etag, ep)
     if (typeof wr === 'object') return ret({ outcome: 'fenced', trace: [] })
     if (typeof wr === 'string') etag = wr
   }
@@ -148,7 +291,8 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
     const turn = snap.activeTurn as { turnId?: string; epoch?: number; stepIndex?: number; messages?: unknown[]; pendingToolCalls?: unknown[]; llmFinished?: boolean } | null
     const signals: SchedulerSignals = {
       hasMoreToolCalls: (turn?.pendingToolCalls?.length ?? 0) > 0,
-      compactRequired: false,
+      // 宿主 compact 触发策略（非合同）：turn.messages 序列化逼近 256KB 行前压实。
+      compactRequired: JSON.stringify(turn?.messages ?? []).length > 96 * 1024,
       cancelRequested: opts.cancelRequested?.() === true,
       timeoutReached: false,
       llmFinished: turn?.llmFinished ?? false,
@@ -157,6 +301,7 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
     }
     const d: StepDecision = ctx.kernel.scheduleNextStep(snap, signals)
     trace.push(d.kind + (d.reason !== undefined ? `:${d.reason}` : ''))
+    pushEvent(d)
 
     if (d.kind === 'llm_call') {
       const out = await ctx.io.llm(turn?.messages ?? [])
@@ -179,17 +324,25 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
         // 终态中断：resume→complete_turn 干净收尾，不落 alarm（无东西可续）
         snap = ctx.kernel.applyAction(snap, { type: 'resume' })
         snap = ctx.kernel.applyAction(snap, { type: 'complete_turn', reason: d.reason })
-        const wr = await saveSnap(ctx, sessionId, snap, etag)
+        const wr = await saveSnap(ctx, sessionId, snap, etag, ep)
         // fenced 时 claim 行可能已被对手改写——del 会释放他人持锁（审查十四轮 L4）。
         if (typeof wr !== 'object') await ctx.io.state.del(`${CL}/${ctx.owner}/${sessionId}`)
         return ret(typeof wr === 'object' ? { outcome: 'fenced', trace } : { outcome: 'completed', trace })
       }
       if (d.reason === 'compact_required') {
-        // 宿主侧无 compaction 实现（T-O 未承诺）——resume 续跑；同决策重复即 bail 防死循环
+        // interrupt-taxonomy 死路径守卫（本 kernel build 不从此发 compact）——走同一正路。
+        const c = await runCompaction(ctx, sessionId, turn, ep)
+        if (c === null) {
+          const wr = await saveSnap(ctx, sessionId, snap, etag, ep)
+          return ret(typeof wr === 'object' ? { outcome: 'fenced', trace } : { outcome: 'suspended', trace })
+        }
+        ep = c.ep
+        snap = ctx.kernel.applyAction(snap, { type: 'compact_done', tokensFreed: c.tokensFreed, messages: c.messages })
         snap = ctx.kernel.applyAction(snap, { type: 'resume' })
-        const wr = await saveSnap(ctx, sessionId, snap, etag)
+        const wr = await saveSnap(ctx, sessionId, snap, etag, ep)
         if (typeof wr === 'object') return ret({ outcome: 'fenced', trace })
         etag = wr
+        // 真 compaction 后 kernel 仍连续要 compact = 摘要未生效——止损防死循环（如实终止非静默）。
         if (trace.length >= 2 && trace[trace.length - 2].startsWith('wait:compact_required')) {
           return ret({ outcome: 'step-exhausted', trace })
         }
@@ -197,17 +350,34 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
       }
       // confirmation_pending/fatal_error：挂起等外部输入——不落 due-now alarm
       // （自动复活语义错误）；恢复走 runPump 的 waiting→resume 正路
-      const wr = await saveSnap(ctx, sessionId, snap, etag)
+      const wr = await saveSnap(ctx, sessionId, snap, etag, ep)
       return ret(typeof wr === 'object' ? { outcome: 'fenced', trace } : { outcome: 'suspended', trace })
     } else if (d.kind === 'finish') {
       snap = ctx.kernel.applyAction(snap, { type: 'complete_turn', reason: d.reason })
-      const wr = await saveSnap(ctx, sessionId, snap, etag)
+      const wr = await saveSnap(ctx, sessionId, snap, etag, ep)
       if (typeof wr !== 'object') await ctx.io.state.del(`${CL}/${ctx.owner}/${sessionId}`)
       return ret(typeof wr === 'object' ? { outcome: 'fenced', trace } : { outcome: 'completed', trace })
     }
-    // hook_emit / compact：kernel 内部语义，本宿主按 step 推进（事件外发属后续 AP）
+    if (d.kind === 'compact') {
+      // T-O-12 正路：kernel 发 compact 决策（signals.compactRequired）→ 宿主压实 →
+      // compact_done 置换 messages → 新 episode checkpoint → 循环继续。
+      const c = await runCompaction(ctx, sessionId, turn, ep)
+      if (c === null) {
+        // 对手 compaction in-flight——不落盘动作、不推进步；如实 suspended 等下轮。
+        const wr = await saveSnap(ctx, sessionId, snap, etag, ep)
+        return ret(typeof wr === 'object' ? { outcome: 'fenced', trace } : { outcome: 'suspended', trace })
+      }
+      ep = c.ep
+      snap = ctx.kernel.applyAction(snap, { type: 'compact_done', tokensFreed: c.tokensFreed, messages: c.messages })
+      const wr = await saveSnap(ctx, sessionId, snap, etag, ep)
+      if (typeof wr === 'object') return ret({ outcome: 'fenced', trace })
+      etag = wr
+      if (opts.killAfter !== undefined && i === opts.killAfter - 1) return ret({ outcome: 'killed', trace })
+      continue
+    }
+    // hook_emit：kernel 内部语义，本宿主按 step 推进（事件外发属后续 AP）
     snap = ctx.kernel.applyAction(snap, { type: 'complete_step', stepIndex: turn?.stepIndex ?? 0, result: null })
-    const wr = await saveSnap(ctx, sessionId, snap, etag)
+    const wr = await saveSnap(ctx, sessionId, snap, etag, ep)
     if (typeof wr === 'object') return ret({ outcome: 'fenced', trace })
     etag = wr
     if (opts.killAfter !== undefined && i === opts.killAfter - 1) return ret({ outcome: 'killed', trace })

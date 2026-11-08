@@ -37,12 +37,12 @@ export function createRemoteCas(opts: RemoteCasOpts): IoState {
 
   /** 全键 → 线键：剥 `dsh-mini/{kind}/{owner}/` → `{kind}/{rest}`。 */
   const wire = (full: string): string => {
-    const m = full.match(/^dsh-mini\/(state|claims|alarms)\/[^/]+\/(.+)$/)
+    const m = full.match(/^dsh-mini\/(state|claims|alarms|episodes)\/[^/]+\/(.+)$/)
     return m !== null ? `${m[1]}/${m[2]}` : full.replace(/^dsh-mini\//, '')
   }
   /** 线键 → 全键：`{kind}/{rest}` → `dsh-mini/{kind}/{owner}/{rest}`。 */
   const unwire = (w: string): string => {
-    const m = w.match(/^(state|claims|alarms)\/(.+)$/)
+    const m = w.match(/^(state|claims|alarms|episodes)\/(.+)$/)
     return m !== null ? `dsh-mini/${m[1]}/${opts.owner}/${m[2]}` : w
   }
   const call = async (ep: string, payload: unknown): Promise<{ status: number; body: unknown }> => {
@@ -85,7 +85,13 @@ export function createRemoteCas(opts: RemoteCasOpts): IoState {
         if (r.status !== 200 && r.status !== 404) throw new Error(`alarm/claim ${r.status}: ${JSON.stringify(r.body).slice(0, 200)}`)
         return
       }
-      // claim 行释放：worker 语义靠 TTL 自然过期，无显式 del。
+      // episodes 账行 append-only 永不删除（T-O-12）——del 是合同级 no-op，如实跳过。
+      if (/^dsh-mini\/episodes\//.test(key)) return
+      // state/claims 行：T-O-11 扩约后真打 /v1/state/del；404 幂等容忍，其余如实抛。
+      if (/^dsh-mini\/(state|claims)\/[^/]+\//.test(key)) {
+        const r = await call('state/del', { key: wire(key) })
+        if (r.status !== 200 && r.status !== 404) throw new Error(`state/del ${r.status}: ${JSON.stringify(r.body).slice(0, 200)}`)
+      }
     },
   }
 }
