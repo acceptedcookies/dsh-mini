@@ -1819,6 +1819,7 @@ export const VOCAB = {
 } as Record<string, { light: string; dark: string }>,
   components: {} as Record<string, unknown>,
   contractGlob: "components/*/*.contract.ts",
+  derivedKeys: ["--bg","--bg-elevated","--bg-muted","--text","--text-secondary","--text-tertiary","--border","--accent","--accent-soft","--danger","--success","--warn","--user-bubble","--user-text","--assistant-bubble","--shadow","--radius"],
 } as const
 
 export const VOCAB_TOKENS = VOCAB.tokens

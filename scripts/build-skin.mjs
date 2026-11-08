@@ -152,6 +152,7 @@ export const VOCAB = {
   chrome: ${JSON.stringify(vocabChrome, null, 2)} as Record<string, { light: string; dark: string }>,
   components: ${JSON.stringify(vocabComponents, null, 2)} as Record<string, unknown>,
   contractGlob: ${JSON.stringify(CONTRACT_FILE_GLOB)},
+  derivedKeys: ${JSON.stringify(ALL_TOKEN_ENTRIES.filter((e) => e.derived).map((e) => e.key))},
 } as const
 
 export const VOCAB_TOKENS = VOCAB.tokens

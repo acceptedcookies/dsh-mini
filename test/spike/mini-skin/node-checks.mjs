@@ -158,6 +158,172 @@ check('D3 dsh-icon.ts 仅保留 import 引用', () => {
   assert(!src.includes('new Set(['), 'dsh-icon.ts 仍内联 Set')
 })
 
+
+// ── §C codegen 契约 ──────────────────────────────────────────────────────
+section('C')
+check('C1 五产物齐备', () => {
+  for (const f of ['skin.gen.wxss', 'services/skin/vocab.ts', 'services/skin/palette-map.ts', 'assets/skins/dsh-default.json', 'theme.json']) {
+    assert(existsSync(resolve(ROOT, f)), `缺产物 ${f}`)
+  }
+})
+check('C2 skin.gen page 134 / @media 55', () => {
+  const css = readFileSync(resolve(ROOT, 'skin.gen.wxss'), 'utf8')
+  const page = css.slice(css.indexOf('page {'), css.indexOf('@media'))
+  eq((page.match(/^\s{2}--/gm) ?? []).length, 134, 'light 键数')
+  const dark = css.slice(css.indexOf('@media'))
+  eq((dark.match(/^\s{4}--/gm) ?? []).length, 55, 'dark 键数')
+})
+check('C3 skin.gen 无 less 语法', () => {
+  const css = readFileSync(resolve(ROOT, 'skin.gen.wxss'), 'utf8')
+  assert(!/^\s*\/\//.test(css), '出现 // 注释')
+  assert(!/@(?!media)/.test(css.replace(/@media/g, '')), '出现 less @ 语法')
+  assert(!/&|\.mixin|@var/.test(css), '出现 less 嵌套/mixin/变量')
+})
+check('C4 vocab 134 token + 15 surface', () => {
+  const vocab = requireTs(resolve(ROOT, 'services/skin/vocab.ts')).VOCAB
+  eq(Object.keys(vocab.tokens).length, 134, 'vocab.tokens')
+  eq(Object.keys(vocab.surfaces).length, 15, 'vocab.surfaces')
+  assert(vocab.tokens['--bg'] === undefined, 'derived 不应进 vocab')
+})
+check('C5 dsh-default 118 可写键 ×2 模式', () => {
+  const def = JSON.parse(readFileSync(resolve(ROOT, 'assets/skins/dsh-default.json'), 'utf8'))
+  const count = (block) => Object.entries(block).filter(([k]) => k !== 'chrome' && k !== 'surfaces').reduce((n, [, v]) => n + Object.keys(v).length, 0)
+  eq(count(def.light), 118, 'light token keys')
+  eq(count(def.dark), 118, 'dark token keys')
+  eq(Object.keys(def.light.surfaces).length, 15, 'surface keys')
+  eq(def.light.surfaces['chat.bubble-user'], 'var(--dsw-specific-bubble)', 'surface default')
+})
+
+// ── wx stub / engine loader ─────────────────────────────────────────────
+function loadEngine({ theme = 'light', stored } = {}) {
+  const calls = { nav: [], bg: [], themeHandlers: [] }
+  globalThis.wx = {
+    getSystemInfoSync: () => ({ theme }),
+    getStorageSync: () => (stored === undefined ? '' : stored),
+    setStorageSync: () => {},
+    removeStorageSync: () => {},
+    onThemeChange: (fn) => { calls.themeHandlers.push(fn) },
+    offThemeChange: () => {},
+    setNavigationBarColor: (arg) => { calls.nav.push(arg) },
+    setBackgroundColor: (arg) => { calls.bg.push(arg) },
+  }
+  const mod = requireTs(resolve(ROOT, 'services/skin/engine.ts'))
+  mod.init()
+  return { ...mod, calls }
+}
+
+// ── §E resolveMode 矩阵 ─────────────────────────────────────────────────
+section('E')
+check('E1 resolveMode 分支矩阵', () => {
+  for (const theme of ['light', 'dark']) {
+    const { resolveMode } = loadEngine({ theme })
+    eq(resolveMode('system'), theme, `system@${theme}`)
+    eq(resolveMode('light'), 'light', 'light')
+    eq(resolveMode('dark'), 'dark', 'dark')
+  }
+})
+check('E2 init 从 storage 恢复 pref', () => {
+  eq(loadEngine({ theme: 'dark', stored: 'light' }).engine.eff, 'light', 'stored light')
+  eq(loadEngine({ theme: 'dark', stored: undefined }).engine.eff, 'dark', 'system dark')
+})
+check('E3 setPref 三档 + eff=req', () => {
+  const e = loadEngine({ theme: 'light' })
+  eq(e.setPref('dark'), 'dark', 'setPref dark')
+  eq(e.engine.eff, 'dark', 'eff dark')
+  eq(e.setPref('system'), 'light', 'setPref system')
+  eq(e.setPref('light'), 'light', 'setPref light')
+})
+check('E4 resolved 全键 = 134+15', () => {
+  const e = loadEngine()
+  eq(Object.keys(e.engine.tokens).length, 149, 'resolved keys')
+  eq(e.engine.tokens['--dsw-surface-chat-interface'], 'var(--dsw-alias-bg-base)', 'surface var 原样')
+})
+
+// ── §F composeAppStyle / buildMetricsVars ───────────────────────────────
+section('F')
+check('F1 compose 串序 skin 段 + metrics 段', () => {
+  const e = loadEngine()
+  const metrics = e.buildMetricsVars({ statusBarHeight: 20, navBarContentHeight: 44, capsuleInsetRight: 102, safeAreaBottom: 34 })
+  eq(JSON.stringify(metrics), JSON.stringify(['--app-status-bar: 20px', '--app-nav-height: 64px', '--app-capsule-right: 102px', '--app-safe-bottom: 34px']), 'metrics 4 键')
+  const style = e.composeAppStyle(metrics)
+  const firstMetric = style.indexOf('--app-status-bar')
+  const lastSkin = style.lastIndexOf('--dsw-')
+  assert(lastSkin < firstMetric, 'metrics 段必须在 skin 段之后')
+  eq((style.match(/--(?:dsw|ds)-[a-z0-9-]+:/g) ?? []).length, 149, 'skin 键数')
+  eq((style.match(/--app-[a-z-]+:/g) ?? []).length, 4, 'metrics 键数')
+})
+check('F2 compose 命名空间不交/无重复', () => {
+  const e = loadEngine()
+  const style = e.composeAppStyle([])
+  const keys = style.split('; ').map((part) => part.split(':')[0].trim()).filter(Boolean)
+  eq(new Set(keys).size, keys.length, '重复键')
+  assert(keys.every((k) => k.startsWith('--dsw-') || k.startsWith('--ds-')), '出现非 --dsw/--ds 键')
+})
+
+// ── §G validator 正负矩阵 ───────────────────────────────────────────────
+section('G')
+function loadValidate() {
+  const v = requireTs(resolve(ROOT, 'services/skin/validate.ts'))
+  const vocab = requireTs(resolve(ROOT, 'services/skin/vocab.ts')).VOCAB
+  return { validate: v.validate, vocab }
+}
+function baseSkin(overrides = {}) {
+  return { $schema: 'dsh-mini.skin.v1', slug: 'demo-skin', name: 'Demo', light: { palette: { '--dsw-alias-bg-base': '#ffffff' } }, ...overrides }
+}
+function expectRule(skin, rule) {
+  const { validate, vocab } = loadValidate()
+  const r = validate(skin, vocab)
+  assert(!r.ok, `应拒绝（期望 ${rule}）`)
+  assert(r.errors.some((e) => e.rule === rule), `未见 ${rule}; errors=${JSON.stringify(r.errors)}`)
+}
+check('G1 正例 dsh-default', () => {
+  const { validate, vocab } = loadValidate()
+  const def = JSON.parse(readFileSync(resolve(ROOT, 'assets/skins/dsh-default.json'), 'utf8'))
+  const r = validate(def, vocab)
+  eq(JSON.stringify(r.errors), '[]', 'dsh-default errors')
+  assert(r.ok, 'dsh-default 应通过')
+})
+check('G2 缺 $schema', () => expectRule({ slug: 'demo-skin', name: 'Demo', light: {} }, 'L1.schema.version'))
+check('G3 非法 slug（大写/前导 -/超长）', () => {
+  expectRule(baseSkin({ slug: 'DemoSkin' }), 'L1.slug.format')
+  expectRule(baseSkin({ slug: '-demo' }), 'L1.slug.format')
+  expectRule(baseSkin({ slug: 'a' + 'b'.repeat(65) }), 'L1.slug.format')
+})
+check('G4 ModeBlock 0 块', () => expectRule({ $schema: 'dsh-mini.skin.v1', slug: 'demo-skin', name: 'Demo' }, 'L1.mode-block.missing'))
+check('G5 非 string 值', () => expectRule(baseSkin({ light: { palette: { '--dsw-alias-bg-base': 123 } } }), 'L3.value.type'))
+check('G6 未知键', () => expectRule(baseSkin({ light: { palette: { '--dsw-not-exist': '#fff' } } }), 'L2.unknown-key'))
+check('G7 invariant 写', () => expectRule(baseSkin({ light: { palette: { '--dsw-alias-scrim-strong': '#fff' } } }), 'L2.invariant'))
+check('G8 derived 写', () => expectRule(baseSkin({ light: { palette: { '--bg': '#fff' } } }), 'L2.derived'))
+check('G9 dsh- 前缀盗用', () => expectRule(baseSkin({ slug: 'dsh-evil' }), 'L1.slug.reserved'))
+check('G10 data: 注入', () => expectRule(baseSkin({ light: { palette: { '--dsw-alias-bg-base': 'data:image/png;base64,AAAA' } } }), 'L3.value.data-uri'))
+check('G11 裸 base64 负载', () => expectRule(baseSkin({ light: { palette: { '--dsw-alias-bg-base': 'A'.repeat(48) } } }), 'L3.value.data-uri'))
+check('G12 CSS 规则串注入', () => expectRule(baseSkin({ light: { palette: { '--dsw-alias-bg-base': '#fff; } .x { color: red' } } }), 'L3.value.css-injection'))
+check('G13 url 非法端点', () => expectRule(baseSkin({ light: { surfaces: { 'chat-interface': 'url(http://evil.example/x.png)' } } }), 'L3.url.endpoint'))
+check('G14 components 空 registry 引用', () => expectRule(baseSkin({ components: { 'dsh-button': {} } }), 'L4.components.empty-registry'))
+check('G15 fonts capability', () => expectRule(baseSkin({ fonts: [{ family: 'X', src: 'https://x/y.woff' }] }), 'L6.capability.unsupported'))
+check('G16 sounds capability', () => expectRule(baseSkin({ sounds: { 'ui.tap': 'https://x/y.mp3' } }), 'L6.capability.unsupported'))
+check('G17 lockMode capability', () => expectRule(baseSkin({ meta: { lockMode: 'lock' } }), 'L6.capability.unsupported'))
+check('G18 dotted emits 非法（词表侧）', () => {
+  const { validate } = loadValidate()
+  const badVocab = {
+    tokens: { '--dsw-alias-bg-base': { key: '--dsw-alias-bg-base', family: 'palette', domain: 'color', light: '#fff', dark: '#000', writable: true, invariant: false, derived: false } },
+    surfaces: { 'chat.bubble-user': { key: 'chat.bubble-user', emits: '--dsw-surface-chat.bubble-user', default: 'var(--dsw-alias-bg-base)' } },
+    components: {},
+  }
+  const r = validate(baseSkin(), badVocab)
+  assert(!r.ok && r.errors.some((e) => e.rule === 'L5.surface.emits'), '未见 L5.surface.emits')
+})
+check('G19 合法 surface 值（var 引用）', () => {
+  const { validate, vocab } = loadValidate()
+  const r = validate(baseSkin({ light: { surfaces: { 'chat.bubble-user': 'var(--dsw-specific-bubble)' } } }), vocab)
+  assert(r.ok, `合法 surface 被拒: ${JSON.stringify(r.errors)}`)
+})
+check('G20 url https 合法', () => {
+  const { validate, vocab } = loadValidate()
+  const r = validate(baseSkin({ light: { surfaces: { 'chat-interface': 'url(https://dsh-mini.saobao.com/a/x.png)' } } }), vocab)
+  assert(r.ok, `https url 被拒: ${JSON.stringify(r.errors)}`)
+})
+
 // ── 输出 ─────────────────────────────────────────────────────────────────
 const json = process.argv.includes('--json')
 const failed = results.filter((r) => !r.ok)
