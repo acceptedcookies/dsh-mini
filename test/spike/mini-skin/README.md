@@ -81,9 +81,9 @@ node scripts/skin-equiv-check.mjs --self-test
 
 | Test-ID | verdict | 环境 | 证据 |
 |---|---|---|---|
-| `T06` | `pending` | S1 | - |
-| `T11` | `pending` | S1 | - |
-| `T13` | `pending` | H1 | - |
-| `T15` | `pending` | S1 | - |
-| `T17` | `pending` | S1 | - |
-| `T18` | `pending` | S1+H1 | - |
+| `T06` | `PASS` | S1 | `evidence/t06/*`（plant 摘 import → rgba(0,0,0,0)，复原 rgb(255,255,255)） |
+| `T11` | `PASS` | S1 | `evidence/t11/*`（settings 三档 + models/workspace appStyle 5879） |
+| `T13` | `PASS` | H1 | `.anote/ms01-p6/equiv-p6.json`（0 errors/0 diffs/12 intended/15 tokenization） |
+| `T15` | `PASS` | S1 | `.anote/ms01-p6/visual-diff.json`（12 场景 max 0.044/0.06%） |
+| `T17` | `deferred`（media）/`PASS`（var/url） | S1 | `evidence/t17/*`（reason `media-dark-not-triggerable-in-devtools`） |
+| `T18` | `PASS` | S1+H1 | `evidence/t18/*`（forest #2f855a/#f7fdf9/149 keys） |
