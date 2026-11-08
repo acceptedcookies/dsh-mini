@@ -61,6 +61,9 @@ for (const e of ALL_TOKEN_ENTRIES) {
 }
 const emits = SURFACE_ENTRIES.map((s) => s.emits)
 if (new Set(emits).size !== emits.length) problems.push('surface emits 不唯一')
+const appLessSrc = readFileSync(join(ROOT, 'app.less'), 'utf8')
+if (!/^@import \(inline\) "\.\/skin\.gen\.wxss";$/m.test(appLessSrc)) problems.push('app.less 缺少 @import (inline) "./skin.gen.wxss";')
+if (appLessSrc.includes('skin-test.gen')) problems.push('app.less 仍引用 skin-test.gen')
 if (SURFACE_ENTRIES.length !== 15) problems.push(`surfaces=${SURFACE_ENTRIES.length} != 15`)
 
 // contract glob 覆盖：发现 contract 文件 → 必须收编进 components registry
@@ -72,7 +75,9 @@ function walkFiles(dir, out = []) {
   }
   return out
 }
-const contractFiles = existsSync(join(ROOT, 'components')) ? walkFiles(join(ROOT, 'components')) : []
+const contractRoot = CONTRACT_FILE_GLOB.split('/')[0]
+if (contractRoot !== 'components') problems.push(`CONTRACT_FILE_GLOB 超出 components: ${CONTRACT_FILE_GLOB}`)
+const contractFiles = existsSync(join(ROOT, contractRoot)) ? walkFiles(join(ROOT, contractRoot)) : []
 const contracts = []
 for (const file of contractFiles) {
   const mod = requireTs(file)
@@ -297,8 +302,34 @@ if (existsSync(validatePath)) {
     report.validate = { ok: false, error: e instanceof Error ? e.message : String(e) }
     failed = true
   }
+  // F1：跨产物字段级对账（读落盘 dsh-default.json + 落盘 vocab.ts，非同一内存对象自证）
+  const crossErrors = []
+  try {
+    const diskDef = JSON.parse(readFileSync(join(ROOT, 'assets/skins/dsh-default.json'), 'utf8'))
+    const diskVocab = requireTs(join(ROOT, 'services/skin/vocab.ts')).VOCAB
+    for (const mode of ['light', 'dark']) {
+      for (const family of ['palette', 'shape', 'spacing', 'typography', 'elevation']) {
+        for (const [key, value] of Object.entries(diskDef[mode][family] ?? {})) {
+          if (diskVocab.tokens[key] === undefined) crossErrors.push(`${mode}.${family}.${key}: 不在 vocab`)
+          else if (value !== diskVocab.tokens[key][mode]) crossErrors.push(`${mode}.${family}.${key}: ${value} != ${diskVocab.tokens[key][mode]}`)
+        }
+      }
+      for (const [key, value] of Object.entries(diskDef[mode].surfaces ?? {})) {
+        if (diskVocab.surfaces[key] === undefined) crossErrors.push(`${mode}.surfaces.${key}: 不在 vocab`)
+        else if (value !== diskVocab.surfaces[key].default) crossErrors.push(`${mode}.surfaces.${key}: ${value} != ${diskVocab.surfaces[key].default}`)
+      }
+      for (const [key, value] of Object.entries(diskDef[mode].chrome ?? {})) {
+        if (value !== diskVocab.chrome[key]?.[mode]) crossErrors.push(`${mode}.chrome.${key}: ${value} != ${diskVocab.chrome[key]?.[mode]}`)
+      }
+    }
+  } catch (e) {
+    crossErrors.push(e instanceof Error ? e.message : String(e))
+  }
+  report.crossCheck = { ok: crossErrors.length === 0, errors: crossErrors }
+  if (crossErrors.length > 0) failed = true
 } else {
   report.validate = { ok: true, skipped: 'validate-not-ready' }
+  report.crossCheck = { ok: true, skipped: 'validate-not-ready' }
 }
 function VOCAB_FOR_VALIDATE() {
   return {

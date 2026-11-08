@@ -91,7 +91,15 @@ function horizontalPxTokens(prop, value) {
   return [toks[1], toks[3]].map(pick).filter(Boolean)
 }
 
-const violations = { color: [], radius: [], fontSize: [], lineHeight: [], tracking: [], weight: [], gutter: [], tokenDef: [] }
+const violations = { color: [], radius: [], fontSize: [], lineHeight: [], tracking: [], weight: [], gutter: [], tokenDef: [], fallback: [] }
+
+// 生成物 token 值表（用于 var() fallback 一致性审计；gen 文件豁免不等于其值不可被引用）
+const GEN_FILE = join(ROOT, 'skin.gen.wxss')
+const TOKEN_VALUES = {}
+try {
+  const gen = readFileSync(GEN_FILE, 'utf8')
+  for (const m of gen.matchAll(/^\s{2}(--[a-z0-9-]+):\s*(.+);$/gm)) TOKEN_VALUES[m[1]] = m[2].trim()
+} catch { /* gen 未生成时跳过 fallback 审计 */ }
 const push = (k, file, line, text) => violations[k].push({ file, line, text })
 
 for (const abs of files) {
@@ -112,6 +120,16 @@ for (const abs of files) {
       return
     }
     const ln = idx + 1
+
+    // 0. var() fallback 一致性：--dsw-* 的兜底字面量必须等于生成值
+    for (const m of line.matchAll(/var\((--dsw-[a-z0-9-]+),\s*([^)]+)\)/g)) {
+      const token = m[1]
+      const fallback = (m[2] ?? '').trim()
+      if (TOKEN_VALUES[token] !== undefined && TOKEN_VALUES[token] !== fallback) {
+        push('fallback', rel, ln, line)
+        break
+      }
+    }
 
     // 1. 色彩（mask-image 的 #000 是不透明遮罩实现细节，豁免）
     // box-shadow 是 elevation 复合值（非色彩 token 面）；MS01 维持现值，不纳入色彩审计

@@ -9,6 +9,9 @@ import { vfsSyncFor } from './services/state/provider'
 import { engineForSession } from './services/session-engine'
 import { hasFreshTicket, onTicketMinted } from './services/fx/ticket'
 
+declare const __wxConfig: { envVersion?: string } | undefined
+const DEV_BUILD = typeof __wxConfig !== 'undefined' && __wxConfig.envVersion === 'develop'
+
 /** cloud 车道 VFS 远端镜像接线（MN02 G1 durable lane 活线）：
  *  写/删 → fire-and-forget 推送（失败 warn 不阻塞本地写——reconcile 兜底自愈）；
  *  reconcile：远端清单/行下拉（updated_ms 大者赢）→ 本地行推送（指针增量）。 */
@@ -85,8 +88,8 @@ App<IAppOption>({
      *  VFS/durable/claim/session 等测试专用钩子已随测试套件拆除。 */
     __diagnostics: sessionDiagnostics as unknown,
     __errorBus: errorBus as unknown,
-    /** DevTools 调试面：皮肤引擎（fixture 注入/T18 证据；非 UI 交付面）。 */
-    __skinEngine: engine as unknown,
+    /** DevTools 调试面（仅 develop 构建暴露）：皮肤引擎 fixture 注入/T18 证据；release/trial 为 undefined。 */
+    __skinEngine: DEV_BUILD ? (engine as unknown) : undefined,
   },
   onLaunch() {
     engine.init()

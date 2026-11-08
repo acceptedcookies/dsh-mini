@@ -75,6 +75,7 @@ check('A7 每键 source 可锚', () => {
   }
 })
 check('A8 149 旧键 light/dark 与基线逐键一致', () => {
+  eq(Object.keys(baseline.tokens).length, 149, '基线 token 计数')
   for (const [key, old] of Object.entries(baseline.tokens)) {
     const entry = truth.ALL_TOKEN_ENTRIES.find((e) => e.key === key)
     assert(entry !== undefined, `缺基线键 ${key}`)
@@ -123,6 +124,7 @@ check('B4 默认值全为 var(--dsw-*) 引用', () => {
   for (const s of truth.SURFACE_ENTRIES) assert(/^var\(--dsw-[a-z0-9-]+\)$/.test(s.default), `${s.key} default 非 var 引用: ${s.default}`)
 })
 check('B5 points 真实存在且含声明 var', () => {
+  eq(truth.SURFACE_ENTRIES.reduce((n, s) => n + s.points.length, 0), 23, 'surface points 总数')
   for (const s of truth.SURFACE_ENTRIES) {
     for (const p of s.points) {
       const abs = resolve(ROOT, p.file)
@@ -189,6 +191,24 @@ check('C4 vocab 134 token + 15 surface', () => {
   eq(Object.keys(vocab.tokens).length, 134, 'vocab.tokens')
   eq(Object.keys(vocab.surfaces).length, 15, 'vocab.surfaces')
   assert(vocab.tokens['--bg'] === undefined, 'derived 不应进 vocab')
+})
+check('C6 dsh-default ↔ vocab 字段级跨产物对账（非 validate 自证）', () => {
+  const def = JSON.parse(readFileSync(resolve(ROOT, 'assets/skins/dsh-default.json'), 'utf8'))
+  const vocab = requireTs(resolve(ROOT, 'services/skin/vocab.ts')).VOCAB
+  for (const mode of ['light', 'dark']) {
+    for (const family of ['palette', 'shape', 'spacing', 'typography', 'elevation']) {
+      for (const [key, value] of Object.entries(def[mode][family])) {
+        assert(vocab.tokens[key] !== undefined, `${mode}.${family} 未知键 ${key}`)
+        eq(value, vocab.tokens[key][mode], `${mode}.${family}.${key} 与 vocab 不一致`)
+      }
+    }
+    for (const [key, value] of Object.entries(def[mode].surfaces)) {
+      eq(value, vocab.surfaces[key].default, `${mode}.surfaces.${key} 与 vocab 不一致`)
+    }
+    for (const [key, value] of Object.entries(def[mode].chrome)) {
+      eq(value, vocab.chrome[key][mode], `${mode}.chrome.${key} 与 vocab 不一致`)
+    }
+  }
 })
 check('C5 dsh-default 118 可写键 ×2 模式', () => {
   const def = JSON.parse(readFileSync(resolve(ROOT, 'assets/skins/dsh-default.json'), 'utf8'))
@@ -466,6 +486,7 @@ check('J3 derived 17 键四域零消费', () => {
   }
 })
 check('J4 15 键 points 全部改指 surface emits', () => {
+  eq(truth.SURFACE_ENTRIES.reduce((n, s) => n + s.points.length, 0), 23, 'surface points 总数')
   for (const surface of truth.SURFACE_ENTRIES) {
     for (const p of surface.points) {
       const line = readFileSync(resolve(ROOT, p.file), 'utf8').split('\n')[p.line - 1]
@@ -490,7 +511,7 @@ check('J5 非登记点保持 alias（防越界）', () => {
 // ── §H-P5 退役残留（P5 阶段：全零） ──────────────────────────────────────
 section('H-P5')
 function productFiles(exts) {
-  const out = ['app.ts']
+  const out = ['app.ts', 'app.less']
   const walk = (dir) => {
     for (const e of readdirSync(resolve(ROOT, dir), { withFileTypes: true })) {
       const rel = `${dir}/${e.name}`
@@ -599,11 +620,18 @@ check('K5 非法皮肤 applySkin 拒绝（fail-closed）', () => {
   }
   assert(threw, '非法皮肤未抛 SkinValidationError/L2.unknown-key')
 })
-check('K6 dsh-default 快径免检 + 重置', () => {
+check('K6 null 重置默认 + 伪 dsh-default 不得免检', () => {
   const e = loadEngine({ theme: 'light' })
   e.applySkin(fixture('skin-forest-light.json'))
-  e.applySkin({ $schema: 'dsh-mini.skin.v1', slug: 'dsh-default', name: '默认', light: {} })
-  eq(e.engine.tokens['--dsw-alias-state-business-primary'], '#4176e6', '快径重置 defaults')
+  e.applySkin(null)
+  eq(e.engine.tokens['--dsw-alias-state-business-primary'], '#4176e6', 'null 重置 defaults')
+  let threw = false
+  try {
+    e.applySkin({ $schema: 'dsh-mini.skin.v1', slug: 'dsh-default', name: '伪默认', light: { palette: { '--dsw-nope': '#fff' } } })
+  } catch (err) {
+    threw = err instanceof Error && err.name === 'SkinValidationError'
+  }
+  assert(threw, '伪 dsh-default 绕过 validate')
 })
 
 // ── 输出 ─────────────────────────────────────────────────────────────────

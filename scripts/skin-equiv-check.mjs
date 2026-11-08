@@ -36,9 +36,17 @@ const INTENDED_RETARGET = new Map([
   ['--dsw-alias-warning-primary', '--dsw-alias-state-warn-primary'],
   ['--dsw-alias-positive-primary', '--dsw-alias-state-success-primary'],
   ['--dsw-shadow-lv3', '--dsw-elevation-prominent'],
-  ['--dsw-alias-markdown-code-text', '--dsw-alias-markdown-code-text'],
-  ['--dsw-alias-bg-mask-3', '--dsw-alias-bg-mask-3'],
 ])
+// T-O-8 新增键：旧兜底链→新 token，只允许「精确等于新键在该 mode 的值」
+const NEW_TOKEN_KEYS = new Set(['--dsw-alias-markdown-code-text', '--dsw-alias-bg-mask-3'])
+
+function expectedIntendedValue(refName, mode, vocab, defs) {
+  const target = INTENDED_RETARGET.get(refName) ?? (NEW_TOKEN_KEYS.has(refName) ? refName : undefined)
+  if (target === undefined) return undefined
+  const entry = vocab.tokens[target]
+  if (entry === undefined) return null
+  return resolveValue(entry[mode], mode, defs).value
+}
 
 // ── less 扫描 ────────────────────────────────────────────────────────────
 function stripComments(text) {
@@ -455,9 +463,10 @@ function compare(phase) {
       if (o.ok !== n.ok) {
         // 计划内修复：旧 unresolved（无兜底 bug）→ 新 resolved
         const refs = parseVarRefs(old.raw)
-        const fixed = refs.find((r) => INTENDED_RETARGET.has(r.name))
-        if (o.ok === false && n.ok === true && fixed !== undefined) {
-          intended.push({ key: old.key, file: old.file, line: now.line, mode, from: o.value, to: n.value, reason: `T-O-8:${fixed.name}` })
+        const fixed = refs.find((r) => INTENDED_RETARGET.has(r.name) || NEW_TOKEN_KEYS.has(r.name))
+        const expected = fixed === undefined ? undefined : expectedIntendedValue(fixed.name, mode, vocab, defs)
+        if (o.ok === false && n.ok === true && fixed !== undefined && expected !== null && n.value === expected) {
+          intended.push({ key: old.key, file: old.file, line: now.line, mode, from: o.value, to: n.value, reason: `T-O-8:${fixed.name}`, expected })
         } else {
           errors.push(`消费点 resolved 状态变化 ${old.key} ${mode}: ${JSON.stringify(o)} → ${JSON.stringify(n)}`)
         }
@@ -465,9 +474,10 @@ function compare(phase) {
       }
       if (o.value !== n.value) {
         const refs = parseVarRefs(old.raw)
-        const fixed = refs.find((r) => INTENDED_RETARGET.has(r.name))
-        if (fixed !== undefined) {
-          intended.push({ key: old.key, file: old.file, line: now.line, mode, from: o.value, to: n.value, reason: `T-O-8:${fixed.name}` })
+        const fixed = refs.find((r) => INTENDED_RETARGET.has(r.name) || NEW_TOKEN_KEYS.has(r.name))
+        const expected = fixed === undefined ? undefined : expectedIntendedValue(fixed.name, mode, vocab, defs)
+        if (fixed !== undefined && expected !== null && n.value === expected) {
+          intended.push({ key: old.key, file: old.file, line: now.line, mode, from: o.value, to: n.value, reason: `T-O-8:${fixed.name}`, expected })
         } else {
           errors.push(`消费点值漂移 ${old.key} ${mode}: ${o.value} → ${n.value}`)
         }
@@ -531,12 +541,12 @@ function compare(phase) {
 
 function finish({ phase, diffs, intended, intendedAdditions = [], errors, checks }) {
   const report = {
-    ok: errors.length === 0 && diffs.length === 0,
+    ok: errors.length === 0,
     phase,
     at: new Date().toISOString(),
     checks,
     errors,
-    diffs,
+    diffs: errors,
     intendedDeltas: intended,
     intendedAdditions,
   }

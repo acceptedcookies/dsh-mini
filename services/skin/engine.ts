@@ -197,12 +197,14 @@ export class SkinValidationError extends Error {
 
 /** 皮肤入口：dsh-default 快径；其余必须先过 validate（fail-closed）。 */
 export function applySkin(skin: SkinJson | null): { ok: true; eff: SkinMode } {
-  if (skin === null || skin.slug === 'dsh-default') {
+  if (skin === null) {
     state.skin = null
     recompute()
     notify()
     return { ok: true, eff: state.eff }
   }
+  // 注：内置 dsh-default 也走 validate（slug 是调用方可控字段，不能作为免检凭据；
+  // 生成物本身已由 build-skin --check 全键对账，validate 成本可忽略）。
   const result = validate(skin, VOCAB_LIKE)
   if (!result.ok) throw new SkinValidationError(result.errors)
   state.skin = skin
