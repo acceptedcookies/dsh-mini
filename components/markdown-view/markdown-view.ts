@@ -1,4 +1,4 @@
-import { markdownSegments, type MarkdownSegment, type MarkdownTheme } from '../../services/markdown'
+import { markdownSegments, type MarkdownSegment } from '../../services/markdown'
 import { errorBus } from '../../services/error-report'
 
 const COPIED_MS = 1200
@@ -31,9 +31,8 @@ Component({
   methods: {
     render() {
       const text = this.properties.text
-      const theme = this.properties.theme as MarkdownTheme
       const segments = text.length > 0
-        ? markdownSegments(text, theme).map((segment) => segment.kind === 'code' ? { ...segment, wrap: true } : segment)
+        ? markdownSegments(text).map((segment) => segment.kind === 'code' ? { ...segment, wrap: true } : segment)
         : this.properties.html.length > 0
           ? [{ kind: 'html', html: this.properties.html } as MarkdownSegment]
           : []

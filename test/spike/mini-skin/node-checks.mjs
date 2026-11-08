@@ -4,8 +4,8 @@
  * 用法: node test/spike/mini-skin/node-checks.mjs [--section A,B,D] [--json]
  * 退出: 0 = 全 PASS；1 = 有 FAIL；2 = 运行错误
  */
-import { readFileSync, existsSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { readFileSync, existsSync, readdirSync } from 'node:fs'
+import { dirname, resolve, relative } from 'node:path'
 import ts from 'typescript'
 
 const ROOT = new URL('../../../', import.meta.url).pathname
@@ -24,7 +24,10 @@ function assert(cond, msg) { if (!cond) throw new Error(msg) }
 function eq(a, b, msg) { assert(a === b, `${msg}: ${JSON.stringify(a)} != ${JSON.stringify(b)}`) }
 
 // ── 迷你 TS loader（ts.transpileModule + 相对 import 递归） ──────────────
+const tsCache = new Map()
 function requireTs(file) {
+  const cached = tsCache.get(file)
+  if (cached !== undefined) return cached.exports
   const src = readFileSync(file, 'utf8')
   const js = ts.transpileModule(src, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
@@ -41,6 +44,7 @@ function requireTs(file) {
   }
   // eslint-disable-next-line no-new-func
   new Function('exports', 'require', 'module', '__filename', '__dirname', js)(mod.exports, req, mod, file, dir)
+  tsCache.set(file, mod)
   return mod.exports
 }
 const truth = requireTs(resolve(ROOT, 'skin/truth/index.ts'))
@@ -127,7 +131,8 @@ check('B5 points 真实存在且含声明 var', () => {
       assert(p.line >= 1 && p.line <= lines.length, `${s.key} point 行越界: ${p.file}:${p.line}`)
       const line = lines[p.line - 1]
       assert(line.includes('background'), `${s.key} point 非 background 行: ${p.file}:${p.line}`)
-      assert(line.includes(`var(${p.use}`), `${s.key} point 未吃 ${p.use}: ${p.file}:${p.line} => ${line.trim()}`)
+      const surfaceVar = `var(${s.emits})`
+      assert(line.includes(`var(${p.use}`) || line.includes(surfaceVar), `${s.key} point 未吃 ${p.use} 也未改指 ${s.emits}: ${p.file}:${p.line} => ${line.trim()}`)
     }
   }
 })
@@ -322,6 +327,160 @@ check('G20 url https 合法', () => {
   const { validate, vocab } = loadValidate()
   const r = validate(baseSkin({ light: { surfaces: { 'chat-interface': 'url(https://dsh-mini.saobao.com/a/x.png)' } } }), vocab)
   assert(r.ok, `https url 被拒: ${JSON.stringify(r.errors)}`)
+})
+
+
+// ── §H-P4 退役残留（P4 阶段：调用点 0 / import 白名单） ──────────────────
+section('H-P4')
+function tsFiles(dir, out = []) {
+  for (const e of readdirSync(resolve(ROOT, dir), { withFileTypes: true })) {
+    const rel = `${dir}/${e.name}`
+    if (e.isDirectory()) tsFiles(rel, out)
+    else if (e.name.endsWith('.ts')) out.push(rel)
+  }
+  return out
+}
+check('H1 theme.ts 调用表达式 0', () => {
+  const names = new Set(['getTheme', 'setTheme', 'applyNavigationBar', 'watchSystemTheme', 'useSystemTheme'])
+  const hits = []
+  for (const file of tsFiles('app.ts'.includes('/') ? 'pages' : 'pages').concat(tsFiles('components'), tsFiles('services'), ['app.ts'])) {
+    const src = readFileSync(resolve(ROOT, file), 'utf8')
+    const sf = ts.createSourceFile(file, src, ts.ScriptTarget.ES2020, true, ts.ScriptKind.TS)
+    const walk = (node) => {
+      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && names.has(node.expression.text)) {
+        if (file !== 'services/theme.ts') hits.push(`${file}:${sf.getLineAndCharacterOfPosition(node.getStart()).line + 1}:${node.expression.text}`)
+      }
+      ts.forEachChild(node, walk)
+    }
+    walk(sf)
+  }
+  eq(JSON.stringify(hits), '[]', 'theme.ts 调用表达式')
+})
+check('H2 services/theme import 白名单（仅 import 行允许，当前应为 0）', () => {
+  const hits = []
+  for (const file of tsFiles('pages').concat(tsFiles('components'), tsFiles('services'), ['app.ts'])) {
+    const src = readFileSync(resolve(ROOT, file), 'utf8')
+    const sf = ts.createSourceFile(file, src, ts.ScriptTarget.ES2020, true, ts.ScriptKind.TS)
+    for (const stmt of sf.statements) {
+      if (ts.isImportDeclaration(stmt) && ts.isStringLiteral(stmt.moduleSpecifier) && /(^|\/)services\/theme$/.test(stmt.moduleSpecifier.text)) {
+        hits.push(`${file}:${sf.getLineAndCharacterOfPosition(stmt.getStart()).line + 1}`)
+      }
+    }
+  }
+  eq(JSON.stringify(hits), '[]', 'services/theme import 残留')
+})
+check('H3 三页 appStyle 均由 composeAppStyle 产', () => {
+  for (const f of ['pages/settings/settings.ts', 'pages/models/models.ts', 'pages/workspace/workspace.ts']) {
+    const src = readFileSync(resolve(ROOT, f), 'utf8')
+    assert(src.includes('engine.composeAppStyle(engine.buildMetricsVars('), `${f} 未接 composeAppStyle`)
+    assert(!/appStyle:\s*\[/.test(src), `${f} 仍有自拼 appStyle 数组`)
+  }
+})
+
+// ── §I markdown 收敛（T14） ──────────────────────────────────────────────
+section('I')
+function loadMarkdown() {
+  loadEngine({ theme: 'light' })
+  return requireTs(resolve(ROOT, 'services/markdown.ts'))
+}
+const MD_SAMPLE = [
+  '# Title', '', 'para **bold** and `inline`', '', '> quote', '', '---', '',
+  '[link](https://example.com)', '',
+  '| A | B |', '|---|---|', '| 1 | 2 |', '| 3 | 4 |', '',
+  '```js', 'const x = 1', '```', '',
+].join('\n')
+check('I1 light palette 11 字段值 = P0 基线', () => {
+  const md = loadMarkdown()
+  const engineMod = requireTs(resolve(ROOT, 'services/skin/engine.ts'))
+  engineMod.setPref('light')
+  const html = md.markdownToHtml(MD_SAMPLE)
+  const base = baseline.nonLess.palette.light
+  const expected = [base.text, base.secondary, base.tertiary, base.border, base.link, base.codeBg, base.codeBanner, base.codeText, base.inlineBg, base.tableHeadBg, base.tableRowAlt]
+  for (const v of expected) {
+    const needle = v.replace(/\s+/g, '').replace(/^rgba\(/, 'rgba(').toLowerCase()
+    const hay = html.replace(/\s+/g, '').toLowerCase()
+    assert(hay.includes(needle), `light palette 值未出现: ${v}`)
+  }
+})
+check('I2 dark palette 11 字段值 = P0 基线', () => {
+  const md = loadMarkdown()
+  const engineMod = requireTs(resolve(ROOT, 'services/skin/engine.ts'))
+  engineMod.setPref('dark')
+  const html = md.markdownToHtml(MD_SAMPLE)
+  const base = baseline.nonLess.palette.dark
+  const expected = [base.text, base.secondary, base.tertiary, base.border, base.link, base.codeBg, base.codeBanner, base.codeText, base.inlineBg, base.tableHeadBg, base.tableRowAlt]
+  const hay = html.replace(/\s+/g, '').toLowerCase()
+  for (const v of expected) assert(hay.includes(v.replace(/\s+/g, '').toLowerCase()), `dark palette 值未出现: ${v}`)
+})
+check('I3 Menlo 三处取 --ds-font-family-code 值', () => {
+  const md = loadMarkdown()
+  const engineMod = requireTs(resolve(ROOT, 'services/skin/engine.ts'))
+  engineMod.setPref('light')
+  const html = md.markdownToHtml(MD_SAMPLE)
+  const font = engineMod.engine.tokens['--ds-font-family-code']
+  assert(html.includes(`font-family:${font};`), `未见 token 字体值: ${font}`)
+  assert(!html.includes('Menlo,monospace'), '仍见 Menlo,monospace 字面量')
+})
+check('I4 源码无 palette 硬编码色表', () => {
+  const src = readFileSync(resolve(ROOT, 'services/markdown.ts'), 'utf8')
+  assert(!/return theme === 'dark'/.test(src), 'palette 双表仍在')
+  assert(!/'#f9fafb'/.test(src), 'markdown.ts 仍有硬编码色值')
+})
+
+// ── §J 词表收口 + surfaces 改指（T16） ───────────────────────────────────
+section('J')
+function lessFiles() { return ['app.less', ...walkLess(resolve(ROOT, 'pages')), ...walkLess(resolve(ROOT, 'components'))].map((f) => relative(ROOT, f)) }
+function walkLess(dir, out = []) {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = resolve(dir, e.name)
+    if (e.isDirectory()) walkLess(p, out)
+    else if (e.name.endsWith('.less')) out.push(p)
+  }
+  return out
+}
+check('J1 旧悬空/旧名 key 零残留', () => {
+  const bad = ['--dsw-alias-warning-primary', '--dsw-alias-positive-primary', '--dsw-shadow-lv3']
+  for (const f of lessFiles()) {
+    const src = readFileSync(resolve(ROOT, f), 'utf8')
+    for (const key of bad) assert(!src.includes(key), `${f} 仍含 ${key}`)
+  }
+})
+check('J2 2 新键去兜底直吃', () => {
+  const ws = readFileSync(resolve(ROOT, 'pages/workspace/workspace.less'), 'utf8')
+  assert(!ws.includes('var(--dsw-alias-bg-mask-3,'), 'workspace.bg-mask-3 仍有兜底')
+  const mv = readFileSync(resolve(ROOT, 'components/markdown-view/markdown-view.less'), 'utf8')
+  assert(!mv.includes('var(--dsw-alias-markdown-code-text,'), 'markdown-code-text 仍有兜底')
+})
+check('J3 derived 17 键四域零消费', () => {
+  const derived = ['--bg', '--bg-elevated', '--bg-muted', '--text', '--text-secondary', '--text-tertiary', '--border', '--accent', '--accent-soft', '--danger', '--success', '--warn', '--user-bubble', '--user-text', '--assistant-bubble', '--shadow', '--radius']
+  for (const f of lessFiles()) {
+    if (f === 'app.less') continue // app.less 定义行（P5 删除）
+    const src = readFileSync(resolve(ROOT, f), 'utf8')
+    for (const key of derived) {
+      const re = new RegExp(`var\\(${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[,)]`)
+      assert(!re.test(src), `${f} 仍消费 derived ${key}`)
+    }
+  }
+})
+check('J4 15 键 points 全部改指 surface emits', () => {
+  for (const surface of truth.SURFACE_ENTRIES) {
+    for (const p of surface.points) {
+      const line = readFileSync(resolve(ROOT, p.file), 'utf8').split('\n')[p.line - 1]
+      assert(line.includes(`var(${surface.emits})`), `${p.file}:${p.line} 未改指 ${surface.emits}`)
+    }
+  }
+})
+check('J5 非登记点保持 alias（防越界）', () => {
+  const checks = [
+    ['components/composer-bar/composer-bar.less', 44, '--dsw-alias-scrim-strong'],
+    ['components/composer-bar/composer-bar.less', 129, '--dsw-alias-interactive-bg-hover'],
+    ['components/right-panel/right-panel.less', 65, '--dsw-alias-interactive-bg-hover'],
+    ['pages/workspace/workspace.less', 184, '--dsw-alias-interactive-bg-hover'],
+  ]
+  for (const [file, line, key] of checks) {
+    const src = readFileSync(resolve(ROOT, file), 'utf8').split('\n')[line - 1]
+    assert(src.includes(key), `${file}:${line} 非登记点被误改: ${src.trim()}`)
+  }
 })
 
 // ── 输出 ─────────────────────────────────────────────────────────────────

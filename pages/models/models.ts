@@ -1,7 +1,7 @@
 import { DEFAULT_MODEL, MODELS, modelsForEngine } from '../../services/config'
 import { pendingEngine } from '../../services/session-engine'
 import { storage } from '../../services/storage'
-import { applyNavigationBar, getTheme, type Theme } from '../../services/theme'
+import { engine } from '../../services/skin/engine'
 import { loadDevConfig } from '../../services/fx/dev'
 import { resolveRoute, type RouteMode } from '../../services/fx/route'
 import {
@@ -14,6 +14,8 @@ import { fxRuntime } from '../../services/fx/runtime'
 import { vfsStore } from '../../services/vfs/api'
 import { errorBus, reportSilent, type ErrorReport } from '../../services/error-report'
 import { getWindowMetrics } from '../../utils/window'
+
+type Theme = 'light' | 'dark'
 
 /* 模型配置页（业主 MN05-W4）：自 settings 拆出——模型选择 + 供应商密钥托管。 */
 interface Section {
@@ -29,6 +31,7 @@ const SECTIONS: Section[] = [
 ]
 
 let unsubscribeErr: (() => void) | undefined
+let unsubscribeTheme: (() => void) | undefined
 
 Page({
   data: {
@@ -74,8 +77,8 @@ Page({
     if (unsubscribeErr !== undefined) unsubscribeErr()
     unsubscribeErr = errorBus.subscribe((bus) => this.setData({ errToasts: bus.toasts, errModal: bus.modal ?? null, errPending: bus.pendingCount }))
     const section = options.section
-    const theme = getTheme()
-    applyNavigationBar(theme, 'layer-2')
+    const theme = engine.eff
+    engine.applyChrome(theme, 'layer-2')
     const lane = modelsForEngine(pendingEngine())
     const picked = storage.getModel()
     const model = picked !== undefined && lane.some((m) => m.id === picked) ? picked : (lane[0]?.id ?? DEFAULT_MODEL)
@@ -85,7 +88,7 @@ Page({
       statusBarHeight: metrics.statusBarHeight,
       navBarContentHeight: metrics.navBarContentHeight,
       capsuleInsetRight: metrics.capsuleInsetRight,
-      appStyle: layoutStyle(metrics),
+      appStyle: engine.composeAppStyle(engine.buildMetricsVars(metrics)),
       theme,
       model,
       modelLabel: lane.find((item) => item.id === model)?.label ?? model,
@@ -101,12 +104,17 @@ Page({
         s3ConfiguredAt: new Date(s3.configured_ms).toLocaleString(),
       })
     }
+    if (unsubscribeTheme !== undefined) unsubscribeTheme()
+    unsubscribeTheme = engine.watchMode((theme) => {
+      this.setData({ theme, appStyle: engine.composeAppStyle(engine.buildMetricsVars(getWindowMetrics())) })
+      engine.applyChrome(theme, 'layer-2')
+    })
   },
 
   onShow() {
-    const theme = getTheme()
+    const theme = engine.eff
     this.setData({ theme })
-    applyNavigationBar(theme, 'layer-2')
+    engine.applyChrome(theme, 'layer-2')
     void this.refreshByok()
   },
 
@@ -114,6 +122,10 @@ Page({
     if (unsubscribeErr !== undefined) {
       unsubscribeErr()
       unsubscribeErr = undefined
+    }
+    if (unsubscribeTheme !== undefined) {
+      unsubscribeTheme()
+      unsubscribeTheme = undefined
     }
   },
 
@@ -319,15 +331,6 @@ Page({
     wx.navigateBack()
   },
 })
-
-function layoutStyle(metrics: ReturnType<typeof getWindowMetrics>): string {
-  return [
-    `--app-status-bar: ${metrics.statusBarHeight}px`,
-    `--app-nav-height: ${metrics.statusBarHeight + metrics.navBarContentHeight}px`,
-    `--app-capsule-right: ${metrics.capsuleInsetRight}px`,
-    `--app-safe-bottom: ${metrics.safeAreaBottom}px`,
-  ].join('; ')
-}
 
 function safeRoute(cfg: Parameters<typeof resolveRoute>[0] | undefined): { mode: RouteMode; err?: string } {
   try {

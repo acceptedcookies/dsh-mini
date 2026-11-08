@@ -160,12 +160,14 @@ export type Vocab = typeof VOCAB
 `
 
 // ── 产物 3：palette-map.ts ───────────────────────────────────────────────
-// tableRowAlt 在 151 词表内无对应 token（0.02/0.03 alpha 无同值键）——以 literal 明确登记，
-// 不作静默硬编码；MS02 词表扩展时转 token（执行日志已登记）。
+// palette() 的 11 字段中有 2 个在 151 词表内无同值 token：
+//   tertiary（#81858c 双模式恒定；label-tertiary dark=#adb2b8 不等价）
+//   tableRowAlt（0.02/0.03 alpha 无同值键）
+// 以 literal 明确登记，不作静默硬编码；MS02 词表扩展时转 token（执行日志偏差 #1/#2）。
 const paletteMap = {
   text: { token: '--dsw-alias-label-primary' },
   secondary: { token: '--dsw-alias-label-secondary' },
-  tertiary: { token: '--dsw-alias-label-tertiary' },
+  tertiary: { literal: { light: '#81858c', dark: '#81858c' } },
   border: { token: '--dsw-alias-border-l2' },
   link: { token: '--dsw-alias-state-business-primary' },
   codeBg: { token: '--dsw-alias-markdown-code-block' },

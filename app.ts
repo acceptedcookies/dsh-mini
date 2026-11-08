@@ -1,5 +1,5 @@
 // app.ts
-import { getTheme, watchSystemTheme } from './services/theme'
+import { engine } from './services/skin/engine'
 import { errorBus, reportSilent } from './services/error-report'
 import { sessionDiagnostics } from './services/diagnostics'
 import { setVfsMirrorHook, setVfsMirrorPredicate } from './services/vfs/vfs'
@@ -80,14 +80,16 @@ function wireRemoteMirror(): void {
 
 App<IAppOption>({
   globalData: {
-    theme: getTheme(),
+    theme: engine.eff,
     /** DevTools 调试面（非测试套件）：session 诊断 bundle 与错误总线注入。
      *  VFS/durable/claim/session 等测试专用钩子已随测试套件拆除。 */
     __diagnostics: sessionDiagnostics as unknown,
     __errorBus: errorBus as unknown,
   },
   onLaunch() {
-    watchSystemTheme((theme) => {
+    engine.init()
+    this.globalData.theme = engine.eff
+    engine.watchMode((theme) => {
       this.globalData.theme = theme
     })
     // 纯资源分包下载由 app.json preloadRule（workspace 页）触发；

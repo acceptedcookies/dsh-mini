@@ -3,7 +3,7 @@
   width: 100%;
   height: 100vh;
   overflow: hidden;
-  background: var(--dsw-alias-bg-base);
+  background: var(--dsw-surface-chat-interface);
   color: var(--dsw-alias-label-primary);
 }
 
@@ -22,7 +22,7 @@
   flex-direction: column;
   padding: var(--dsw-space-6) var(--dsw-space-8);
   box-sizing: border-box;
-  background: var(--dsw-specific-sidebar-fill);
+  background: var(--dsw-surface-sidebar);
   color: var(--dsw-alias-label-primary);
   transform: translateX(-102%);
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -47,7 +47,7 @@
   inset: 0;
   /* 与 sidebar 同档——右面板开时遮罩也要盖住它。 */
   z-index: 70;
-  background: var(--dsw-alias-bg-mask-3, rgba(0, 0, 0, 0.48));
+  background: var(--dsw-surface-workspace-mask);
   animation: app-mask-in 180ms ease-out;
 }
 
@@ -310,7 +310,7 @@
   background: var(--dsw-specific-sidebar-nav-item-active);
   color: var(--dsw-alias-label-tertiary);
   font-size: var(--dsw-text-badge);
-  line-height: 16px;
+  line-height: var(--dsw-lh-16);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -325,11 +325,11 @@
 }
 
 .tag-warn {
-  color: var(--dsw-alias-warning-primary, #d97f00);
+  color: var(--dsw-alias-state-warn-primary);
 }
 
 .tag-ok {
-  color: var(--dsw-alias-positive-primary, #1a9e6b);
+  color: var(--dsw-alias-state-success-primary);
 }
 
 /* runtime 形态文本（本地·nano / 云端·nano），9px 弱字级。 */
@@ -338,7 +338,7 @@
   max-width: 40%;
   color: var(--dsw-alias-label-caption);
   font-size: var(--dsw-text-badge);
-  line-height: 16px;
+  line-height: var(--dsw-lh-16);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -403,7 +403,7 @@
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--dsw-alias-bg-base);
+  background: var(--dsw-surface-nav-bar);
 }
 
 .header {
@@ -758,7 +758,7 @@
   margin-top: 4px;
   padding: 0 var(--dsw-space-6);
   font-size: var(--dsw-text-caption);
-  line-height: 20px;
+  line-height: var(--dsw-lh-20);
   font-variant-numeric: tabular-nums;
   color: var(--dsw-alias-label-tertiary);
 }
@@ -774,9 +774,9 @@
 .stats-pill {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--dsw-space-4);
   flex: none;
-  padding: 1px 6px;
+  padding: 1px var(--dsw-space-6);
   border-radius: var(--dsw-radius-sm);
   white-space: nowrap;
 }
@@ -790,7 +790,7 @@
 .stats-context {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--dsw-space-4);
   flex: none;
 }
 
@@ -798,13 +798,13 @@
   position: relative;
   width: 12px;
   height: 12px;
-  border-radius: 50%;
+  border-radius: var(--dsw-radius-circle);
 }
 
 .stats-ring-hole {
   position: absolute;
   inset: 2px;
-  border-radius: 50%;
+  border-radius: var(--dsw-radius-circle);
   background: var(--dsw-alias-bg-base);
 }
 
@@ -848,7 +848,7 @@
   margin-top: var(--dsw-space-8);
   padding: var(--dsw-space-10) var(--dsw-space-12);
   border-radius: var(--dsw-radius-md);
-  background: var(--dsw-alias-state-warn-tertiary);
+  background: var(--dsw-surface-banner-notice);
   border: 0.5px solid var(--dsw-alias-state-warn-secondary);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   color: var(--dsw-alias-state-warn-label);
@@ -1187,7 +1187,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--dsw-space-2);
 }
 
 .engine-option-labelrow {
@@ -1199,7 +1199,7 @@
 .engine-option-label {
   font-size: var(--dsw-text-body);
   line-height: var(--dsw-lh-21);
-  font-weight: 500;
+  font-weight: var(--dsw-weight-medium);
   color: var(--dsw-alias-label-primary);
 }
 
@@ -1209,7 +1209,7 @@
   padding: 0 var(--dsw-space-6);
   border-radius: var(--dsw-radius-hairline);
   color: var(--dsw-alias-state-warn-label);
-  background: var(--dsw-alias-state-warn-tertiary);
+  background: var(--dsw-surface-banner-notice);
 }
 
 .engine-option-desc {

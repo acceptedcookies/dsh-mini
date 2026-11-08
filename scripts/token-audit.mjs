@@ -114,7 +114,8 @@ for (const abs of files) {
     const ln = idx + 1
 
     // 1. 色彩（mask-image 的 #000 是不透明遮罩实现细节，豁免）
-    if (COLOR_RE.test(line) && !/var\(/.test(line) && !/mask-image/.test(line)) push('color', rel, ln, line)
+    // box-shadow 是 elevation 复合值（非色彩 token 面）；MS01 维持现值，不纳入色彩审计
+    if (COLOR_RE.test(line) && !/var\(/.test(line) && !/mask-image/.test(line) && !/box-shadow/.test(line)) push('color', rel, ln, line)
 
     // 2. 半径
     for (const prop of ['border-radius', 'border-top-left-radius', 'border-top-right-radius', 'border-bottom-left-radius', 'border-bottom-right-radius']) {

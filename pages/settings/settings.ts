@@ -3,7 +3,7 @@ import { pendingEngine } from '../../services/session-engine'
 import { sessionStore } from '../../services/session-store'
 import { storage } from '../../services/storage'
 import { DEFAULT_PERMISSION, PERMISSIONS, permissionOf, type PermissionOption } from '../../services/permissions'
-import { applyNavigationBar, getTheme, setTheme, useSystemTheme, type Theme } from '../../services/theme'
+import { engine } from '../../services/skin/engine'
 import {
   getStoredUser,
   loginWithEmail,
@@ -15,6 +15,7 @@ import { nanoRuntime } from '../../services/nano/runtime'
 import { errorBus, reportSilent, type ErrorReport } from '../../services/error-report'
 import { getWindowMetrics } from '../../utils/window'
 
+type Theme = 'light' | 'dark'
 type ThemeMode = 'system' | 'light' | 'dark'
 type DialogAction = 'clear' | 'reset'
 
@@ -37,6 +38,7 @@ const SECTIONS: Section[] = [
 ]
 
 let unsubscribeErr: (() => void) | undefined
+let unsubscribeTheme: (() => void) | undefined
 
 Page({
   data: {
@@ -87,8 +89,8 @@ Page({
     if (unsubscribeErr !== undefined) unsubscribeErr()
     unsubscribeErr = errorBus.subscribe((bus) => this.setData({ errToasts: bus.toasts, errModal: bus.modal ?? null, errPending: bus.pendingCount }))
     const section = options.section
-    const theme = getTheme()
-    applyNavigationBar(theme, 'layer-2')
+    const theme = engine.eff
+    engine.applyChrome(theme, 'layer-2')
     const storedTheme = storage.getTheme()
     const permission = permissionOf(storage.getPermission())
     const lane = modelsForEngine(pendingEngine())
@@ -102,7 +104,7 @@ Page({
       statusBarHeight: metrics.statusBarHeight,
       navBarContentHeight: metrics.navBarContentHeight,
       capsuleInsetRight: metrics.capsuleInsetRight,
-      appStyle: layoutStyle(metrics),
+      appStyle: engine.composeAppStyle(engine.buildMetricsVars(metrics)),
       theme,
       themeMode: storedTheme ?? 'system',
       sessionCount: sessionStore.getState().sessions.length,
@@ -112,10 +114,15 @@ Page({
       nanoUser: getStoredUser()?.display_name ?? '',
       nanoInitial: initialOf(getStoredUser()?.display_name),
     })
+    if (unsubscribeTheme !== undefined) unsubscribeTheme()
+    unsubscribeTheme = engine.watchMode((theme) => {
+      this.setData({ theme, appStyle: engine.composeAppStyle(engine.buildMetricsVars(getWindowMetrics())) })
+      engine.applyChrome(theme, 'layer-2')
+    })
   },
 
   onShow() {
-    const theme = getTheme()
+    const theme = engine.eff
     const storedTheme = storage.getTheme()
     this.setData({
       theme,
@@ -125,7 +132,7 @@ Page({
       nanoUser: getStoredUser()?.display_name ?? '',
       nanoInitial: initialOf(getStoredUser()?.display_name),
     })
-    applyNavigationBar(theme, 'layer-2')
+    engine.applyChrome(theme, 'layer-2')
   },
 
   onUnload() {
@@ -133,7 +140,11 @@ Page({
       unsubscribeErr()
       unsubscribeErr = undefined
     }
-    applyNavigationBar(getTheme())
+    if (unsubscribeTheme !== undefined) {
+      unsubscribeTheme()
+      unsubscribeTheme = undefined
+    }
+    engine.applyChrome(engine.eff)
   },
 
   // ── error-center 事件面（MN03 G1，与 workspace 同构）─────────────
@@ -175,14 +186,15 @@ Page({
 
   onThemeMode(event: WechatMiniprogram.TouchEvent) {
     const mode = String(event.currentTarget.dataset.mode ?? 'system') as ThemeMode
-    let theme: Theme
-    if (mode === 'system') theme = useSystemTheme()
-    else {
-      theme = mode
-      setTheme(mode)
-    }
-    applyNavigationBar(theme, 'layer-2')
-    this.setData({ theme, themeMode: mode })
+    if (mode === 'system') storage.clearTheme()
+    else storage.setTheme(mode)
+    const theme = engine.setPref(mode)
+    engine.applyChrome(theme, 'layer-2')
+    this.setData({
+      theme,
+      themeMode: mode,
+      appStyle: engine.composeAppStyle(engine.buildMetricsVars(getWindowMetrics())),
+    })
   },
 
   /** 通用区「默认模型」行 → 独立模型配置页（业主 MN05-W4）。 */
@@ -339,15 +351,6 @@ Page({
     wx.navigateBack()
   },
 })
-
-function layoutStyle(metrics: ReturnType<typeof getWindowMetrics>): string {
-  return [
-    `--app-status-bar: ${metrics.statusBarHeight}px`,
-    `--app-nav-height: ${metrics.statusBarHeight + metrics.navBarContentHeight}px`,
-    `--app-capsule-right: ${metrics.capsuleInsetRight}px`,
-    `--app-safe-bottom: ${metrics.safeAreaBottom}px`,
-  ].join('; ')
-}
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : '请求失败'

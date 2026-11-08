@@ -3,6 +3,9 @@
  *  → segment(html|code|table)。inline 用顺序 tokenizer——链式正则会互相
  *  误伤且无法表达侧翼规则(`_` 不得入侵 file_list 类词)。 */
 
+import { engine } from './skin/engine'
+import { PALETTE_MAP } from './skin/palette-map'
+
 export type MarkdownTheme = 'light' | 'dark'
 
 const TOKEN = '\u0000'
@@ -21,34 +24,18 @@ interface Palette {
   tableRowAlt: string
 }
 
-function palette(theme: MarkdownTheme): Palette {
-  return theme === 'dark'
-    ? {
-        text: '#f9fafb',
-        secondary: '#cfd3d6',
-        tertiary: '#81858c',
-        border: 'rgba(255,255,255,0.12)',
-        link: '#7aaaff',
-        codeBg: '#1b1b1c',
-        codeBanner: '#232324',
-        codeText: '#e6e6e6',
-        inlineBg: '#2c2c2e',
-        tableHeadBg: '#232324',
-        tableRowAlt: 'rgba(255,255,255,0.03)',
-      }
-    : {
-        text: '#0f1115',
-        secondary: '#61666b',
-        tertiary: '#81858c',
-        border: 'rgba(0,0,0,0.1)',
-        link: '#4176e6',
-        codeBg: '#f9fafb',
-        codeBanner: '#f9fafb',
-        codeText: '#0f1115',
-        inlineBg: '#fafafa',
-        tableHeadBg: '#f9fafb',
-        tableRowAlt: 'rgba(0,0,0,0.02)',
-      }
+/** rich-text 不吃 var()：每次调用实时查 engine.tokens（皮肤热更即跟随，无缓存）。 */
+function palette(): Palette {
+  const out: Partial<Palette> = {}
+  for (const [field, map] of Object.entries(PALETTE_MAP)) {
+    if ('token' in map) out[field as keyof Palette] = engine.tokens[map.token] ?? ''
+    else out[field as keyof Palette] = map.literal[engine.eff]
+  }
+  return out as Palette
+}
+
+function codeFont(): string {
+  return engine.tokens['--ds-font-family-code'] ?? 'monospace'
 }
 
 function escapeHtml(value: string): string {
@@ -261,7 +248,7 @@ function renderInline(value: string, p: Palette): string {
 
   // 2) 代码段 `x` ``x`y`` → 占位
   text = text.replace(/(`+)([^`]+?)\1/g, (_m, _ticks: string, code: string) =>
-    stash(`<code style="background:${p.inlineBg};color:${p.text};padding:1px 5px;border-radius:4px;font-family:Menlo,monospace;font-size:12px;">${code}</code>`))
+    stash(`<code style="background:${p.inlineBg};color:${p.text};padding:1px 5px;border-radius:4px;font-family:${codeFont()};font-size:12px;">${code}</code>`))
 
   // 3) 图片/链接 → 占位
   text = text.replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g, (_m, alt: string, src: string) =>
@@ -339,9 +326,9 @@ function takeTable(lines: string[], start: number): { block: TableBlock; next: n
 
 function renderCode(language: string, code: string, p: Palette): string {
   const label = language.length > 0
-    ? `<div style="padding:6px 12px;color:${p.tertiary};font-size:11px;line-height:16px;background:${p.codeBanner};border-bottom:0.5px solid ${p.border};font-family:Menlo,monospace;">${escapeHtml(language)}</div>`
+    ? `<div style="padding:6px 12px;color:${p.tertiary};font-size:11px;line-height:16px;background:${p.codeBanner};border-bottom:0.5px solid ${p.border};font-family:${codeFont()};">${escapeHtml(language)}</div>`
     : ''
-  return `<div style="margin:0 0 16px;border:0.5px solid ${p.border};border-radius:8px;overflow:hidden;background:${p.codeBg};color:${p.codeText};">${label}<div style="margin:0;padding:12px;overflow-x:auto;white-space:pre-wrap;font-family:Menlo,monospace;font-size:12px;line-height:18px;"><code>${escapeHtml(code)}</code></div></div>`
+  return `<div style="margin:0 0 16px;border:0.5px solid ${p.border};border-radius:8px;overflow:hidden;background:${p.codeBg};color:${p.codeText};">${label}<div style="margin:0;padding:12px;overflow-x:auto;white-space:pre-wrap;font-family:${codeFont()};font-size:12px;line-height:18px;"><code>${escapeHtml(code)}</code></div></div>`
 }
 
 function tableToHtml(block: TableBlock, p: Palette): string {
@@ -504,10 +491,10 @@ export interface MarkdownSegment {
 }
 
 /** Split markdown at fenced code blocks and tables so each can carry native chrome. */
-export function markdownSegments(markdown: string, theme: MarkdownTheme = 'light'): MarkdownSegment[] {
+export function markdownSegments(markdown: string): MarkdownSegment[] {
   const segments: MarkdownSegment[] = []
   const normalized = normalizeMarkdown(markdown)
-  const p = palette(theme)
+  const p = palette()
   // fence 切分：``` 与 ~~~；未闭合栅栏→到文末皆为 code（流式抖动容错）
   // 行首锚定——段内裸 ``` 不判为 fence；闭栏同样须行首
   const fence = /(^|\n)[ \t]{0,3}(```|~~~)([A-Za-z0-9_+.-]*)[^\S\r\n]*\r?\n?([\s\S]*?)(?:\n[ \t]{0,3}\2[^\S\r\n]*(?=\n|$)|$)/g
@@ -540,12 +527,12 @@ export function markdownSegments(markdown: string, theme: MarkdownTheme = 'light
 }
 
 /** Convert a complete assistant message to sanitized HTML for `rich-text`. */
-export function markdownToHtml(markdown: string, theme: MarkdownTheme = 'light'): string {
+export function markdownToHtml(markdown: string): string {
   if (markdown.trim().length === 0) return ''
   const parts: string[] = []
-  for (const seg of markdownSegments(markdown, theme)) {
+  for (const seg of markdownSegments(markdown)) {
     if (seg.kind === 'html') parts.push(seg.html ?? '')
-    else if (seg.kind === 'code') parts.push(renderCode(seg.lang ?? '', seg.code ?? '', palette(theme)))
+    else if (seg.kind === 'code') parts.push(renderCode(seg.lang ?? '', seg.code ?? '', palette()))
     else parts.push(seg.tableHtml ?? '')
   }
   return parts.join('')

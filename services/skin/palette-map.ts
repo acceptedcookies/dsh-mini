@@ -8,7 +8,10 @@ export const PALETTE_MAP: Record<string, PaletteFieldMap> = {
     "token": "--dsw-alias-label-secondary"
   },
   "tertiary": {
-    "token": "--dsw-alias-label-tertiary"
+    "literal": {
+      "light": "#81858c",
+      "dark": "#81858c"
+    }
   },
   "border": {
     "token": "--dsw-alias-border-l2"

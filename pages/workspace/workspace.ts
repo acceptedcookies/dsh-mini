@@ -5,7 +5,7 @@ import { fxRuntime } from '../../services/fx/runtime'
 import { fetchTodos, fetchWorkspaceFiles } from '../../services/nano/http'
 import { pickImage } from '../../services/upload'
 import { APP_VERSION, DEFAULT_MODEL, defaultModelFor, modelsForEngine, type ModelOption } from '../../services/config'
-import { applyNavigationBar, getTheme } from '../../services/theme'
+import { engine } from '../../services/skin/engine'
 import { storage } from '../../services/storage'
 import { DEFAULT_PERMISSION, PERMISSIONS, permissionOf, type PermissionOption } from '../../services/permissions'
 import { classifyError, errorBus, type ErrorReport } from '../../services/error-report'
@@ -184,6 +184,7 @@ function modelView(engine: SessionEngine): { model: string; modelLabel: string; 
 
 let unsubscribe: (() => void) | undefined
 let unsubscribeErr: (() => void) | undefined
+let unsubscribeTheme: (() => void) | undefined
 /** 铸票后隐藏解锁横幅（onTicketMinted 无 unsubscribe——模块级绑定一次，由
  *  当前页实例填充）。 */
 let refreshUnlockFlag: (() => void) | undefined
@@ -197,7 +198,7 @@ let runClock: ReturnType<typeof setInterval> | undefined
 
 Page({
   data: {
-    theme: getTheme(),
+    theme: engine.eff,
     sortDesc: true,
     sessionCount: 0,
     state: sessionStore.getState() as UiState,
@@ -306,8 +307,8 @@ Page({
   },
 
   onLoad() {
-    const theme = getTheme()
-    applyNavigationBar(theme)
+    const theme = engine.eff
+    engine.applyChrome(theme, 'base')
     const mv = modelView(activeEngine(''))
     const metrics = getWindowMetrics()
     const isWide = isWideLayout(metrics.width)
@@ -340,6 +341,11 @@ Page({
     unsubscribe = sessionStore.subscribe((state) => this.apply(state))
     if (unsubscribeErr !== undefined) unsubscribeErr()
     unsubscribeErr = errorBus.subscribe((bus) => this.setData({ errToasts: bus.toasts, errModal: bus.modal ?? null, errPending: bus.pendingCount }))
+    if (unsubscribeTheme !== undefined) unsubscribeTheme()
+    unsubscribeTheme = engine.watchMode((theme) => {
+      this.setData({ ...layoutData(getWindowMetrics()), theme })
+      engine.applyChrome(theme, 'base')
+    })
 
     if (runClock !== undefined) clearInterval(runClock)
     runClock = setInterval(() => {
@@ -412,9 +418,9 @@ Page({
   },
 
   onShow() {
-    const theme = getTheme()
+    const theme = engine.eff
     if (theme !== this.data.theme) {
-      applyNavigationBar(theme)
+      engine.applyChrome(theme, 'base')
       this.setData({ theme })
     }
     const runtimeLabel = sessionStore.runtimeLabel()
@@ -477,6 +483,8 @@ Page({
     unsubscribe = undefined
     unsubscribeErr?.()
     unsubscribeErr = undefined
+    unsubscribeTheme?.()
+    unsubscribeTheme = undefined
     if (runClock !== undefined) {
       clearInterval(runClock)
       runClock = undefined
@@ -1391,12 +1399,7 @@ function layoutData(metrics: WindowMetrics) {
     navBarContentHeight: metrics.navBarContentHeight,
     capsuleInsetRight: metrics.capsuleInsetRight,
     windowWidth: metrics.width,
-    appStyle: [
-      `--app-status-bar: ${metrics.statusBarHeight}px`,
-      `--app-nav-height: ${metrics.statusBarHeight + metrics.navBarContentHeight}px`,
-      `--app-capsule-right: ${metrics.capsuleInsetRight}px`,
-      `--app-safe-bottom: ${metrics.safeAreaBottom}px`,
-    ].join('; '),
+    appStyle: engine.composeAppStyle(engine.buildMetricsVars(metrics)),
   }
 }
 
