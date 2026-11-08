@@ -545,6 +545,64 @@ check('H9 theme.ts/build-theme.mjs 物理删除', () => {
   assert(!existsSync(resolve(ROOT, 'scripts/build-theme.mjs')), 'scripts/build-theme.mjs 仍存在')
 })
 
+
+// ── §K fixture 双轨注入（T18） ───────────────────────────────────────────
+section('K')
+function fixture(name) {
+  return JSON.parse(readFileSync(resolve(ROOT, `test/spike/mini-skin/fixtures/${name}`), 'utf8'))
+}
+check('K1 两 fixture 过 validate', () => {
+  const { validate, vocab } = loadValidate()
+  for (const name of ['skin-forest-light.json', 'skin-ink-night.json']) {
+    const r = validate(fixture(name), vocab)
+    assert(r.ok, `${name} 被拒: ${JSON.stringify(r.errors)}`)
+  }
+})
+check('K2 forest-light applySkin 写键生效/未写键 defaults/键集闭集', () => {
+  const e = loadEngine({ theme: 'light' })
+  const forest = fixture('skin-forest-light.json')
+  e.applySkin(forest)
+  eq(e.engine.tokens['--dsw-alias-state-business-primary'], '#2f855a', 'accent 写键')
+  eq(e.engine.tokens['--dsw-alias-bg-base'], '#ffffff', '未写键 defaults')
+  eq(Object.keys(e.engine.tokens).length, 149, 'resolved 键集 ≡ vocab 键集')
+  eq(e.engine.tokens['--dsw-surface-chat-interface'], '#f7fdf9', 'surface 写键')
+})
+check('K3 light-only 切 dark 回落 defaults[dark]（D12(a)）', () => {
+  const e = loadEngine({ theme: 'light' })
+  e.applySkin(fixture('skin-forest-light.json'))
+  e.setPref('dark')
+  eq(e.engine.eff, 'dark', 'eff=req')
+  eq(e.engine.tokens['--dsw-alias-bg-base'], '#151517', 'dark 回落 defaults')
+  eq(e.engine.tokens['--dsw-surface-chat-interface'], 'var(--dsw-alias-bg-base)', 'surface 回落默认引用')
+  eq(e.engine.tokens['--dsw-alias-state-business-primary'], '#7aaaff', '写键仅 light 块，dark 回落默认')
+})
+check('K4 ink-night 双块覆写', () => {
+  const e = loadEngine({ theme: 'light' })
+  e.applySkin(fixture('skin-ink-night.json'))
+  eq(e.engine.tokens['--dsw-alias-bg-base'], '#f5f7fa', 'light bg')
+  eq(e.engine.tokens['--dsw-surface-sidebar'], 'var(--dsw-specific-sidebar-fill)', 'light 未写 surface 默认')
+  e.setPref('dark')
+  eq(e.engine.tokens['--dsw-alias-bg-base'], '#0b1020', 'dark bg')
+  eq(e.engine.tokens['--dsw-alias-state-business-primary'], '#8fb8ff', 'dark accent')
+  eq(e.engine.tokens['--dsw-surface-sidebar'], '#0e1526', 'dark surface')
+})
+check('K5 非法皮肤 applySkin 拒绝（fail-closed）', () => {
+  const e = loadEngine({ theme: 'light' })
+  let threw = false
+  try {
+    e.applySkin({ $schema: 'dsh-mini.skin.v1', slug: 'bad-skin', name: 'Bad', light: { palette: { '--dsw-nope': '#fff' } } })
+  } catch (err) {
+    threw = err instanceof Error && err.name === 'SkinValidationError' && Array.isArray(err.errors) && err.errors.some((x) => x.rule === 'L2.unknown-key')
+  }
+  assert(threw, '非法皮肤未抛 SkinValidationError/L2.unknown-key')
+})
+check('K6 dsh-default 快径免检 + 重置', () => {
+  const e = loadEngine({ theme: 'light' })
+  e.applySkin(fixture('skin-forest-light.json'))
+  e.applySkin({ $schema: 'dsh-mini.skin.v1', slug: 'dsh-default', name: '默认', light: {} })
+  eq(e.engine.tokens['--dsw-alias-state-business-primary'], '#4176e6', '快径重置 defaults')
+})
+
 // ── 输出 ─────────────────────────────────────────────────────────────────
 const json = process.argv.includes('--json')
 const failed = results.filter((r) => !r.ok)

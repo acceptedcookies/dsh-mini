@@ -1,0 +1,19 @@
+{
+  "$schema": "dsh-mini.skin.v1",
+  "slug": "forest-light",
+  "name": "Forest Light",
+  "light": {
+    "palette": {
+      "--dsw-alias-state-business-primary": "#2f855a",
+      "--dsw-alias-button-info-fill": "#2f855a",
+      "--dsw-alias-button-info-hover": "#38a169",
+      "--dsw-alias-label-deep-diving": "#276749",
+      "--dsw-alias-label-deep-diving-shimmer": "#22543d",
+      "--dsw-alias-state-business-tertiary": "#e6fffa",
+      "--dsw-alias-label-primary-bluish": "#22543d"
+    },
+    "surfaces": {
+      "chat-interface": "#f7fdf9"
+    }
+  }
+}

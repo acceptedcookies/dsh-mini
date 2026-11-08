@@ -1,0 +1,27 @@
+{
+  "$schema": "dsh-mini.skin.v1",
+  "slug": "ink-night",
+  "name": "Ink Night",
+  "fonts": [],
+  "sounds": {},
+  "components": {},
+  "light": {
+    "palette": {
+      "--dsw-alias-bg-base": "#f5f7fa",
+      "--dsw-alias-bg-layer-1": "#eef1f5",
+      "--dsw-alias-label-primary": "#101418"
+    }
+  },
+  "dark": {
+    "palette": {
+      "--dsw-alias-bg-base": "#0b1020",
+      "--dsw-alias-bg-layer-1": "#121a2e",
+      "--dsw-alias-label-primary": "#e8eef2",
+      "--dsw-alias-state-business-primary": "#8fb8ff"
+    },
+    "surfaces": {
+      "chat-interface": "#0b1020",
+      "sidebar": "#0e1526"
+    }
+  }
+}

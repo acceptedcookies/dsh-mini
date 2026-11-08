@@ -85,6 +85,8 @@ App<IAppOption>({
      *  VFS/durable/claim/session 等测试专用钩子已随测试套件拆除。 */
     __diagnostics: sessionDiagnostics as unknown,
     __errorBus: errorBus as unknown,
+    /** DevTools 调试面：皮肤引擎（fixture 注入/T18 证据；非 UI 交付面）。 */
+    __skinEngine: engine as unknown,
   },
   onLaunch() {
     engine.init()

@@ -386,18 +386,8 @@ function vocabDefsFrom(vocab) {
 }
 
 // ── 对照 ─────────────────────────────────────────────────────────────────
-function compare(phase) {
-  const baseline = JSON.parse(readFileSync(BASELINE_FILE, 'utf8'))
-  assertBaselineIntact(baseline)
-  const vocab = loadTsModule(join(ROOT, 'services/skin/vocab.ts'))
-  const paletteMap = loadTsModule(join(ROOT, 'services/skin/palette-map.ts')).PALETTE_MAP
-  const defs = vocabDefsFrom(vocab)
-  const diffs = []
-  const intended = []
+function compareTokenDefaults(baselineTokens, vocab, defs) {
   const errors = []
-
-  // 1) token defaults（全 phase 都跑）
-  const baselineTokens = baseline.tokens
   const projected = Object.entries(baselineTokens).filter(([, v]) => !v.derived)
   for (const [key, old] of projected) {
     const now = vocab.tokens[key]
@@ -406,15 +396,37 @@ function compare(phase) {
       const oldResolved = resolveValue(old[mode], mode, defsFromTokens(baselineTokens))
       const newResolved = resolveValue(now[mode], mode, defs)
       if (oldResolved.value !== newResolved.value) {
-        // T-O-8 新增 2 键无基线——不在此集合内
         errors.push(`token 值漂移 ${key}.${mode}: ${oldResolved.value} → ${newResolved.value}`)
       }
     }
   }
-  const baselineDerived = Object.entries(baselineTokens).filter(([, v]) => v.derived).map(([k]) => k)
-  for (const key of baselineDerived) {
-    if (vocab.tokens[key] !== undefined) errors.push(`derived 键不应投影: ${key}`)
+  for (const [key, v] of Object.entries(baselineTokens)) {
+    if (v.derived && vocab.tokens[key] !== undefined) errors.push(`derived 键不应投影: ${key}`)
   }
+  return { errors, projected }
+}
+
+function compare(phase) {
+  const baseline = JSON.parse(readFileSync(BASELINE_FILE, 'utf8'))
+  assertBaselineIntact(baseline)
+  const vocab = loadTsModule(join(ROOT, "services/skin/vocab.ts")).VOCAB
+  const paletteMap = loadTsModule(join(ROOT, 'services/skin/palette-map.ts')).PALETTE_MAP
+  const defs = vocabDefsFrom(vocab)
+  const diffs = []
+  const intended = []
+  const intendedAdditions = []
+  const errors = []
+  const auditBaseline = JSON.parse(readFileSync(join(ROOT, '.anote/ms01-baseline/token-audit.json'), 'utf8'))
+  const auditByFileLine = new Map()
+  for (const list of Object.values(auditBaseline.violations)) {
+    for (const v of list) auditByFileLine.set(`${v.file}:${v.line}`, v.text)
+  }
+
+  // 1) token defaults（全 phase 都跑）
+  const baselineTokens = baseline.tokens
+  const tokenCheck = compareTokenDefaults(baselineTokens, vocab, defs)
+  errors.push(...tokenCheck.errors)
+  const projected = tokenCheck.projected
   const newKeys = Object.keys(vocab.tokens).filter((k) => baselineTokens[k] === undefined)
   const expectedNew = ['--dsw-alias-bg-mask-3', '--dsw-alias-markdown-code-text']
   for (const key of expectedNew) {
@@ -463,7 +475,22 @@ function compare(phase) {
     }
   }
   for (const now of points) {
-    if (!baselineByKey.has(now.key)) errors.push(`新增消费点（需登记）: ${now.file}:${now.line} ${now.selector} { ${now.prop} }`)
+    if (baselineByKey.has(now.key)) continue
+    // P4 token-audit 清零把裸字面量换成 var()——新增消费点必须是「等值 tokenization」
+    const auditText = auditByFileLine.get(`${now.file}:${now.line}`)
+    if (auditText === undefined) {
+      errors.push(`新增消费点（需登记）: ${now.file}:${now.line} ${now.selector} { ${now.prop} }`)
+      continue
+    }
+    const decl = /^([-\w]+)\s*:\s*(.+);$/.exec(auditText)
+    if (decl === null) { errors.push(`新增消费点无法对账: ${now.file}:${now.line} ${auditText}`); continue }
+    const oldLiteral = norm(decl[2])
+    const equal = ['light', 'dark'].every((mode) => now[mode].ok && now[mode].value === oldLiteral)
+    if (!equal) {
+      errors.push(`tokenization 不等值 ${now.file}:${now.line} ${auditText} → ${now.light.value}/${now.dark.value}`)
+      continue
+    }
+    intendedAdditions.push({ file: now.file, line: now.line, selector: now.selector, prop: now.prop, value: oldLiteral, reason: 'T07-tokenization' })
   }
 
   // 3) 非 less 值源（P5 后 theme.ts 已删：chrome 期望值从 vocab 推导）
@@ -499,10 +526,10 @@ function compare(phase) {
   const curTheme = readFileSync(join(ROOT, 'theme.json'), 'utf8')
   if (curTheme !== baseNon.themeJson.content) errors.push('theme.json 与 P0 基线逐字节不等')
 
-  return finish({ phase, diffs, intended, errors, checks: { tokenCount: projected.length, newKeys, consumptionPoints: points.length } })
+  return finish({ phase, diffs, intended, intendedAdditions, errors, checks: { tokenCount: projected.length, newKeys, consumptionPoints: points.length } })
 }
 
-function finish({ phase, diffs, intended, errors, checks }) {
+function finish({ phase, diffs, intended, intendedAdditions = [], errors, checks }) {
   const report = {
     ok: errors.length === 0 && diffs.length === 0,
     phase,
@@ -511,6 +538,7 @@ function finish({ phase, diffs, intended, errors, checks }) {
     errors,
     diffs,
     intendedDeltas: intended,
+    intendedAdditions,
   }
   console.log(JSON.stringify(report, null, 2))
   process.exit(report.ok ? 0 : 1)
@@ -519,18 +547,20 @@ function finish({ phase, diffs, intended, errors, checks }) {
 // ── self-test：篡改断言 ───────────────────────────────────────────────────
 function selfTest() {
   const raw = JSON.parse(readFileSync(BASELINE_FILE, 'utf8'))
+  const vocab = loadTsModule(join(ROOT, 'services/skin/vocab.ts')).VOCAB
   const victimKey = '--dsw-alias-bg-base'
   const victim = raw.tokens[victimKey]
   if (victim === undefined) { console.error('self-test: 基线缺 victim 键'); process.exit(2) }
   const tampered = JSON.parse(JSON.stringify(raw))
   tampered.tokens[victimKey].light = 'rgb(1, 2, 3)'
-  const defs = defsFromTokens(raw.tokens)
-  const oldResolved = resolveValue(tampered.tokens[victimKey].light, 'light', defs)
-  if (oldResolved.value === norm(raw.tokens[victimKey].light)) {
-    console.error('FATAL: self-test plant 未生效（篡改值与基线相同）')
+  const defs = defsFromTokens(tampered.tokens)
+  const result = compareTokenDefaults(tampered.tokens, vocab, defs)
+  const fired = result.errors.filter((e) => e.includes(victimKey))
+  if (fired.length === 0) {
+    console.error('FATAL: self-test plant 未触发 diff（判具可能恒真）')
     process.exit(2)
   }
-  console.log(JSON.stringify({ ok: true, plant: 'tamper-baseline-key', key: victimKey, tampered: 'rgb(1, 2, 3)', baseline: norm(victim.light) }, null, 2))
+  console.log(JSON.stringify({ ok: true, plant: 'tamper-baseline-key', key: victimKey, tampered: 'rgb(1, 2, 3)', baseline: norm(victim.light), simulatedDiff: fired }, null, 2))
 }
 
 // ── CLI ──────────────────────────────────────────────────────────────────
