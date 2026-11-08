@@ -16,10 +16,27 @@
     "noUnusedParameters": true,
     "strict": true,
     "strictPropertyInitialization": true,
-    "lib": ["ES2020"],
+    "lib": [
+      "ES2020"
+    ],
     "skipLibCheck": true,
-    "types": ["miniprogram-api-typings"]
+    "types": [
+      "miniprogram-api-typings"
+    ]
   },
-  "include": ["./app.ts", "./pages/**/*.ts", "./components/**/*.ts", "./services/**/*.ts", "./types/**/*.ts", "./utils/**/*.ts", "./typings/**/*.d.ts"],
-  "exclude": ["node_modules", "context", "docs"]
+  "include": [
+    "./skin/**/*.ts",
+    "./app.ts",
+    "./pages/**/*.ts",
+    "./components/**/*.ts",
+    "./services/**/*.ts",
+    "./types/**/*.ts",
+    "./utils/**/*.ts",
+    "./typings/**/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "context",
+    "docs"
+  ]
 }

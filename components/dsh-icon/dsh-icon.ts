@@ -1,48 +1,4 @@
-const ACCENT = new Set([
-  'check-outline',
-  'check-circle-fill',
-  'check-circle-outline',
-  'plan-outline',
-  'loading-outline',
-  'sparkle',
-  'plus-outline',
-  'new-chat-outline',
-])
-
-const INVERSE = new Set([
-  'paper-plane-outline',
-  'stop-fill',
-  'check-outline',
-  'close-fill',
-  'plus-outline',
-])
-
-const DANGER = new Set([
-  'trash-outline',
-  'warning-outline',
-  'warning-triangle-outline',
-  'close-circle-fill',
-  'close-outline',
-])
-
-const WARN = new Set([
-  'warning-outline',
-  'warning-triangle-outline',
-])
-
-const SUCCESS = new Set([
-  'check-circle-outline',
-  'check-outline',
-])
-
-function resolveTone(name: string, tone: string): string {
-  if (tone === 'accent' && !ACCENT.has(name)) return 'secondary'
-  if (tone === 'inverse' && !INVERSE.has(name)) return 'primary'
-  if (tone === 'danger' && !DANGER.has(name)) return 'secondary'
-  if (tone === 'warn' && !WARN.has(name)) return 'danger'
-  if (tone === 'success' && !SUCCESS.has(name)) return 'secondary'
-  return tone
-}
+import { resolveTone } from './dsh-icon.tones'
 
 Component({
   properties: {

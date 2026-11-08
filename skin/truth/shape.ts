@@ -1,0 +1,148 @@
+/** MS01 联邦真源 · 手写（T-O-3）；值/元数据以本文件为准，禁止手改任何投影产物。 */
+import type { TokenEntry } from './_shared'
+
+export const SHAPE_ENTRIES: TokenEntry[] = [
+  {
+    key: "--dsw-radius-xs",
+    family: "shape",
+    domain: "length",
+    light: "4px",
+    dark: "4px",
+    writable: true,
+    invariant: false,
+    derived: false,
+    retired: false,
+    linkedWith: [],
+    source: "app.less:61"
+  },
+  {
+    key: "--dsw-radius-sm",
+    family: "shape",
+    domain: "length",
+    light: "8px",
+    dark: "8px",
+    writable: true,
+    invariant: false,
+    derived: false,
+    retired: false,
+    linkedWith: [],
+    source: "app.less:62"
+  },
+  {
+    key: "--dsw-radius-md",
+    family: "shape",
+    domain: "length",
+    light: "12px",
+    dark: "12px",
+    writable: true,
+    invariant: false,
+    derived: false,
+    retired: false,
+    linkedWith: [],
+    source: "app.less:63"
+  },
+  {
+    key: "--dsw-radius-lg",
+    family: "shape",
+    domain: "length",
+    light: "16px",
+    dark: "16px",
+    writable: true,
+    invariant: false,
+    derived: false,
+    retired: false,
+    linkedWith: [],
+    source: "app.less:64"
+  },
+  {
+    key: "--dsw-radius-xl",
+    family: "shape",
+    domain: "length",
+    light: "20px",
+    dark: "20px",
+    writable: true,
+    invariant: false,
+    derived: false,
+    retired: false,
+    linkedWith: [],
+    source: "app.less:65"
+  },
+  {
+    key: "--dsw-radius-panel",
+    family: "shape",
+    domain: "length",
+    light: "28px",
+    dark: "28px",
+    writable: true,
+    invariant: false,
+    derived: false,
+    retired: false,
+    linkedWith: [],
+    source: "app.less:66"
+  },
+  {
+    key: "--dsw-radius-micro",
+    family: "shape",
+    domain: "length",
+    light: "1px",
+    dark: "1px",
+    writable: true,
+    invariant: false,
+    derived: false,
+    retired: false,
+    linkedWith: [],
+    source: "app.less:93"
+  },
+  {
+    key: "--dsw-radius-hairline",
+    family: "shape",
+    domain: "length",
+    light: "2px",
+    dark: "2px",
+    writable: true,
+    invariant: false,
+    derived: false,
+    retired: false,
+    linkedWith: [],
+    source: "app.less:94"
+  },
+  {
+    key: "--dsw-radius-xxs",
+    family: "shape",
+    domain: "length",
+    light: "3px",
+    dark: "3px",
+    writable: true,
+    invariant: false,
+    derived: false,
+    retired: false,
+    linkedWith: [],
+    source: "app.less:95"
+  },
+  {
+    key: "--dsw-radius-pill",
+    family: "shape",
+    domain: "length",
+    light: "999px",
+    dark: "999px",
+    writable: true,
+    invariant: false,
+    derived: false,
+    retired: false,
+    linkedWith: [],
+    source: "app.less:96"
+  },
+  {
+    key: "--dsw-radius-circle",
+    family: "shape",
+    domain: "length",
+    light: "50%",
+    dark: "50%",
+    writable: true,
+    invariant: false,
+    derived: false,
+    retired: false,
+    linkedWith: [],
+    source: "app.less:97"
+  }
+]
