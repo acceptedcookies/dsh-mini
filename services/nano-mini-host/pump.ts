@@ -20,6 +20,8 @@ import type {
 } from './types'
 import { errorBus, reportSilent } from '../error-report'
 import { randomUUID } from '../crypto/random'
+import { assemble } from '../context/assemble'
+import type { LlmChunk, LlmOutput, LlmToolCall } from './types'
 
 const ST = 'dsh-mini/state'
 const CL = 'dsh-mini/claims'
@@ -28,6 +30,30 @@ const EP = 'dsh-mini/episodes'
 
 /** 事件 uuid：只走 services/crypto/random.ts。两源皆无时向上抛，不改回伪随机。 */
 const evUuid = (): string => randomUUID()
+
+async function readLlm(stream: AsyncIterable<LlmChunk>): Promise<LlmOutput> {
+  let text = ''
+  let sawText = false
+  const toolCalls: LlmToolCall[] = []
+  let usage: LlmOutput['usage']
+  for await (const chunk of stream) {
+    if (chunk.kind === 'content') {
+      sawText = true
+      text += chunk.text
+    } else if (chunk.kind === 'usage') {
+      usage = chunk.usage
+    } else if (chunk.kind === 'tool_call') {
+      toolCalls.push(chunk.call)
+    } else if (chunk.kind === 'error') {
+      throw new Error(chunk.message)
+    }
+  }
+  return {
+    text: sawText ? text : null,
+    toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+    ...(usage !== undefined ? { usage } : {}),
+  }
+}
 
 /** snapshot 行内嵌 ep 段的 pending 事件上限：防长 episode 逼近 256KB 行上限；
  *  溢出如实计数（dropped），回放 artifact 记录 drop 数——不静默丢。 */
@@ -151,10 +177,13 @@ async function runCompaction(
     const headSeq = ep?.seq ?? 0
     const msgs = turn?.messages ?? []
     // summarize：kernel 当前 turn messages 序列化后求摘要（截断 60K 防超载）。
-    const sum = await ctx.io.llm([{
-      role: 'user',
-      content: `Summarize this agent conversation for continuation. Preserve durable facts, tool results and pending decisions; drop chatter. Conversation JSON:\n${JSON.stringify(msgs).slice(0, 60000)}`,
-    }])
+    const sum = await readLlm(ctx.io.llm(assemble({
+      transcript: [{
+        role: 'user',
+        content: `Summarize this agent conversation for continuation. Preserve durable facts, tool results and pending decisions; drop chatter. Conversation JSON:\n${JSON.stringify(msgs).slice(0, 60000)}`,
+      }],
+      steering: null,
+    })))
     const summaryText = sum.text ?? ''
     // 回放 artifact：被关闭 episode 的 step_decision JSONL（dropped 如实计数非静默丢）。
     let replaySha: string | undefined
@@ -304,16 +333,20 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
     pushEvent(d)
 
     if (d.kind === 'llm_call') {
-      const out = await ctx.io.llm(turn?.messages ?? [])
-      if (out.toolCalls !== undefined && out.toolCalls.length > 0) {
-        snap = ctx.kernel.applyAction(snap, { type: 'tool_calls_requested', calls: out.toolCalls, textContent: out.text ?? null })
-      } else {
-        // llm_response.content 直接被 reducer 压入 messages——必须是消息对象非裸串（审查 F5）
-        snap = ctx.kernel.applyAction(snap, {
+      const out = await readLlm(ctx.io.llm(assemble({ transcript: turn?.messages ?? [], steering: null })))
+      const hasUsage = out.usage !== undefined
+        && (typeof out.usage.inputTokens === 'number' || typeof out.usage.outputTokens === 'number')
+      const hasTools = out.toolCalls !== undefined && out.toolCalls.length > 0
+      if (hasUsage || !hasTools) {
+        const action: Record<string, unknown> = {
           type: 'llm_response',
-          content: typeof out.text === 'string' ? { role: 'assistant', content: out.text } : null,
-          usage: out.usage,
-        })
+          content: hasTools ? null : (typeof out.text === 'string' ? { role: 'assistant', content: out.text } : null),
+        }
+        if (hasUsage) action.usage = out.usage
+        snap = ctx.kernel.applyAction(snap, action)
+      }
+      if (hasTools) {
+        snap = ctx.kernel.applyAction(snap, { type: 'tool_calls_requested', calls: out.toolCalls, textContent: out.text ?? null })
       }
     } else if (d.kind === 'tool_exec') {
       const res = await ctx.io.tool(d.toolName ?? '', d.args)

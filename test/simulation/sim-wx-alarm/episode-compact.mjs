@@ -53,7 +53,10 @@ const epRows = (cas) => cas.listPrefix('dsh-mini/episodes/local/')
   const sid = `p6-genesis-${now}`
   const io = {
     state: cas,
-    llm: async () => ({ text: 'final', usage: {} }),
+    llm: async function* () {
+      yield { kind: 'content', text: 'final' }
+      yield { kind: 'done' }
+    },
     tool: async () => ({ kind: 'inline-text', text: 'ok' }),
   }
   const r = await host.runPump(ctx(io), sid, { input: 'hi', maxSteps: 5 })
@@ -72,11 +75,12 @@ const epRows = (cas) => cas.listPrefix('dsh-mini/episodes/local/')
   let calls = 0
   const io = {
     state: cas,
-    llm: async (messages) => {
+    llm: async function* (context) {
       calls += 1
-      const c = JSON.stringify(messages)
-      if (c.includes('Summarize this agent conversation')) return { text: 'SUMMARY-BODY', usage: {} }
-      return calls === 1 ? { text: BIG, usage: {} } : { text: 'final', usage: {} }
+      const c = JSON.stringify(context)
+      const text = c.includes('Summarize this agent conversation') ? 'SUMMARY-BODY' : calls === 1 ? BIG : 'final'
+      yield { kind: 'content', text }
+      yield { kind: 'done' }
     },
     tool: async () => ({ kind: 'inline-text', text: 'ok' }),
     artifacts: {
@@ -107,10 +111,10 @@ const epRows = (cas) => cas.listPrefix('dsh-mini/episodes/local/')
   cas.putCas(`dsh-mini/claims/local/compact-${sid}`, JSON.stringify({ holder: 'rival', expires: new Date(Date.now() + 60000).toISOString() }), { ifNoneMatch: '*' })
   const io = {
     state: cas,
-    llm: async (messages) => {
-      const c = JSON.stringify(messages)
-      if (c.includes('Summarize this agent conversation')) return { text: 'SUM', usage: {} }
-      return { text: BIG, usage: {} }
+    llm: async function* (context) {
+      const c = JSON.stringify(context)
+      yield { kind: 'content', text: c.includes('Summarize this agent conversation') ? 'SUM' : BIG }
+      yield { kind: 'done' }
     },
     tool: async () => ({ kind: 'inline-text', text: 'ok' }),
   }
@@ -126,9 +130,10 @@ const epRows = (cas) => cas.listPrefix('dsh-mini/episodes/local/')
   const sid = `p6-degrade-${now}`
   const io = {
     state: cas,
-    llm: async (messages) => {
-      const c = JSON.stringify(messages)
-      return c.includes('Summarize this agent conversation') ? { text: 'INLINE-SUM', usage: {} } : { text: BIG, usage: {} }
+    llm: async function* (context) {
+      const c = JSON.stringify(context)
+      yield { kind: 'content', text: c.includes('Summarize this agent conversation') ? 'INLINE-SUM' : BIG }
+      yield { kind: 'done' }
     },
     tool: async () => ({ kind: 'inline-text', text: 'ok' }),
   }

@@ -13,79 +13,9 @@ import { readEnrollment, activeModel } from '../../fx/enrollment'
 import { defaultModelFor, modelsForEngine } from '../../config'
 import { isContainerUrl, callContainer, parseContainerUrl } from '../../fx/container'
 import { storage } from '../../storage'
-import type { LlmOutput, LlmToolCall } from '../types'
+import type { LlmChunk } from '../types'
 import { loadKernel } from '../kernel-loader'
-import { canonicalToolEnvelope, isBashKernel } from './bash-exec'
-
-interface ChatMessage {
-  role: string
-  content?: string | null | Array<Record<string, unknown>>
-  tool_calls?: Array<{ id: string; type: string; function: { name: string; arguments: string } }>
-  [key: string]: unknown
-}
-
-function normalizeMessages(messages: unknown[]): ChatMessage[] {
-  // kernel turn.messages 真实形状（reducer.ts:189-298）：
-  //   assistant: {role:'assistant', content:[{kind:'text'}|{kind:'tool_call',id,name,arguments}]}
-  //   tool:      {role:'tool', toolCallId, content}
-  // 必须映射 OpenAI 合同：tool_call part→tool_calls[]；toolCallId→tool_call_id（审查 F5）
-  const out: ChatMessage[] = []
-  for (const m of messages) {
-    const row = (m ?? {}) as Record<string, unknown>
-    const role = typeof row.role === 'string' ? row.role : 'user'
-    if (role === 'tool' || row.toolCallId !== undefined) {
-      out.push({
-        role: 'tool',
-        tool_call_id: (row.toolCallId ?? row.tool_call_id) as string,
-        content: typeof row.content === 'string' ? row.content : JSON.stringify(row.content ?? ''),
-      })
-      continue
-    }
-    if (Array.isArray(row.content)) {
-      const texts: string[] = []
-      const images: Array<Record<string, unknown>> = []
-      const toolCalls: NonNullable<ChatMessage['tool_calls']> = []
-      for (const part of row.content as Array<Record<string, unknown>>) {
-        if (part?.kind === 'text' && typeof part.text === 'string') texts.push(part.text)
-        else if (part?.kind === 'image_url' && typeof part.url === 'string') {
-          // kernel part → OpenAI image_url 块（G4）：images 先 text 后（fx 约定）
-          images.push({ type: 'image_url', image_url: { url: part.url } })
-        }
-        else if (part?.kind === 'tool_call') {
-          toolCalls.push({
-            id: String(part.id ?? ''),
-            type: 'function',
-            function: { name: String(part.name ?? ''), arguments: typeof part.arguments === 'string' ? part.arguments : JSON.stringify(part.arguments ?? {}) },
-          })
-        }
-      }
-      const msg: ChatMessage = { role, content: texts.join('\n') || null }
-      if (images.length > 0) {
-        msg.content = [...images, ...texts.map((t) => ({ type: 'text', text: t }))]
-      }
-      if (toolCalls.length > 0) msg.tool_calls = toolCalls
-      out.push(msg)
-      continue
-    }
-    const content = row.content ?? row.text ?? null
-    out.push({ role, content: typeof content === 'string' ? content : JSON.stringify(content) })
-  }
-  return out
-}
-
-/** usage 方言归一（与 kernel wire-seams.ts:63-66 同口径）：chat 族
- *  prompt/completion_tokens、responses 族 input/output_tokens、camel 直通。
- *  双侧缺席 → undefined 整体缺席（不造假 0）——0 会被 stats dock 当成真计量
- *  骗出假 1% 上下文环；reducer 累加自带 ?? 0 兜底（reducer.ts:187-188）。 */
-function normalizeUsage(u: unknown): LlmOutput['usage'] {
-  const r = (u ?? {}) as Record<string, unknown>
-  const num = (v: unknown): number | undefined =>
-    typeof v === 'number' && Number.isFinite(v) ? v : undefined
-  const inputTokens = num(r.prompt_tokens ?? r.input_tokens ?? r.inputTokens)
-  const outputTokens = num(r.completion_tokens ?? r.output_tokens ?? r.outputTokens)
-  if (inputTokens === undefined && outputTokens === undefined) return undefined
-  return { inputTokens, outputTokens }
-}
+import type { AssembledContext } from '../../context/assemble'
 
 async function wxRequestJson(url: string, headers: Record<string, string>, data: unknown): Promise<{ status: number; body: unknown }> {
   // 容器车道：container://{service} → callContainer 内网直连（route.ts 判定）。
@@ -115,12 +45,6 @@ async function wxRequestJson(url: string, headers: Record<string, string>, data:
   })
 }
 
-function advertisedTools() {
-  const kernel = loadKernel()
-  if (!isBashKernel(kernel)) return []
-  return canonicalToolEnvelope(kernel.BASH_TOOL_CONTRACT_SOURCE)
-}
-
 export interface IoLlmDeps {
   /** 测试注入：替换 wx.request 通道（Node harness / 单测用）。 */
   request?: (url: string, headers: Record<string, string>, data: unknown) => Promise<{ status: number; body: unknown }>
@@ -132,9 +56,19 @@ export interface IoLlmDeps {
   engine?: SessionEngine
 }
 
-export function createIoLlm(deps: IoLlmDeps = {}): (messages: unknown[]) => Promise<LlmOutput> {
+function apiBase(base: string): string {
+  const trimmed = base.replace(/\/+$/, '')
+  return /\/v\d+$/i.test(trimmed) ? trimmed : `${trimmed}/v1`
+}
+
+function bearer(headers: Record<string, string>): string {
+  const value = headers.Authorization ?? headers.authorization ?? ''
+  return value.replace(/^Bearer\s+/i, '')
+}
+
+export function createIoLlm(deps: IoLlmDeps = {}): (context: AssembledContext) => AsyncIterable<LlmChunk> {
   const request = deps.request ?? wxRequestJson
-  return async (messages: unknown[]): Promise<LlmOutput> => {
+  return async function* (context: AssembledContext): AsyncIterable<LlmChunk> {
     const cfg = loadDevConfig()
     const route = currentRoute()
     // 引擎裁决先于路由：戳记会话走自己的车道，不随全局旋钮漂移。
@@ -158,21 +92,13 @@ export function createIoLlm(deps: IoLlmDeps = {}): (messages: unknown[]) => Prom
     // upstreamBaseUrl 形态两侧不一致：dev-config 生成物自带 /v1 尾，enroll 记录
     // 与裸 baseUrl 不带——统一归一（/vN 尾不再拼 v1），否则 /v1/v1/... 真 404
     // （MN03-B9 实证：kernel lane 对真 dev-config 从未可达，stub 恰好绕过）。
-    const chatUrl = (base: string): string => {
-      const b = base.replace(/\/+$/, '')
-      return `${/\/v\d+$/i.test(b) ? b : `${b}/v1`}/chat/completions`
-    }
-
-    let url = ''
-    let headers: Record<string, string> = { 'content-type': 'application/json' }
+    let baseUrl = ''
+    let apiKey = ''
     if (engine === 'magpie') {
-      // magpie 引擎：本地直连 dev 车道——无代理票据，命中 upstream + dev key
       const upstream = cfg?.upstreamBaseUrl ?? cfg?.baseUrl ?? ''
       if (upstream.length === 0) throw new Error('io.llm: local 模式缺少 upstreamBaseUrl')
-      url = chatUrl(upstream)
-      if (cfg?.providerApiKey !== undefined && cfg.providerApiKey.length > 0) {
-        headers = { ...headers, Authorization: `Bearer ${cfg.providerApiKey}` }
-      }
+      baseUrl = apiBase(upstream)
+      apiKey = cfg?.providerApiKey ?? ''
     } else {
       // cloudish：proxy 车道 + 票据注入（凭证只住 proxy 边界，T-O-8）
       // TicketSource 形状从 dev-config + enroll 记录拼出（dev-config 缺失时用 enrollment 兜底）
@@ -192,37 +118,96 @@ export function createIoLlm(deps: IoLlmDeps = {}): (messages: unknown[]) => Prom
         throw new Error('io.llm: ticket-required（后台车道无活票不铸票）')
       }
       const resolved = await ticket.ready()
-      const base = route.proxyBaseUrl ?? resolved.upstreamBaseUrl
-      url = chatUrl(base)
-      headers = { ...headers, ...(await ticket.authHeaders(url)) }
+      baseUrl = apiBase(route.proxyBaseUrl ?? resolved.upstreamBaseUrl)
+      const headers = await ticket.authHeaders(`${baseUrl}/responses`)
+      apiKey = bearer(headers)
     }
 
-    const res = await request(url, headers, {
-      model,
-      messages: normalizeMessages(messages),
-      tools: advertisedTools(),
-      stream: false,
+    const kernel = loadKernel() as {
+      measureWireRequest?: (request: unknown) => unknown
+      preflightWireRequest?: (request: unknown) => { ok: boolean; reason?: string; whole_cap?: number }
+      dispatchSingleWire?: (input: unknown) => Promise<{
+        kind: string
+        reason?: string
+        events?: ReadonlyArray<{ kind: string; payload: unknown }>
+        usage?: { inputTokens: number | null; outputTokens: number | null }
+      }>
+    } | undefined
+    if (typeof kernel?.measureWireRequest !== 'function'
+      || typeof kernel.preflightWireRequest !== 'function'
+      || typeof kernel.dispatchSingleWire !== 'function') {
+      yield { kind: 'error', message: 'kernel wire surface unavailable' }
+      return
+    }
+    const wireRequest = {
+      messages: context.messages,
+      tools: context.tools,
+      base_url: baseUrl,
+    }
+    kernel.measureWireRequest(wireRequest)
+    const bounds = kernel.preflightWireRequest(wireRequest)
+    if (!bounds.ok || typeof bounds.whole_cap !== 'number') {
+      yield { kind: 'error', message: bounds.reason ?? 'request-bounds:rejected' }
+      return
+    }
+    const outcome = await kernel.dispatchSingleWire({
+      kind: 'http-responses',
+      providerKey: 'deepseek',
+      modelId: model,
+      request: wireRequest,
+      credential: { ok: true, kind: 'bearer', apiKey, alias: 'host' },
+      transport: {
+        fetch: async (url: string, init: { body?: string; headers?: Record<string, string> }) => {
+          const data = typeof init.body === 'string' && init.body.length > 0 ? JSON.parse(init.body) : {}
+          const res = await request(url, { ...(init.headers ?? {}), 'content-type': 'application/json' }, data)
+          const text = typeof res.body === 'string' ? res.body : JSON.stringify(res.body ?? null)
+          const bytes = new TextEncoder().encode(text)
+          let sent = false
+          return {
+            ok: res.status >= 200 && res.status < 300,
+            status: res.status,
+            body: {
+              getReader: () => ({
+                read: async () => sent ? { done: true, value: undefined } : (sent = true, { done: false, value: bytes }),
+                releaseLock: () => {},
+                cancel: async () => {},
+              }),
+              cancel: async () => {},
+            },
+          }
+        },
+      },
+      bodyCap: bounds.whole_cap,
+      requestCap: bounds.whole_cap,
+      deadlines: { totalMs: 60000, wireMs: 60000, resultMs: 60000 },
     })
-    if (res.status !== 200) {
-      throw new Error(`io.llm upstream ${res.status}: ${JSON.stringify(res.body).slice(0, 300)}`)
+    if (outcome.kind !== 'terminal-known') {
+      yield { kind: 'error', message: outcome.reason ?? outcome.kind }
+      return
     }
-    const body = res.body as { choices?: Array<{ message?: { content?: string | null; tool_calls?: ChatMessage['tool_calls'] } }>; usage?: LlmOutput['usage'] }
-    const msg = body.choices?.[0]?.message
-    const toolCalls: LlmToolCall[] = (msg?.tool_calls ?? []).map((tc, i) => ({
-      // 缺 id 的 tool_calls（部分上游方言）合成稳定 id——undefined id 会让
-      // kernel tool_result 配对落空、步决策误判（审查十四轮 L6）。
-      id: tc.id ?? `call_synth_${i}`,
-      name: tc.function.name,
-      input: safeParse(tc.function.arguments),
-    }))
-    return {
-      text: msg?.content ?? null,
-      toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-      usage: normalizeUsage(body.usage),
+    for (const event of outcome.events ?? []) {
+      if (event.kind === 'text' && typeof event.payload === 'string') {
+        yield { kind: 'content', text: event.payload }
+      } else if (event.kind === 'tool-call' && event.payload !== null && typeof event.payload === 'object') {
+        const payload = event.payload as { id?: unknown; name?: unknown; arguments?: unknown }
+        if (typeof payload.id !== 'string' || typeof payload.name !== 'string' || typeof payload.arguments !== 'string') continue
+        let input: unknown = payload.arguments
+        try { input = JSON.parse(payload.arguments) } catch { /* 上游参数保持原文字 */ }
+        yield { kind: 'tool_call', call: { id: payload.id, name: payload.name, input } }
+      } else if (event.kind === 'error') {
+        yield { kind: 'error', message: JSON.stringify(event.payload) }
+      }
     }
+    const usage = outcome.usage
+    if (usage && (typeof usage.inputTokens === 'number' || typeof usage.outputTokens === 'number')) {
+      yield {
+        kind: 'usage',
+        usage: {
+          ...(typeof usage.inputTokens === 'number' ? { inputTokens: usage.inputTokens } : {}),
+          ...(typeof usage.outputTokens === 'number' ? { outputTokens: usage.outputTokens } : {}),
+        },
+      }
+    }
+    yield { kind: 'done' }
   }
-}
-
-function safeParse(s: string): unknown {
-  try { return JSON.parse(s) } catch { return s }
 }

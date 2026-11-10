@@ -130,10 +130,14 @@ const scenarioIo = (store, tag) => {
   const toolCalls = []
   return {
     toolCalls,
-    async llm(messages) {
-      const done = JSON.stringify(messages ?? []).includes('seed-content')
-      if (!done) return { toolCalls: [{ id: 'c1', name: 'file_read', input: { path: '/data/seed.csv' } }], text: null }
-      return { text: `answer(${tag}): beta,3400`, usage: { inputTokens: 10, outputTokens: 5 } }
+    async *llm(context) {
+      const done = JSON.stringify(context ?? {}).includes('seed-content')
+      if (!done) yield { kind: 'tool_call', call: { id: 'c1', name: 'file_read', input: { path: '/data/seed.csv' } } }
+      else {
+        yield { kind: 'content', text: `answer(${tag}): beta,3400` }
+        yield { kind: 'usage', usage: { inputTokens: 10, outputTokens: 5 } }
+      }
+      yield { kind: 'done' }
     },
     async tool(name, args) {
       this.calls = (this.calls ?? 0) + 1

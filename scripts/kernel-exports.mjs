@@ -54,6 +54,42 @@ export const KERNEL_EXPORTS = [
   { spec: '@haimang/bash-core-worker/capabilities/tree', names: ['createTreeHandlers'] },
   { spec: '@haimang/bash-core-worker/tool-contract/intents', names: ['createToolIntentHandlers'] },
   { spec: '@haimang/bash-core-worker/capabilities/pipeline', names: ['createPipelineHandlers'] },
+  {
+    spec: '@haimang/nacp-session/context-component-registry',
+    names: [
+      'CONTEXT_COMPONENT_KINDS',
+      'PROVIDER_FINAL_PARTITIONS',
+      'PROVIDER_FINAL_STRICT_KIND_LAYERS',
+      'TEAM_SKILL_CATALOG_KIND',
+      'resolveContextComponent',
+    ],
+  },
+  {
+    spec: '@haimang/agent-provider-executor/request-bounds',
+    names: ['measureWireRequest', 'preflightWireRequest'],
+  },
+  {
+    spec: '@haimang/agent-provider-executor/responses-request',
+    names: ['createResponsesRequestBody'],
+  },
+  {
+    spec: '@haimang/agent-provider-executor/wire-seams',
+    names: ['dispatchSingleWire', 'WIRE_KINDS'],
+  },
+  {
+    spec: '@haimang/agent-core-worker/host/llm-bridge/runtime-mainline-llm/system-prompt',
+    names: [
+      'renderNanoAgentSystemPrompt',
+      'NANO_AGENT_SYSTEM_PROMPT',
+      'withNanoAgentSystemPrompt',
+      'isCanonicalPromptMessage',
+      'isInstructionZoneComponent',
+    ],
+  },
+  {
+    spec: '@haimang/agent-core-worker/host/llm-bridge/runtime-mainline-llm/model-steering-component',
+    names: ['withModelSteering'],
+  },
 ]
 
 export function exportNames() {

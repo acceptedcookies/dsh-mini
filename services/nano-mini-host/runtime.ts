@@ -357,26 +357,40 @@ export class KernelMiniRuntime {
           }
         },
       },
-      llm: async (messages) => {
-        // 跨轮历史 prepend（worker runtime-mainline 同构）：kernel turn.messages
-        // 只装当前 turn，历史由宿主从 UI 转录本临时前置、不回写 kernel buffer。
-        // noMint：铸票已在 drive 手势面完成——轮中票据过期的 ready() 会在
-        // 后台上下文弹 SOTER（审查十四轮 L2），如实 401→host-error 更诚实。
+      llm: (context) => {
+        const self = this
+        return (async function* () {
         const t0 = Date.now()
-        const out = await createIoLlm({ noMint: true, engine })([...historyMessages(s), ...messages])
+        const transcript = [
+          ...historyMessages(s),
+          ...context.messages.filter((message) => {
+            if (message === null || typeof message !== 'object') return true
+            const row = message as { role?: unknown }
+            return row.role !== 'system'
+          }),
+        ]
+        const { assemble } = await import('../context/assemble')
+        let usage: { inputTokens?: number; outputTokens?: number } | undefined
+        for await (const chunk of createIoLlm({ noMint: true, engine })(assemble({
+          transcript,
+          steering: context.steering,
+          canonicalTextOverride: context.partitions.canonical_system_prompt?.bytes || undefined,
+        }))) {
+          if (chunk.kind === 'content' && chunk.text.length > 0) {
+            assistantText += chunk.text
+            deltaIndex += 1
+            self.emit({ type: 'assistant.delta', sessionId, attemptId, index: deltaIndex, text: chunk.text })
+          } else if (chunk.kind === 'usage') {
+            usage = chunk.usage
+          }
+          yield chunk
+        }
         callStats.push({
-          inputTokens: out.usage?.inputTokens,
-          outputTokens: out.usage?.outputTokens,
+          inputTokens: usage?.inputTokens,
+          outputTokens: usage?.outputTokens,
           decodeMs: Date.now() - t0,
         })
-        if (typeof out.text === 'string' && out.text.length > 0) {
-          assistantText += out.text
-          // assistant.delta：io.llm 非流式 → delta 粒度=llm_call 步（诚实粒度，
-          // 非 token 流）；index 严格递增供 UI/观测做时序断言。
-          deltaIndex += 1
-          this.emit({ type: 'assistant.delta', sessionId, attemptId, index: deltaIndex, text: out.text })
-        }
-        return out
+        })()
       },
       tool: async (name, args) => {
         const toolItem: ChatItem = {

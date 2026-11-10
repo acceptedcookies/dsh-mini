@@ -98,6 +98,13 @@ export interface LlmOutput {
   usage?: { inputTokens?: number; outputTokens?: number; [key: string]: unknown }
 }
 
+export type LlmChunk =
+  | { kind: 'content'; text: string }
+  | { kind: 'usage'; usage: { inputTokens?: number; outputTokens?: number } }
+  | { kind: 'tool_call'; call: LlmToolCall }
+  | { kind: 'done' }
+  | { kind: 'error'; message: string }
+
 export interface CasGetResult {
   body: string
   etag: string
@@ -125,7 +132,7 @@ export interface IoState {
 }
 
 export interface Io {
-  llm(messages: unknown[]): Promise<LlmOutput>
+  llm(context: import('../context/assemble').AssembledContext): AsyncIterable<LlmChunk>
   tool(name: string, args: unknown): Promise<ToolCallResult>
   state: IoState
   /**

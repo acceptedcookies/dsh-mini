@@ -65,7 +65,12 @@ function makeIo(cas, { tool = 'ok', toolThrows = false } = {}) {
   const counts = { llm: 0, tool: 0 }
   const io = {
     state: cas,
-    llm: async () => { counts.llm += 1; return { text: 'sim-final', usage: { inputTokens: 1, outputTokens: 1 } } },
+    llm: async function* () {
+      counts.llm += 1
+      yield { kind: 'content', text: 'sim-final' }
+      yield { kind: 'usage', usage: { inputTokens: 1, outputTokens: 1 } }
+      yield { kind: 'done' }
+    },
     tool: async (name) => {
       if (toolThrows) { counts.tool += 1; throw new Error('sim_tool_fail') }
       counts.tool += 1
