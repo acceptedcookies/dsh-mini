@@ -1,7 +1,7 @@
 {
   "kernelPin": "f72875054f65c2b1a4224192fd1fbe3b3ad6a3b0",
-  "entry_hash": "81337ec05e4a98a81b9d977720c0bb72046622fa9b87263754c9614cc364b6db",
-  "bundle_sha256": "11ced792245cec5c43836413f7bc5858f7f5a978731155aacd9308333335b59b",
+  "entry_hash": "cd79d732f993ef9f3471e557d1bc4715fbbdb41d0d88f1bdef315f6d99f0ba3f",
+  "bundle_sha256": "5f5ab74ea81bb3fe488241af20888cf4fe97f75195afdcd09340aa3a30101530",
   "exports": [
     "createInitialSessionState",
     "createKernelSnapshot",
@@ -56,9 +56,15 @@
     "withNanoAgentSystemPrompt",
     "isCanonicalPromptMessage",
     "isInstructionZoneComponent",
-    "withModelSteering"
+    "withModelSteering",
+    "DEFAULT_COMPACT_POLICY",
+    "shouldArm",
+    "resolveCompactPolicyDetailed",
+    "decideToolResultFold",
+    "MICRO_STALE_NUM",
+    "PROTECTED_FRAGMENT_TAGS"
   ],
-  "bytes": 2019990,
+  "bytes": 2022037,
   "modules": [
     "context/nano-agent/packages/agent-execution/src/contracts/caller.ts",
     "context/nano-agent/packages/agent-execution/src/contracts/receiver.ts",
@@ -403,6 +409,10 @@
     "context/nano-agent/workers/bash-core/src/tool-contract/intents.ts",
     "context/nano-agent/workers/bash-core/src/tool-contract/source.ts",
     "context/nano-agent/workers/bash-core/src/types.ts",
+    "context/nano-agent/workers/context-core/src/budget/compaction-policy-live.ts",
+    "context/nano-agent/workers/context-core/src/budget/policy.ts",
+    "context/nano-agent/workers/context-core/src/control-plane/token-meter.ts",
+    "context/nano-agent/workers/context-core/src/microcompact/decide.ts",
     "node-absent:fs/promises",
     "node-absent:module",
     "subpkg/kernel/.entry.ts",

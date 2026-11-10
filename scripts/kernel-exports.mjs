@@ -90,6 +90,22 @@ export const KERNEL_EXPORTS = [
     spec: '@haimang/agent-core-worker/host/llm-bridge/runtime-mainline-llm/model-steering-component',
     names: ['withModelSteering'],
   },
+  {
+    spec: '@haimang/context-core-worker/budget/policy',
+    names: ['DEFAULT_COMPACT_POLICY', 'shouldArm'],
+  },
+  {
+    spec: '@haimang/context-core-worker/budget/compaction-policy-live',
+    names: ['resolveCompactPolicyDetailed'],
+  },
+  {
+    spec: '@haimang/context-core-worker/microcompact/decide',
+    names: ['decideToolResultFold', 'MICRO_STALE_NUM'],
+  },
+  {
+    spec: '@haimang/context-core-worker/control-plane/token-meter',
+    names: ['PROTECTED_FRAGMENT_TAGS'],
+  },
 ]
 
 export function exportNames() {

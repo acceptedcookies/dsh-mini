@@ -21,6 +21,7 @@ import type {
 import { errorBus, reportSilent } from '../error-report'
 import { randomUUID } from '../crypto/random'
 import { assemble } from '../context/assemble'
+import { evaluateCompact, foldTranscript, protectedTail } from '../context/compact-policy'
 import type { LlmChunk, LlmOutput, LlmToolCall } from './types'
 
 const ST = 'dsh-mini/state'
@@ -30,6 +31,8 @@ const EP = 'dsh-mini/episodes'
 
 /** 事件 uuid：只走 services/crypto/random.ts。两源皆无时向上抛，不改回伪随机。 */
 const evUuid = (): string => randomUUID()
+
+const lastUsage = new Map<string, { inputTokens?: number; outputTokens?: number }>()
 
 async function readLlm(stream: AsyncIterable<LlmChunk>): Promise<LlmOutput> {
   let text = ''
@@ -168,14 +171,16 @@ async function runCompaction(
   sessionId: string,
   turn: { messages?: unknown[] } | null | undefined,
   ep: EpisodeRef | null,
+  triggerKind: string | null,
 ): Promise<{ ep: EpisodeRef; messages: unknown[]; tokensFreed: number } | null> {
+  // T-O-23 ②③：不发射 started/failed/degraded/recovered/noop，不调用 decideAsyncArm。
   const marked = await takeCompactMark(ctx, sessionId)
-  if (!marked) return null
+  if (!marked || triggerKind === null) return null
   try {
     const closedEvents = ep !== null ? [...ep.events] : []
     const closedUuid = ep?.uuid
     const headSeq = ep?.seq ?? 0
-    const msgs = turn?.messages ?? []
+    const msgs = foldTranscript(turn?.messages ?? [], undefined)
     // summarize：kernel 当前 turn messages 序列化后求摘要（截断 60K 防超载）。
     const sum = await readLlm(ctx.io.llm(assemble({
       transcript: [{
@@ -205,21 +210,24 @@ async function runCompaction(
     } else {
       summaryInline = summaryText
     }
-    // kernel compact_done 语义：activeTurn.messages 整体置换 = [摘要 system 消息] + 小尾保留。
-    // 尾部只留 ≤4KB 消息——大载荷（tool 回包/长回答）全归摘要，否则压实不生效每步重发 compact。
-    const tail = Array.isArray(msgs)
-      ? msgs.filter((m) => JSON.stringify(m).length <= 4096).slice(-4)
-      : []
+    // 保留集只认 protected fragment。只有一对 usage 才有 tokensFreed，缺一侧不写 0。
+    const pair = (usage: { inputTokens?: number; outputTokens?: number } | undefined): number | undefined =>
+      typeof usage?.inputTokens === 'number' && typeof usage.outputTokens === 'number'
+        ? usage.inputTokens + usage.outputTokens
+        : undefined
+    const tokensAfter = pair(sum.usage)
+    const tokensBefore = pair(lastUsage.get(sessionId))
+    if (tokensBefore === undefined || tokensAfter === undefined) return null
+    const tail = protectedTail(msgs)
     const compacted: unknown[] = [
       { role: 'system', content: `[compaction summary · episode ${closedUuid ?? 'genesis'}]\n${summaryText}` },
       ...tail,
     ]
-    // tokensFreed：char/4 估算（kernel 仅递减计数器，如实标注估算非精确计）。
-    const tokensFreed = Math.max(0, Math.floor((JSON.stringify(msgs).length - JSON.stringify(compacted).length) / 4))
+    const tokensFreed = Math.max(0, tokensBefore - tokensAfter)
     ep = await openEpisode(ctx, sessionId, {
       episode_uuid: evUuid(),
       trigger: 'auto',
-      trigger_kind: 'compact_required',
+      trigger_kind: triggerKind,
       opened_at: new Date().toISOString(),
       parent_episode_uuid: closedUuid,
       summary_sha: summarySha,
@@ -321,7 +329,7 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
     const signals: SchedulerSignals = {
       hasMoreToolCalls: (turn?.pendingToolCalls?.length ?? 0) > 0,
       // 宿主 compact 触发策略（非合同）：turn.messages 序列化逼近 256KB 行前压实。
-      compactRequired: JSON.stringify(turn?.messages ?? []).length > 96 * 1024,
+      compactRequired: (await evaluateCompact({ usage: lastUsage.get(sessionId) })).required,
       cancelRequested: opts.cancelRequested?.() === true,
       timeoutReached: false,
       llmFinished: turn?.llmFinished ?? false,
@@ -333,7 +341,8 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
     pushEvent(d)
 
     if (d.kind === 'llm_call') {
-      const out = await readLlm(ctx.io.llm(assemble({ transcript: turn?.messages ?? [], steering: null })))
+      const out = await readLlm(ctx.io.llm(assemble({ transcript: foldTranscript(turn?.messages ?? [], undefined), steering: null })))
+      if (out.usage !== undefined) lastUsage.set(sessionId, out.usage)
       const hasUsage = out.usage !== undefined
         && (typeof out.usage.inputTokens === 'number' || typeof out.usage.outputTokens === 'number')
       const hasTools = out.toolCalls !== undefined && out.toolCalls.length > 0
@@ -364,7 +373,8 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
       }
       if (d.reason === 'compact_required') {
         // interrupt-taxonomy 死路径守卫（本 kernel build 不从此发 compact）——走同一正路。
-        const c = await runCompaction(ctx, sessionId, turn, ep)
+        const armed = await evaluateCompact({ usage: lastUsage.get(sessionId) })
+        const c = await runCompaction(ctx, sessionId, turn, ep, armed.triggerKind ?? null)
         if (c === null) {
           const wr = await saveSnap(ctx, sessionId, snap, etag, ep)
           return ret(typeof wr === 'object' ? { outcome: 'fenced', trace } : { outcome: 'suspended', trace })
