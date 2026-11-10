@@ -4,6 +4,7 @@ import { TextDecoderImpl, TextEncoderImpl } from './utf8'
 import { callContainer, isContainerUrl, parseContainerUrl } from './container'
 import { loadDevConfig } from './dev'
 import { ensureSubpackageForPath, navEnsureSubpackage } from '../subpackage'
+import { getRandomValues as readRandomBytes } from '../crypto/random'
 
 export interface FetchLikeResult {
   status: number
@@ -29,23 +30,8 @@ export interface FxEnv {
   WasmExit: new (message?: string) => Error
 }
 
-let seed = (Date.now() ^ 0x9e3779b9) >>> 0
 function getRandomValues(arr: Uint8Array): Uint8Array {
-  const g = globalThis as unknown as Record<string, unknown>
-  const cryptoObj = g.crypto as { getRandomValues?: (a: Uint8Array) => Uint8Array } | undefined
-  if (cryptoObj?.getRandomValues) return cryptoObj.getRandomValues(arr)
-  const wxObj = g.wx as { getRandomValues?: (a: Uint8Array) => Uint8Array } | undefined
-  if (typeof wxObj?.getRandomValues === 'function') return wxObj.getRandomValues(arr)
-  // 兜底 xorshift32：非密码学用途；wasm 内仅用于会话 id/乱序，安全面由远端控制。
-  for (let i = 0; i < arr.length; i++) {
-    seed ^= seed << 13
-    seed >>>= 0
-    seed ^= seed >> 17
-    seed ^= seed << 5
-    seed >>>= 0
-    arr[i] = seed & 0xff
-  }
-  return arr
+  return readRandomBytes(arr)
 }
 
 export function wxFetch(url: string, init: { method?: string; headers?: Record<string, string>; body?: Uint8Array }): Promise<FetchLikeResult> {

@@ -12,7 +12,10 @@ import { TextEncoderImpl, TextDecoderImpl } from '../fx/utf8'
 
 declare const globalThis: {
   wx?: { base64ToArrayBuffer(b64: string): ArrayBuffer; arrayBufferToBase64(buf: ArrayBuffer): string }
-  crypto?: { subtle?: { digest(algo: string, data: ArrayBuffer): Promise<ArrayBuffer> } }
+  crypto?: {
+    getRandomValues?: (buf: Uint8Array) => Uint8Array
+    subtle?: { digest(algo: string, data: ArrayBuffer): Promise<ArrayBuffer> }
+  }
   atob?: (s: string) => string
   btoa?: (s: string) => string
   TextEncoder?: unknown
@@ -35,15 +38,18 @@ export function installKernelShims(): boolean {
   if (wxApi === undefined) return false // Node / sweeper：原生 API 齐备，不污染
 
   if (globalThis.crypto === undefined || globalThis.crypto.subtle === undefined) {
-    globalThis.crypto = {
-      subtle: {
-        digest(algo: string, data: ArrayBuffer): Promise<ArrayBuffer> {
-          const name = algo.toUpperCase().replace('-', '')
-          if (name !== 'SHA256') return Promise.reject(new Error(`unsupported digest ${algo}`))
-          return Promise.resolve(hexToArrayBuffer(sha256Hex(new Uint8Array(data))))
-        },
+    const prev = globalThis.crypto
+    const subtle = {
+      digest(algo: string, data: ArrayBuffer): Promise<ArrayBuffer> {
+        const name = algo.toUpperCase().replace('-', '')
+        if (name !== 'SHA256') return Promise.reject(new Error(`unsupported digest ${algo}`))
+        return Promise.resolve(hexToArrayBuffer(sha256Hex(new Uint8Array(data))))
       },
     }
+    // 只补 digest。已有 getRandomValues 必须留下；禁止换成只有 digest 的对象。
+    globalThis.crypto = prev?.getRandomValues !== undefined
+      ? { getRandomValues: prev.getRandomValues.bind(prev), subtle }
+      : { ...(prev ?? {}), subtle }
   }
 
   if (globalThis.atob === undefined) {

@@ -19,15 +19,15 @@ import type {
   SweepResult,
 } from './types'
 import { errorBus, reportSilent } from '../error-report'
+import { randomUUID } from '../crypto/random'
 
 const ST = 'dsh-mini/state'
 const CL = 'dsh-mini/claims'
 const AL = 'dsh-mini/alarms'
 const EP = 'dsh-mini/episodes'
 
-/** 事件 uuid：mp 无 crypto.randomUUID 保证——本地 v4-ish 生成（仅回放去重键，非安全面）。 */
-const evUuid = (): string =>
-  `${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}-${Math.random().toString(16).slice(2, 10)}`
+/** 事件 uuid：只走 services/crypto/random.ts。两源皆无时向上抛，不改回伪随机。 */
+const evUuid = (): string => randomUUID()
 
 /** snapshot 行内嵌 ep 段的 pending 事件上限：防长 episode 逼近 256KB 行上限；
  *  溢出如实计数（dropped），回放 artifact 记录 drop 数——不静默丢。 */
