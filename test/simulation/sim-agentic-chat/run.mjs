@@ -28,11 +28,19 @@ async function journey(mode, llm) {
       data = await app.data()
       const status = data.state?.current?.status
       const text = currentText(data)
-      if (status === 'error' || text.includes(fixture.reply) || text.includes('停止') || text.includes('已请求停止')) break
-      if (status === 'running') break
+      if (status === 'error' || text.includes(fixture.reply) || text.includes('已请求停止')) break
+      if (status !== 'running' && text.includes('停止')) break
       await new Promise((r) => setTimeout(r, 300))
     }
-    if (data.state?.current?.status === 'running') await app.call('stop')
+    if (data.state?.current?.status === 'running') {
+      await app.call('stop')
+      const stopDeadline = Date.now() + 5000
+      while (Date.now() < stopDeadline) {
+        data = await app.data()
+        if (data.state?.current?.status !== 'running') break
+        await new Promise((r) => setTimeout(r, 300))
+      }
+    }
     data = await app.data()
     shots.push(await capture(app, evidence, '03-settled', { route: 'pages/workspace/workspace' }))
     const text = currentText(data)
