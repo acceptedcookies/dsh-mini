@@ -5,7 +5,7 @@
  * 退出: 0 = 全 PASS；1 = 有 FAIL；2 = 运行错误
  */
 import { execFileSync } from 'node:child_process'
-import { readFileSync, existsSync, readdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync, rmSync } from 'node:fs'
 import { dirname, resolve, relative } from 'node:path'
 import ts from 'typescript'
 
@@ -174,10 +174,12 @@ check('C1 五产物齐备', () => {
     assert(existsSync(resolve(ROOT, f)), `缺产物 ${f}`)
   }
 })
-check('C2 skin.gen page 149（134 token + 15 surface）/ @media 55', () => {
+check('C2 skin.gen page = projected + surfaces + component vars / @media 55', () => {
   const css = readFileSync(resolve(ROOT, 'skin.gen.wxss'), 'utf8')
   const page = css.slice(css.indexOf('page {'), css.indexOf('@media'))
-  eq((page.match(/^\s{2}--/gm) ?? []).length, 149, 'light 键数')
+  const vocab = requireTs(resolve(ROOT, 'services/skin/vocab.ts')).VOCAB
+  const componentVars = Object.values(vocab.components ?? {}).reduce((n, entry) => n + Object.keys(entry?.vars ?? {}).length, 0)
+  eq((page.match(/^\s{2}--/gm) ?? []).length, Object.keys(vocab.tokens).length + Object.keys(vocab.surfaces).length + componentVars, 'light 键数')
   const dark = css.slice(css.indexOf('@media'))
   eq((dark.match(/^\s{4}--/gm) ?? []).length, 55, 'dark 键数')
 })
@@ -723,6 +725,88 @@ check('MS02-T03', () => {
     const dumped = JSON.stringify(row.verdictReason)
     assert(!seen.has(dumped), '非特例 empty 的 verdictReason deep-equal')
     seen.add(dumped)
+  }
+})
+
+function runNode(args) {
+  try {
+    const stdout = execFileSync(process.execPath, args, { cwd: ROOT, encoding: 'utf8' })
+    return { status: 0, stdout, stderr: '' }
+  } catch (err) {
+    return { status: err.status ?? 1, stdout: err.stdout?.toString?.() ?? '', stderr: err.stderr?.toString?.() ?? '' }
+  }
+}
+
+section('N')
+check('MS02-T04', () => {
+  const roots = ['skin', 'services', 'scripts', 'components']
+  const hits = []
+  function walk(dir) {
+    if (!existsSync(dir)) return
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const abs = resolve(dir, entry.name)
+      if (entry.isDirectory()) {
+        if (entry.name === 'node_modules') continue
+        walk(abs)
+      } else if (/\.(ts|mjs|js)$/.test(entry.name) && readFileSync(abs, 'utf8').includes('ComponentManifest')) {
+        hits.push(relative(ROOT, abs))
+      }
+    }
+  }
+  for (const r of roots) walk(resolve(ROOT, r))
+  eq(hits.length, 0, `仍有 ComponentManifest: ${hits.join(',')}`)
+  const tsc = execFileSync(resolve(ROOT, 'node_modules/.bin/tsc'), ['--noEmit', '--pretty', 'false'], { cwd: ROOT, encoding: 'utf8' })
+  eq(tsc, '', 'tsc 应无输出')
+})
+check('MS02-T05', () => {
+  const dir = resolve(ROOT, 'components/ms02-probe')
+  const file = resolve(dir, 'ms02-probe.contract.ts')
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(file, 'export default { contractVersion: "1.0.0" }\n')
+  try {
+    const first = runNode(['scripts/build-skin.mjs', '--check'])
+    eq(first.status, 1, '缺 CONTRACT 必须 exit 1')
+    assert(first.stderr.includes('缺 CONTRACT'), `stderr 不含缺 CONTRACT: ${first.stderr}`)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+  const second = runNode(['scripts/build-skin.mjs', '--check'])
+  eq(second.status, 0, `删除探针后 --check 应恢复: ${second.stderr}\n${second.stdout.slice(0, 400)}`)
+})
+check('MS02-T06', () => {
+  const css = readFileSync(resolve(ROOT, 'skin.gen.wxss'), 'utf8')
+  const mediaAt = css.indexOf('@media (prefers-color-scheme: dark)')
+  assert(mediaAt > 0, '缺 dark media')
+  const page = css.slice(0, mediaAt)
+  const dark = css.slice(mediaAt)
+  const matrix = JSON.parse(readFileSync(resolve(ROOT, 'test/spike/mini-skin/component-matrix.json'), 'utf8'))
+  let checked = 0
+  for (const [name, row] of Object.entries(matrix.rows)) {
+    const contract = resolve(ROOT, 'components', name, `${name}.contract.ts`)
+    if (!existsSync(contract)) continue
+    for (const token of row.consumedVars) {
+      const needle = `  ${token}:`
+      eq((page.match(new RegExp(`^${needle}`, 'gm')) ?? []).length, 1, `${token} page 次数`)
+      eq((dark.match(new RegExp(`^${needle.replace('  ', '    ')}`, 'gm')) ?? []).length, 0, `${token} dark 次数`)
+      assert(page.indexOf(needle) !== -1 && page.indexOf(needle) < mediaAt, `${token} 不在 dark 之前`)
+      checked += 1
+    }
+  }
+  if (checked === 0) assert(!css.includes('/* component-defaults */'), '0 份合约却插入了 component-defaults')
+})
+check('MS02-T07', () => {
+  const file = resolve(ROOT, 'assets/skins/dsh-default.json')
+  const original = readFileSync(file, 'utf8')
+  try {
+    const planted = JSON.parse(original)
+    planted.components = { planted: { layout: 'nope' } }
+    writeFileSync(file, JSON.stringify(planted, null, 2) + '\n')
+    const run = runNode(['scripts/build-skin.mjs', '--check'])
+    const report = JSON.parse(run.stdout)
+    assert(report.crossCheck.ok === false, '段 2 plant 未把 crossCheck.ok 打成 false')
+    assert(report.crossCheck.errors.some((e) => e.includes('dsh-default.components')), `errors 未点名 dsh-default.components: ${JSON.stringify(report.crossCheck.errors)}`)
+  } finally {
+    writeFileSync(file, original)
   }
 })
 

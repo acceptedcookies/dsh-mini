@@ -95,16 +95,28 @@ export interface ChromeEntry {
   dark: string
 }
 
-export interface ComponentManifest {
-  layout?: Record<string, unknown>
-  vars?: Record<string, unknown>
-  options?: Record<string, unknown>
-  assets?: Record<string, unknown>
+export interface VarDomainBase {
+  /** 必填，等于该组件改造前字面量。 */
+  default: string
+}
+
+export type VarDomain =
+  | ({ kind: 'length'; units: readonly ('px' | '%' | 'vh' | 'vw')[]; min?: number; max?: number } & VarDomainBase)
+  | ({ kind: 'color' } & VarDomainBase)
+  | ({ kind: 'enum'; values: readonly string[] } & VarDomainBase)
+
+export interface ComponentContract {
+  /** 构建期格式 `major.minor.patch`。validate 不比较它。 */
+  contractVersion: string
+  layout?: readonly string[]
+  vars?: Record<`--dsw-${string}-${string}`, VarDomain>
+  options?: Record<string, readonly (string | boolean)[]>
+  assets?: Record<string, 'image' | 'video' | 'icon'>
 }
 
 export interface ComponentEntry {
   name: string
-  manifest: ComponentManifest
+  manifest: ComponentContract
 }
 
 /** 联动簇（§6.2 九条）：validator L3 判定「组合护栏」的数据源（告警级）。 */

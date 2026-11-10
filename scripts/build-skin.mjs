@@ -77,13 +77,47 @@ function walkFiles(dir, out = []) {
 }
 const contractRoot = CONTRACT_FILE_GLOB.split('/')[0]
 if (contractRoot !== 'components') problems.push(`CONTRACT_FILE_GLOB 超出 components: ${CONTRACT_FILE_GLOB}`)
+const VERSION_RE = /^\d+\.\d+\.\d+$/
+const versionProblems = []
+function normalizeContract(name, manifest, fileLabel) {
+  if (manifest === null || typeof manifest !== 'object' || Array.isArray(manifest)) {
+    problems.push(`${fileLabel} CONTRACT 不是对象`)
+    return null
+  }
+  if (typeof manifest.contractVersion !== 'string' || !VERSION_RE.test(manifest.contractVersion)) {
+    versionProblems.push(`${name} contractVersion 格式失配: ${String(manifest.contractVersion)}`)
+    return null
+  }
+  const out = { contractVersion: manifest.contractVersion }
+  if (manifest.layout !== undefined) out.layout = manifest.layout
+  if (manifest.vars !== undefined) {
+    if (manifest.vars === null || typeof manifest.vars !== 'object' || Array.isArray(manifest.vars)) {
+      problems.push(`${name} vars 结构非法`)
+      return null
+    }
+    const vars = {}
+    for (const [key, domain] of Object.entries(manifest.vars)) {
+      if (domain === null || typeof domain !== 'object' || typeof domain.kind !== 'string' || typeof domain.default !== 'string') {
+        problems.push(`${name} ${key} 缺 kind/default`)
+        return null
+      }
+      vars[key] = domain
+    }
+    out.vars = vars
+  }
+  if (manifest.options !== undefined) out.options = manifest.options
+  if (manifest.assets !== undefined) out.assets = manifest.assets
+  return out
+}
 const contractFiles = existsSync(join(ROOT, contractRoot)) ? walkFiles(join(ROOT, contractRoot)) : []
 const contracts = []
 for (const file of contractFiles) {
   const mod = requireTs(file)
-  const manifest = mod.CONTRACT ?? mod.default
-  if (manifest === undefined) { problems.push(`${relative(ROOT, file)} 缺 CONTRACT/default 导出`); continue }
-  const name = relative(ROOT, file).split('/')[1] ?? file
+  const fileLabel = relative(ROOT, file)
+  if (mod.CONTRACT === undefined) { problems.push(`${fileLabel} 缺 CONTRACT`); continue }
+  const name = fileLabel.split('/')[1] ?? file
+  const manifest = normalizeContract(name, mod.CONTRACT, fileLabel)
+  if (manifest === null) continue
   contracts.push({ name, manifest })
 }
 const componentNames = new Set(COMPONENT_ENTRIES.map((c) => c.name).concat(contracts.map((c) => c.name)))
@@ -100,11 +134,18 @@ function cssDecls(entries, mode) {
 }
 const darkEntries = PROJECTED_ENTRIES.filter((e) => e.darkOverridden || e.dark !== e.light)
 const surfaceDecls = SURFACE_ENTRIES.map((s) => `  ${s.emits}: ${s.default};`).join('\n')
+const componentDefaultLines = []
+for (const c of contracts) {
+  for (const [key, domain] of Object.entries(c.manifest.vars ?? {})) {
+    componentDefaultLines.push(`  ${key}: ${domain.default};`)
+  }
+}
 const skinGen = [
   '/* GENERATED — do not edit. source: skin/truth/*.ts (MS01) */',
   'page {',
   cssDecls(PROJECTED_ENTRIES, 'light'),
   surfaceDecls,
+  ...(componentDefaultLines.length > 0 ? ['  /* component-defaults */', ...componentDefaultLines] : []),
   '}',
   '',
   '@media (prefers-color-scheme: dark) {',
@@ -321,6 +362,32 @@ if (existsSync(validatePath)) {
         if (value !== diskVocab.chrome[key]?.[mode]) crossErrors.push(`${mode}.chrome.${key}: ${value} != ${diskVocab.chrome[key]?.[mode]}`)
       }
     }
+    if (JSON.stringify(diskDef.components) !== '{}') crossErrors.push('dsh-default.components 必须为 {}')
+    const diskGen = readFileSync(join(ROOT, 'skin.gen.wxss'), 'utf8')
+    const mediaAt = diskGen.indexOf('@media (prefers-color-scheme: dark)')
+    const pagePart = mediaAt === -1 ? diskGen : diskGen.slice(0, mediaAt)
+    const darkPart = mediaAt === -1 ? '' : diskGen.slice(mediaAt)
+    const stable = (value) => {
+      if (Array.isArray(value)) return `[${value.map((item) => stable(item)).join(',')}]`
+      if (value !== null && typeof value === 'object') {
+        return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stable(value[key])}`).join(',')}}`
+      }
+      return JSON.stringify(value)
+    }
+    for (const c of contracts) {
+      const disk = diskVocab.components?.[c.name]
+      if (disk === undefined) {
+        crossErrors.push(`components.${c.name} 缺落盘 vocab`)
+        continue
+      }
+      if (stable(disk) !== stable(c.manifest)) crossErrors.push(`components.${c.name} 与归一化不一致`)
+      for (const [key, domain] of Object.entries(c.manifest.vars ?? {})) {
+        const needle = `  ${key}: ${domain.default};`
+        const inPage = pagePart.split(needle).length - 1
+        const inDark = darkPart.split(needle).length - 1
+        if (inPage !== 1 || inDark !== 0) crossErrors.push(`${key} gen 默认不等`)
+      }
+    }
   } catch (e) {
     crossErrors.push(e instanceof Error ? e.message : String(e))
   }
@@ -339,6 +406,12 @@ function VOCAB_FOR_VALIDATE() {
     chrome: vocabChrome,
     components: vocabComponents,
   }
+}
+report.discovered = contracts.map((c) => c.name).sort()
+if (versionProblems.length > 0) {
+  report.versionProblems = versionProblems
+  console.error('FATAL: contractVersion 格式失配：\n - ' + versionProblems.join('\n - '))
+  failed = true
 }
 console.log(JSON.stringify(report, null, 2))
 process.exit(failed ? 1 : 0)
