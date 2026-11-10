@@ -6,7 +6,8 @@
 import type { AcpClient, AcpPromptBlock, AcpUpdate } from './acp'
 import { createAcpClient } from './acp'
 import { guessMime } from '../vfs/api'
-import { runFileTool } from '../vfs/tool-surface'
+import { loadKernel } from '../nano-mini-host/kernel-loader'
+import { canonicalAcpTools, isBashKernel, runCanonicalTool } from '../nano-mini-host/io/bash-exec'
 import type { FxRuntime as WasmRuntime, HostToolResult } from './fx-host'
 import { createFxRuntime } from './fx-host'
 import { createWxEnv } from './env'
@@ -58,56 +59,11 @@ const DEMO_TOOLS = [
   },
 ]
 
-/**
- * 五根 VFS 文件工具（services/vfs，rules/filesystem.md §6）。
- * 语义与 nano workspace lane 法同源：相对路径落 cwd=/data/{session}，
- * /mnt /backup /root/.profile /data/*\/artifacts 只读，五根外 unsafe-workspace-path。
- */
-const FILE_TOOLS = [
-  {
-    name: 'file_read',
-    description: 'Read a file from the workspace VFS. Paths: /data/<session>/ (your session cwd), /tmp/, /root/, /mnt/, /backup/. Relative paths resolve inside your session cwd.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        path: { type: 'string' },
-        offset: { type: 'integer' },
-        max_bytes: { type: 'integer' },
-      },
-      required: ['path'],
-    },
-  },
-  {
-    name: 'file_write',
-    description: 'Write text content to a workspace VFS file. Writable lanes: /data/<session>/, /tmp/, /root/.',
-    inputSchema: {
-      type: 'object',
-      properties: { path: { type: 'string' }, content: { type: 'string' } },
-      required: ['path', 'content'],
-    },
-  },
-  {
-    name: 'file_list',
-    description: 'List directory entries in the workspace VFS (/ lists the five lane roots).',
-    inputSchema: {
-      type: 'object',
-      properties: { path: { type: 'string' }, cursor: { type: 'string' }, limit: { type: 'integer' } },
-      required: ['path'],
-    },
-  },
-  {
-    name: 'file_stat',
-    description: 'Stat a path in the workspace VFS (exists/kind/size/content_hash/placement).',
-    inputSchema: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] },
-  },
-  {
-    name: 'file_remove',
-    description: 'Remove a file from the workspace VFS (writable lanes only).',
-    inputSchema: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] },
-  },
-]
-
-const ALL_TOOLS = [...DEMO_TOOLS, ...FILE_TOOLS]
+function advertisedFxTools() {
+  const kernel = loadKernel()
+  const canonical = isBashKernel(kernel) ? canonicalAcpTools(kernel.BASH_TOOL_CONTRACT_SOURCE) : []
+  return [...DEMO_TOOLS, ...canonical]
+}
 
 function executeDemoTool(name: string, input: unknown): HostToolResult {
   const args = (input ?? {}) as Record<string, unknown>
@@ -117,7 +73,7 @@ function executeDemoTool(name: string, input: unknown): HostToolResult {
   return { content: `unknown tool ${name}`, isError: true }
 }
 
-/** file_* → services/vfs/tool-surface 共享层（T-O-8：fx 与 nano-mini host 同一实现源）。 */
+/** fx 与 nano 共用 canonical 工具名；fs 仍只进 services/vfs。 */
 export class FxLocalRuntime {
   private readonly sessions = new Map<string, StoredSession>()
   private readonly listeners = new Set<(event: LocalEvent) => void>()
@@ -403,7 +359,7 @@ export class FxLocalRuntime {
       })
       this.startingWasm = wasm
       const client = createAcpClient(wasm, {
-        tools: ALL_TOOLS,
+        tools: advertisedFxTools(),
         executeTool: async (name, input, _callId, sid) => this.dispatchTool(name, input, sid),
         onUpdate: (acpId, update) => this.onUpdate(acpId, update),
         onPermission: (params) => this.onPermission(params),
@@ -468,14 +424,17 @@ export class FxLocalRuntime {
 
   // ---- turn ----
 
-  /** tool_call 分派：file_* → VFS（acpId→dshId 得 session 作用域）；其余 → demo。 */
-  private dispatchTool(name: string, input: unknown, acpId: string | undefined): HostToolResult {
-    if (name.startsWith('file_')) {
-      const dshId = acpId !== undefined ? this.findDshId(acpId) : this.activeDshId
-      if (dshId === undefined) return { content: JSON.stringify({ error: 'no-session', message: '无会话上下文' }), isError: true }
-      return runFileTool(name, input, dshId)
+  /** tool_call 分派：canonical 名走与 nano 相同的 executor；get_weather 仍是 demo。 */
+  private async dispatchTool(name: string, input: unknown, acpId: string | undefined): Promise<HostToolResult> {
+    if (name === 'get_weather') return executeDemoTool(name, input)
+    const kernel = loadKernel()
+    const dshId = acpId !== undefined ? this.findDshId(acpId) : this.activeDshId
+    if (!isBashKernel(kernel) || dshId === undefined) {
+      return { content: JSON.stringify({ error: 'tool-call-failed', message: 'kernel tool surface unavailable' }), isError: true }
     }
-    return executeDemoTool(name, input)
+    const result = await runCanonicalTool(kernel, dshId, name, input)
+    const text = result.text ?? result.message ?? ''
+    return { content: text, isError: result.kind === 'error' || result.kind === 'rejected' }
   }
 
   /**

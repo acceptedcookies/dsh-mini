@@ -1,38 +1,22 @@
 /**
- * io.tool mp 侧实现：调 tool-surface 共享层，把 ToolSurfaceResult 包装为
- * kernel ToolCallResult（inline-text + provenance，kernel-do.mjs:13-20 形状）。
- * provenance 缺省会触发 kernel tool-result-provenance-missing（EM-N 已踩）——必带。
+ * io.tool：模型工具名进 bash-core executor，fs 只调 vfs。
+ * 没有 file_* 分发。
  */
 
-import { runFileTool } from '../../vfs/tool-surface'
+import { loadKernel } from '../kernel-loader'
 import type { ToolCallResult } from '../types'
-
-const enc = (s: string): number => {
-  // byteLength：mp JSC 无 TextEncoder 时由 shims 挂入；这里走简单 utf8 计数避免依赖面
-  let n = 0
-  for (let i = 0; i < s.length; i++) {
-    const c = s.charCodeAt(i)
-    n += c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0xd800 || c > 0xdbff ? 3 : (i += 1, 4)
-  }
-  return n
-}
+import { isBashKernel, runCanonicalTool } from './bash-exec'
 
 export function createIoTool(dshSessionId: string) {
   return async (name: string, args: unknown): Promise<ToolCallResult> => {
-    const r = runFileTool(name, args, dshSessionId)
-    const filePath = (args as Record<string, unknown> | null)?.path
-    if (r.isError) {
-      // kernel ErrorResultSchema 同构（tool-result.ts failedToolResult）：
-      // error.code 必填——缺则 renderToolCallResult 在 undefined.code 上 TypeError 崩泵
-      let code = 'tool-call-failed'
-      try { code = (JSON.parse(r.content) as { error?: string }).error ?? code } catch { /* 非 JSON 走默认 */ }
+    const kernel = loadKernel()
+    if (!isBashKernel(kernel)) {
       return {
         kind: 'error',
-        error: { code, message: r.content.slice(0, 400) },
-        message: r.content,
-        text: r.content,
-        byte_length: enc(r.content),
-        effect_state: 'indeterminate',
+        error: { code: 'tool-call-failed', message: 'kernel tool surface unavailable' },
+        message: 'kernel tool surface unavailable',
+        text: 'kernel tool surface unavailable',
+        effect_state: 'not-started',
         retryable: false,
         provenance: {
           context_layer: 'transcript',
@@ -41,16 +25,6 @@ export function createIoTool(dshSessionId: string) {
         },
       }
     }
-    return {
-      kind: 'inline-text',
-      text: r.content,
-      byte_length: enc(r.content),
-      provenance: {
-        context_layer: name === 'file_read' ? 'file_read' : 'transcript',
-        context_role: 'assistant',
-        context_property: 'tool-result',
-        ...(typeof filePath === 'string' && filePath.length > 0 ? { file_path: filePath } : {}),
-      },
-    }
+    return runCanonicalTool(kernel, dshSessionId, name, args)
   }
 }

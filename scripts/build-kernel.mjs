@@ -138,6 +138,26 @@ function resolveSpec(fullName, subpath) {
   }
   return null
 }
+// mp 没有 wasm 文件装载。动态 import 直接拒绝，让上游 span / content-scan 走自己的
+// unavailable 或 JS 回退。这里不提供 wasm 字节，也不是 polyfill。
+const wasmAbsent = {
+  name: 'wasm-absent',
+  setup(build) {
+    build.onResolve({ filter: /\.wasm$/ }, (args) => ({ path: args.path, namespace: 'wasm-absent' }))
+    build.onLoad({ filter: /.*/, namespace: 'wasm-absent' }, () => ({
+      contents: 'throw new Error("wasm-unavailable")\n',
+      loader: 'js',
+    }))
+    build.onResolve({ filter: /^(fs$|fs\/promises$|path$|os$|module$|child_process$)/ }, (args) => ({
+      path: args.path,
+      namespace: 'node-absent',
+    }))
+    build.onLoad({ filter: /.*/, namespace: 'node-absent' }, () => ({
+      contents: 'const deny = () => { throw new Error("node-builtin-unavailable") }\nexport default new Proxy({}, { get: () => deny })\nexport const readFile = deny\nexport const promises = new Proxy({}, { get: () => deny })\n',
+      loader: 'js',
+    }))
+  },
+}
 const haimang = {
   name: 'haimang-workspace',
   setup(build) {
@@ -172,7 +192,7 @@ async function buildOne(entryPoint, outfile, extraBanner = '') {
     metafile: true,
     write: false,
     logLevel: 'silent',
-    plugins: [haimang],
+    plugins: [wasmAbsent, haimang],
     external: ['node:*', 'cloudflare:*'],
     nodePaths: [SPIKE_NM],
     mainFields: ['module', 'main'],

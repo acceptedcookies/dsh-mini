@@ -28,6 +28,32 @@ export const KERNEL_EXPORTS = [
       'PendingToolCallSchema',
     ],
   },
+  // 不从包 index 星号面取：index 会带上 worker-entry 的 cloudflare:workers。
+  // 这些子路径仍由构建器按包名解析，不是把 spike adapter 拷进 services。
+  { spec: '@haimang/bash-core-worker/executor', names: ['CapabilityExecutor'] },
+  { spec: '@haimang/bash-core-worker/planner', names: ['planFromToolCall', 'planBashLine'] },
+  { spec: '@haimang/bash-core-worker/fake-bash/bridge', names: ['FakeBashBridge'] },
+  { spec: '@haimang/bash-core-worker/tool-contract/source', names: ['BASH_TOOL_CONTRACT_SOURCE'] },
+  { spec: '@haimang/bash-core-worker/registry', names: ['InMemoryCapabilityRegistry'] },
+  { spec: '@haimang/bash-core-worker/targets/local-ts', names: ['LocalTsTarget'] },
+  { spec: '@haimang/bash-core-worker/policy', names: ['CapabilityPolicyGate'] },
+  { spec: '@haimang/bash-core-worker/fake-bash/commands', names: ['registerMinimalCommands'] },
+  { spec: '@haimang/bash-core-worker/capabilities/filesystem', names: ['createFilesystemHandlers'] },
+  { spec: '@haimang/bash-core-worker/capabilities/search', names: ['createSearchHandlers'] },
+  { spec: '@haimang/bash-core-worker/capabilities/find', names: ['createFindHandlers'] },
+  { spec: '@haimang/bash-core-worker/capabilities/text-processing', names: ['createTextProcessingHandlers'] },
+  { spec: '@haimang/bash-core-worker/capabilities/util', names: ['createUtilHandlers'] },
+  { spec: '@haimang/bash-core-worker/capabilities/tee', names: ['createTeeHandlers'] },
+  { spec: '@haimang/bash-core-worker/capabilities/network', names: ['createNetworkHandlers'] },
+  { spec: '@haimang/bash-core-worker/capabilities/exec', names: ['createExecHandlers'] },
+  { spec: '@haimang/bash-core-worker/capabilities/vcs', names: ['createVcsHandlers'] },
+  { spec: '@haimang/bash-core-worker/capabilities/text-output', names: ['createTextOutputHandlers'] },
+  { spec: '@haimang/bash-core-worker/capabilities/time', names: ['createTimeHandlers'] },
+  { spec: '@haimang/bash-core-worker/capabilities/which', names: ['createWhichHandlers'] },
+  { spec: '@haimang/bash-core-worker/capabilities/stat', names: ['createStatHandlers'] },
+  { spec: '@haimang/bash-core-worker/capabilities/tree', names: ['createTreeHandlers'] },
+  { spec: '@haimang/bash-core-worker/tool-contract/intents', names: ['createToolIntentHandlers'] },
+  { spec: '@haimang/bash-core-worker/capabilities/pipeline', names: ['createPipelineHandlers'] },
 ]
 
 export function exportNames() {
