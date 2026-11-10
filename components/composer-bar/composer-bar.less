@@ -7,7 +7,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--dsw-space-12);
-  padding-top: 8px;
+  padding-top: var(--dsw-composer-bar-padding-top);
   border: 0;
   border-radius: var(--dsw-radius-panel);
   background: var(--dsw-surface-composer);
@@ -29,17 +29,17 @@
 }
 
 .composer-attachment-image {
-  width: 56px;
-  height: 56px;
+  width: var(--dsw-composer-bar-width);
+  height: var(--dsw-composer-bar-height);
   border-radius: var(--dsw-radius-sm);
 }
 
 .composer-attachment-remove {
   position: absolute;
-  top: -6px;
-  right: -6px;
-  width: 18px;
-  height: 18px;
+  top: var(--dsw-composer-bar-top);
+  right: var(--dsw-composer-bar-right);
+  width: var(--dsw-composer-bar-width-2);
+  height: var(--dsw-composer-bar-height-2);
   border-radius: var(--dsw-radius-circle);
   background: var(--dsw-alias-scrim-strong);
   color: var(--dsw-alias-label-on-dark);
@@ -50,8 +50,8 @@
 
 .composer-input {
   width: 100%;
-  min-height: 36px;
-  max-height: 240px;
+  min-height: var(--dsw-composer-bar-min-height);
+  max-height: var(--dsw-composer-bar-max-height);
   padding: var(--dsw-space-4) var(--dsw-space-8) 0 var(--dsw-space-14);
   color: var(--dsw-alias-label-primary);
   font-size: var(--dsw-text-body);
@@ -61,7 +61,7 @@
 }
 
 .composer-hero .composer-input {
-  min-height: 52px;
+  min-height: var(--dsw-composer-bar-min-height-2);
 }
 
 .composer-placeholder {
@@ -84,8 +84,8 @@
 }
 
 .composer-add {
-  width: 28px;
-  height: 28px;
+  width: var(--dsw-composer-bar-width-3);
+  height: var(--dsw-composer-bar-height-3);
   flex: none;
   display: flex;
   align-items: center;
@@ -107,8 +107,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--dsw-space-4);
-  max-width: 220px;
-  height: 28px;
+  max-width: var(--dsw-composer-bar-max-width);
+  height: var(--dsw-composer-bar-height-4);
   padding: 0 var(--dsw-space-4) 0 var(--dsw-space-8);
   border-radius: var(--dsw-radius-sm);
   color: var(--dsw-alias-label-secondary);
@@ -147,8 +147,8 @@
   display: flex;
   align-items: center;
   gap: var(--dsw-space-4);
-  max-width: 220px;
-  height: 28px;
+  max-width: var(--dsw-composer-bar-max-width-2);
+  height: var(--dsw-composer-bar-height-5);
   padding: 0 var(--dsw-space-4) 0 var(--dsw-space-8);
   border-radius: var(--dsw-radius-sm);
   color: var(--dsw-alias-label-secondary);
@@ -181,8 +181,8 @@
 
 .composer-send {
   flex: none;
-  width: 34px;
-  height: 34px;
+  width: var(--dsw-composer-bar-width-4);
+  height: var(--dsw-composer-bar-height-6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -198,8 +198,8 @@
 }
 
 .composer-spinner {
-  width: 14px;
-  height: 14px;
+  width: var(--dsw-composer-bar-width-5);
+  height: var(--dsw-composer-bar-height-7);
   border: 2px solid var(--dsw-alias-spinner-track);
   border-top-color: var(--dsw-alias-label-on-dark);
   border-radius: var(--dsw-radius-circle);

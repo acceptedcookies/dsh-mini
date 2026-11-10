@@ -6,6 +6,7 @@ import { vfsSyncMap } from '../../services/vfs/remote-sync'
 import { errorBus } from '../../services/error-report'
 import { formatRelative } from '../../utils/time'
 import type { VfsListEntry } from '../../services/vfs/vfs'
+import { engine } from '../../services/skin/engine'
 
 /** 文件管理器行模型（本地 vfs 与 nano 远端列表共用）。 */
 interface FileRow {
@@ -61,6 +62,8 @@ Component({
   },
 
   data: {
+    layout: '',
+    shellVars: '',
     navPath: '/',
     fileRows: [] as FileRow[],
     navErr: '',
@@ -89,7 +92,25 @@ Component({
     },
   },
 
+  lifetimes: {
+    attached() {
+      ;(this as unknown as { _unwatchSkin?: () => void })._unwatchSkin = engine.watchMode(() => {
+        this.syncShell()
+      })
+      this.syncShell()
+    },
+    detached() {
+      const unwatch = (this as unknown as { _unwatchSkin?: () => void })._unwatchSkin
+      if (typeof unwatch === 'function') unwatch()
+    },
+  },
   methods: {
+    syncShell() {
+      const shellVars = engine.componentVars('right-panel')
+      const layout = engine.componentLayout('right-panel')
+      if (shellVars === this.data.shellVars && layout === this.data.layout) return
+      this.setData({ shellVars, layout })
+    },
     select(event: WechatMiniprogram.CustomEvent<{ id?: string }>) {
       const id = String(event.detail?.id ?? '')
       if (id.length > 0) this.triggerEvent('select', { id })

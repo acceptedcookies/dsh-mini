@@ -71,12 +71,12 @@
 
 .assistant .assistant-ma {
   display: block;
-  margin-top: 20px;
+  margin-top: var(--dsw-chat-bubble-margin-top);
   margin-left: var(--dsw-space-6);
 }
 
 .thinking {
-  margin-top: 8px;
+  margin-top: var(--dsw-chat-bubble-margin-top-2);
   color: var(--dsw-alias-label-tertiary);
   font-size: var(--dsw-text-caption);
   line-height: var(--dsw-lh-18);
@@ -93,9 +93,9 @@
   display: flex;
   align-items: center;
   gap: var(--dsw-space-10);
-  width: 240px;
-  max-width: 100%;
-  min-height: 64px;
+  width: var(--dsw-chat-bubble-width);
+  max-width: var(--dsw-chat-bubble-max-width);
+  min-height: var(--dsw-chat-bubble-min-height);
   box-sizing: border-box;
   padding: var(--dsw-space-8) var(--dsw-space-12);
   border: 0.5px solid var(--dsw-alias-border-l2);
@@ -108,8 +108,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: var(--dsw-chat-bubble-width-2);
+  height: var(--dsw-chat-bubble-height);
   border-radius: var(--dsw-radius-sm);
   background: var(--dsw-alias-interactive-bg-hover);
   color: var(--dsw-alias-label-secondary);
@@ -149,8 +149,8 @@
 }
 
 .image {
-  width: 160px;
-  height: 160px;
+  width: var(--dsw-chat-bubble-width-3);
+  height: var(--dsw-chat-bubble-height-2);
   border-radius: var(--dsw-radius-lg);
 }
 
@@ -169,7 +169,7 @@
   display: flex;
   justify-content: space-between;
   gap: var(--dsw-space-12);
-  margin-bottom: 6px;
+  margin-bottom: var(--dsw-chat-bubble-margin-bottom);
 }
 
 .diff-path {
@@ -195,7 +195,7 @@
 
 .diff-line {
   display: block;
-  min-height: 18px;
+  min-height: var(--dsw-chat-bubble-min-height-2);
   padding: 0 var(--dsw-space-12);
   color: var(--dsw-alias-label-secondary);
   font-size: var(--dsw-text-caption);
@@ -232,9 +232,9 @@
 
 .turn-notice-dot {
   flex: none;
-  width: 10px;
-  height: 10px;
-  margin-top: 5px;
+  width: var(--dsw-chat-bubble-width-4);
+  height: var(--dsw-chat-bubble-height-3);
+  margin-top: var(--dsw-chat-bubble-margin-top-3);
   border-radius: var(--dsw-radius-circle);
 }
 
@@ -269,7 +269,7 @@
 }
 
 .notice {
-  max-width: 82%;
+  max-width: var(--dsw-chat-bubble-max-width-2);
   padding: var(--dsw-space-2) var(--dsw-space-8);
   border-radius: var(--dsw-radius-sm);
   font-size: var(--dsw-text-caption);

@@ -1,4 +1,5 @@
 import { errorBus } from '../../services/error-report'
+import { engine } from '../../services/skin/engine'
 
 Component({
   properties: {
@@ -8,6 +9,8 @@ Component({
   },
 
   data: {
+    layout: '',
+    shellVars: '',
     rating: '',
     diffLines: [] as Array<{ text: string; kind: string }>,
   },
@@ -37,7 +40,25 @@ Component({
     },
   },
 
+  lifetimes: {
+    attached() {
+      ;(this as unknown as { _unwatchSkin?: () => void })._unwatchSkin = engine.watchMode(() => {
+        this.syncShell()
+      })
+      this.syncShell()
+    },
+    detached() {
+      const unwatch = (this as unknown as { _unwatchSkin?: () => void })._unwatchSkin
+      if (typeof unwatch === 'function') unwatch()
+    },
+  },
   methods: {
+    syncShell() {
+      const shellVars = engine.componentVars('chat-bubble')
+      const layout = engine.componentLayout('chat-bubble')
+      if (shellVars === this.data.shellVars && layout === this.data.layout) return
+      this.setData({ shellVars, layout })
+    },
     onPreview(event: WechatMiniprogram.TouchEvent) {
       const url = String(event.currentTarget.dataset.url ?? '')
       if (url.length === 0) return

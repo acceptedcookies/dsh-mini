@@ -1,0 +1,36 @@
+{
+  "id": "ms02-w2",
+  "lane": "mini-skin",
+  "verdict": "PASS",
+  "reason": "composer-bar chat-bubble right-panel wired; node-checks 95/95",
+  "envClass": "host-node",
+  "grade": "H1",
+  "at": "2026-11-10T06:40:11.044Z",
+  "headSha": "9eb91aae53010004244d960eb100592961e11b18",
+  "dirtyWorktree": true,
+  "device": null,
+  "counts": {
+    "nodeChecks": "95/95"
+  },
+  "timing": null,
+  "plants": [
+    {
+      "id": "unknown-component-still-rejected",
+      "fired": true,
+      "restored": true
+    }
+  ],
+  "budget": null,
+  "remoteOps": [],
+  "detail": {
+    "argv": [
+      "node test/spike/mini-skin/node-checks.mjs",
+      "node scripts/token-audit.mjs",
+      "node scripts/skin-equiv-check.mjs --check --phase p6",
+      "node scripts/build-skin.mjs --check"
+    ],
+    "stdoutSha256": {
+      "nodeChecks": "08f444afc9254ace09c51fc5851c16b8dd01fa2f96fe5c2387df1580f3528454"
+    }
+  }
+}
