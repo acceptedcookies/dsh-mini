@@ -188,6 +188,7 @@ export function createIoLlm(deps: IoLlmDeps = {}): (context: AssembledContext) =
       yield { kind: 'error', message: outcome.reason ?? outcome.kind }
       return
     }
+    const toolCalls: Array<{ id: string; name: string; input: unknown }> = []
     for (const event of outcome.events ?? []) {
       if (event.kind === 'text' && typeof event.payload === 'string') {
         yield { kind: 'content', text: event.payload }
@@ -196,7 +197,7 @@ export function createIoLlm(deps: IoLlmDeps = {}): (context: AssembledContext) =
         if (typeof payload.id !== 'string' || typeof payload.name !== 'string' || typeof payload.arguments !== 'string') continue
         let input: unknown = payload.arguments
         try { input = JSON.parse(payload.arguments) } catch { /* 上游参数保持原文字 */ }
-        yield { kind: 'tool_call', call: { id: payload.id, name: payload.name, input } }
+        toolCalls.push({ id: payload.id, name: payload.name, input })
       } else if (event.kind === 'error') {
         yield { kind: 'error', message: JSON.stringify(event.payload) }
       }
@@ -211,6 +212,7 @@ export function createIoLlm(deps: IoLlmDeps = {}): (context: AssembledContext) =
         },
       }
     }
+    for (const call of toolCalls) yield { kind: 'tool_call', call }
     yield { kind: 'done' }
   }
 }
