@@ -144,9 +144,15 @@ const wasmAbsent = {
   name: 'wasm-absent',
   setup(build) {
     build.onResolve({ filter: /\.wasm$/ }, (args) => ({ path: args.path, namespace: 'wasm-absent' }))
-    build.onLoad({ filter: /.*/, namespace: 'wasm-absent' }, () => ({
-      contents: 'throw new Error("wasm-unavailable")\n',
+    build.onLoad({ filter: /.*/, namespace: 'wasm-absent' }, (args) => ({
+      contents: args.path === 'web-tree-sitter'
+        ? 'export class Parser { static init() { return Promise.reject(new Error("wasm-unavailable")) } setLanguage() {} }\nexport class Language { static load() { return Promise.reject(new Error("wasm-unavailable")) } }\n'
+        : 'throw new Error("wasm-unavailable")\n',
       loader: 'js',
+    }))
+    build.onResolve({ filter: /^web-tree-sitter$/ }, () => ({
+      path: 'web-tree-sitter',
+      namespace: 'wasm-absent',
     }))
     build.onResolve({ filter: /^(fs$|fs\/promises$|path$|os$|module$|child_process$)/ }, (args) => ({
       path: args.path,
@@ -189,6 +195,7 @@ async function buildOne(entryPoint, outfile, extraBanner = '') {
     platform: 'neutral',
     target: 'es2020',
     minify: true,
+    legalComments: 'none',
     metafile: true,
     write: false,
     logLevel: 'silent',

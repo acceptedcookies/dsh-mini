@@ -1,7 +1,7 @@
 {
   "kernelPin": "f72875054f65c2b1a4224192fd1fbe3b3ad6a3b0",
   "entry_hash": "d266137505a789693eef4d2b61a39bd9be39a1b3c499b9f0a169d2a5c0b030f3",
-  "bundle_sha256": "1a8472c90809e759966cc7a1d1857e61e45e10e7ce7dd440a67f4cbbcbb8c423",
+  "bundle_sha256": "f5a715506404caab8cf9c05cd2d20ba755b0c819cac6ca6bae842f34c4694a67",
   "exports": [
     "createInitialSessionState",
     "createKernelSnapshot",
@@ -86,7 +86,7 @@
     "MICRO_STALE_NUM",
     "PROTECTED_FRAGMENT_TAGS"
   ],
-  "bytes": 2046296,
+  "bytes": 1973505,
   "modules": [
     "context/nano-agent/packages/agent-execution/src/contracts/caller.ts",
     "context/nano-agent/packages/agent-execution/src/contracts/receiver.ts",
@@ -439,10 +439,7 @@
     "context/nano-agent/workers/context-core/src/budget/policy.ts",
     "context/nano-agent/workers/context-core/src/control-plane/token-meter.ts",
     "context/nano-agent/workers/context-core/src/microcompact/decide.ts",
-    "node-absent:fs/promises",
-    "node-absent:module",
     "subpkg/kernel/.entry.ts",
-    "test/spike/node_modules/web-tree-sitter/tree-sitter.js",
     "test/spike/node_modules/zod/index.js",
     "test/spike/node_modules/zod/v4/classic/checks.js",
     "test/spike/node_modules/zod/v4/classic/coerce.js",
@@ -541,6 +538,7 @@
     "wasm-absent:../../../packages/content-scan-kernel/artifacts/content-scan-kernel.wasm",
     "wasm-absent:tree-sitter-javascript/tree-sitter-javascript.wasm",
     "wasm-absent:tree-sitter-python/tree-sitter-python.wasm",
+    "wasm-absent:web-tree-sitter",
     "wasm-absent:web-tree-sitter/tree-sitter.wasm"
   ]
 }
