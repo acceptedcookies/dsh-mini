@@ -1,3 +1,4 @@
+import { engine } from '../../services/skin/engine'
 Component({
   properties: {
     visible: { type: Boolean, value: false },
@@ -6,6 +7,8 @@ Component({
   },
 
   data: {
+    layout: '',
+    shellVars: '',
     answered: false,
     answeredId: '',
   },
@@ -18,7 +21,25 @@ Component({
     },
   },
 
+  lifetimes: {
+    attached() {
+      ;(this as unknown as { _unwatchSkin?: () => void })._unwatchSkin = engine.watchMode(() => {
+        this.syncShell()
+      })
+      this.syncShell()
+    },
+    detached() {
+      const unwatch = (this as unknown as { _unwatchSkin?: () => void })._unwatchSkin
+      if (typeof unwatch === 'function') unwatch()
+    },
+  },
   methods: {
+    syncShell() {
+      const shellVars = engine.componentVars('approval-sheet')
+      const layout = engine.componentLayout('approval-sheet')
+      if (shellVars === this.data.shellVars && layout === this.data.layout) return
+      this.setData({ shellVars, layout })
+    },
     allow() {
       this.respond('allowed-once')
     },

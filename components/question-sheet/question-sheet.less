@@ -6,8 +6,8 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 760px;
-  max-height: 60vh;
+  max-width: var(--dsw-question-sheet-max-width);
+  max-height: var(--dsw-question-sheet-max-height);
   margin: 0 auto var(--dsw-space-8);
   overflow: hidden;
   border: 0.5px solid var(--dsw-alias-border-l2);
@@ -35,8 +35,8 @@
 
 .question-close {
   flex: none;
-  width: 28px;
-  height: 28px;
+  width: var(--dsw-question-sheet-width);
+  height: var(--dsw-question-sheet-height);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -59,7 +59,7 @@
   display: flex;
   align-items: flex-start;
   gap: var(--dsw-space-8);
-  min-height: 40px;
+  min-height: var(--dsw-question-sheet-min-height);
   padding: var(--dsw-space-8) var(--dsw-space-12) var(--dsw-space-8) var(--dsw-space-8);
   border: 0.5px solid transparent;
   border-radius: var(--dsw-radius-md);
@@ -77,9 +77,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  margin-top: 2px;
+  width: var(--dsw-question-sheet-width-2);
+  height: var(--dsw-question-sheet-height-2);
+  margin-top: var(--dsw-question-sheet-margin-top);
   border-radius: var(--dsw-radius-xs);
   background: var(--dsw-alias-interactive-bg-hover);
   color: var(--dsw-alias-label-secondary);
@@ -93,8 +93,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 14px;
-  height: 14px;
+  width: var(--dsw-question-sheet-width-3);
+  height: var(--dsw-question-sheet-height-3);
   margin: 5px 3px 0;
   border: 0.5px solid var(--dsw-alias-border-l4);
   border-radius: var(--dsw-radius-xs);
@@ -144,8 +144,8 @@
 .custom-input {
   flex: 1;
   min-width: 0;
-  min-height: 24px;
-  max-height: 96px;
+  min-height: var(--dsw-question-sheet-min-height-2);
+  max-height: var(--dsw-question-sheet-max-height-2);
   color: var(--dsw-alias-label-primary);
   font-size: var(--dsw-text-body);
   line-height: var(--dsw-lh-24);
@@ -173,8 +173,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: var(--dsw-question-sheet-width-4);
+  height: var(--dsw-question-sheet-height-4);
   border-radius: var(--dsw-radius-pill);
   color: var(--dsw-alias-label-tertiary);
 }
@@ -215,8 +215,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 64px;
-  height: 32px;
+  min-width: var(--dsw-question-sheet-min-width);
+  height: var(--dsw-question-sheet-height-5);
   padding: 0 var(--dsw-space-14);
   border-radius: var(--dsw-radius-md);
   font-size: var(--dsw-text-label);

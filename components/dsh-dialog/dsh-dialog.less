@@ -31,7 +31,7 @@
   flex-direction: column;
   gap: var(--dsw-space-20);
   width: min(380px, 100%);
-  max-height: 100%;
+  max-height: var(--dsw-dsh-dialog-max-height);
   padding: 0 0 var(--dsw-space-24);
   overflow: hidden;
   border-radius: var(--dsw-radius-panel);
@@ -100,7 +100,7 @@
 }
 
 .dialog-title .dsh-icon {
-  margin-top: 3px;
+  margin-top: var(--dsw-dsh-dialog-margin-top);
 }
 
 .dialog-close {
@@ -108,8 +108,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: var(--dsw-dsh-dialog-width);
+  height: var(--dsw-dsh-dialog-height);
   border-radius: var(--dsw-radius-sm);
   color: var(--dsw-alias-label-secondary);
 }
@@ -136,7 +136,7 @@
 
 .dialog-input {
   width: 100%;
-  height: 36px;
+  height: var(--dsw-dsh-dialog-height-2);
   padding: 0 var(--dsw-space-10);
   border: 0.5px solid var(--dsw-alias-border-l3);
   border-radius: var(--dsw-radius-md);
@@ -150,8 +150,8 @@
    预期承载长段落（业主 MN04：14px body → 12px caption）。 */
 .dialog-textarea {
   height: auto;
-  min-height: 72px;
-  max-height: 140px;
+  min-height: var(--dsw-dsh-dialog-min-height);
+  max-height: var(--dsw-dsh-dialog-max-height-2);
   padding: var(--dsw-space-8) var(--dsw-space-10);
   font-size: var(--dsw-text-caption);
   line-height: var(--dsw-lh-18);
@@ -173,8 +173,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 64px;
-  height: 36px;
+  min-width: var(--dsw-dsh-dialog-min-width);
+  height: var(--dsw-dsh-dialog-height-3);
   padding: 0 var(--dsw-space-14);
   border-radius: var(--dsw-radius-md);
   color: var(--dsw-alias-label-primary);

@@ -4,7 +4,7 @@
 
 .approval-card {
   width: 100%;
-  max-width: 760px;
+  max-width: var(--dsw-approval-sheet-max-width);
   margin: 0 auto var(--dsw-space-8);
   overflow: hidden;
   border: 1px solid var(--dsw-alias-state-warn-secondary);
@@ -25,8 +25,8 @@
 }
 
 .approval-dot {
-  width: 6px;
-  height: 6px;
+  width: var(--dsw-approval-sheet-width);
+  height: var(--dsw-approval-sheet-height);
   border-radius: var(--dsw-radius-circle);
   background: var(--dsw-alias-state-warn-primary);
 }
@@ -44,7 +44,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--dsw-space-6);
-  max-height: 336px;
+  max-height: var(--dsw-approval-sheet-max-height);
   overflow-y: auto;
   padding: var(--dsw-space-12) var(--dsw-space-16) 0;
 }
@@ -82,8 +82,8 @@
   align-items: center;
   justify-content: center;
   gap: var(--dsw-space-4);
-  min-width: 88px;
-  height: 32px;
+  min-width: var(--dsw-approval-sheet-min-width);
+  height: var(--dsw-approval-sheet-height-2);
   padding: 0 var(--dsw-space-14);
   border-radius: var(--dsw-radius-md);
   font-size: var(--dsw-text-label);

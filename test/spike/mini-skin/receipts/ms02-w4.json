@@ -1,0 +1,33 @@
+{
+  "id": "ms02-w4",
+  "lane": "mini-skin",
+  "verdict": "PASS",
+  "reason": "six overlays wired on their own card; keyboard padding style left on the layer",
+  "envClass": "host-node",
+  "grade": "H1",
+  "at": "2026-11-10T06:42:44.034Z",
+  "headSha": "17e93f9ebf30e77425ff8ff37e5aa59bb9f2dbc5",
+  "dirtyWorktree": true,
+  "device": null,
+  "counts": {
+    "nodeChecks": "95/95"
+  },
+  "timing": null,
+  "plants": [
+    {
+      "id": "unknown-var-rejected",
+      "fired": true,
+      "restored": true
+    }
+  ],
+  "budget": null,
+  "remoteOps": [],
+  "detail": {
+    "argv": [
+      "node test/spike/mini-skin/node-checks.mjs"
+    ],
+    "stdoutSha256": {
+      "nodeChecks": "08f444afc9254ace09c51fc5851c16b8dd01fa2f96fe5c2387df1580f3528454"
+    }
+  }
+}

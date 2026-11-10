@@ -8,7 +8,7 @@
   position: fixed;
   /* 与 dsh-toast（同锚点 top+12）错层 56px 避免双 toast 系统叠印（R1）。 */
   top: calc(var(--app-nav-height, 0px) + 68px);
-  left: 50%;
+  left: var(--dsw-error-center-left);
   transform: translateX(-50%);
   z-index: 1210;
   display: flex;
@@ -24,7 +24,7 @@
   display: flex;
   align-items: flex-start;
   gap: var(--dsw-space-10);
-  min-width: 220px;
+  min-width: var(--dsw-error-center-min-width);
   padding: var(--dsw-space-12) var(--dsw-space-14);
   border-radius: var(--dsw-radius-lg);
   background: var(--dsw-alias-toast-bg);
@@ -46,7 +46,7 @@
 
 .ec-toast-icon {
   flex: none;
-  margin-top: 1px;
+  margin-top: var(--dsw-error-center-margin-top);
 }
 
 .ec-toast-body {
@@ -103,8 +103,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: var(--dsw-error-center-width);
+  height: var(--dsw-error-center-height);
   border-radius: var(--dsw-radius-sm);
   color: var(--dsw-alias-label-secondary);
 }
@@ -145,7 +145,7 @@
   flex-direction: column;
   gap: var(--dsw-space-14);
   width: min(480px, 100%);
-  max-height: 100%;
+  max-height: var(--dsw-error-center-max-height);
   padding: 0 0 var(--dsw-space-20);
   overflow: hidden;
   border-radius: var(--dsw-radius-panel);
@@ -203,8 +203,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: var(--dsw-error-center-width-2);
+  height: var(--dsw-error-center-height-2);
   border-radius: var(--dsw-radius-sm);
   color: var(--dsw-alias-label-secondary);
 }
@@ -215,7 +215,7 @@
 
 .ec-modal-msg {
   flex: none;
-  max-height: 160px;
+  max-height: var(--dsw-error-center-max-height-2);
   /* scroll-view 宽显式钉满卡宽 + border-box——padding 参与盒内布局，
      文本右缘留出卡内槽距（同 MN04 溢出根因修复）。 */
   width: 100%;
@@ -243,7 +243,7 @@
   /* scroll-view 的 width:auto 不吃右 margin（真机实证盒子右出 24px）——
      显式宽度把盒子钉在卡内槽距里（MN04 time 溢出根因）。 */
   width: calc(100% - var(--dsw-panel-x) - var(--dsw-panel-x));
-  max-height: 240px;
+  max-height: var(--dsw-error-center-max-height-3);
   padding: var(--dsw-space-10) var(--dsw-space-12);
   border-radius: var(--dsw-radius-md);
   background: var(--dsw-alias-bg-layer-1);
@@ -259,7 +259,7 @@
 
 .ec-diag-k {
   flex: none;
-  width: 76px;
+  width: var(--dsw-error-center-width-3);
   color: var(--dsw-alias-label-tertiary);
   font-size: var(--dsw-text-caption);
   line-height: var(--dsw-lh-18);

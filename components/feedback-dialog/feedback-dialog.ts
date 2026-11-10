@@ -1,3 +1,4 @@
+import { engine } from '../../services/skin/engine'
 const EXIT_MS = 200
 
 const CATEGORIES = [
@@ -20,6 +21,8 @@ Component({
   },
 
   data: {
+    layout: '',
+    shellVars: '',
     categories: CATEGORIES,
     category: '',
     draft: '',
@@ -55,6 +58,10 @@ Component({
 
   lifetimes: {
     attached() {
+      ;(this as unknown as { _unwatchSkin?: () => void })._unwatchSkin = engine.watchMode(() => {
+        this.syncShell()
+      })
+      this.syncShell()
       const handler = (result: { height: number }) => {
         const kb = Math.max(0, Math.round(result.height))
         if (kb !== this.data.kb) this.setData({ kb })
@@ -63,6 +70,8 @@ Component({
       wx.onKeyboardHeightChange(handler)
     },
     detached() {
+      const unwatch = (this as unknown as { _unwatchSkin?: () => void })._unwatchSkin
+      if (typeof unwatch === 'function') unwatch()
       const timer = this.data.exitTimer as ReturnType<typeof setTimeout> | 0
       if (timer !== 0) clearTimeout(timer)
       const handler = this.data.kbHandler
@@ -74,6 +83,12 @@ Component({
   },
 
   methods: {
+    syncShell() {
+      const shellVars = engine.componentVars('feedback-dialog')
+      const layout = engine.componentLayout('feedback-dialog')
+      if (shellVars === this.data.shellVars && layout === this.data.layout) return
+      this.setData({ shellVars, layout })
+    },
     noop() {
       // Keeps taps inside the card from dismissing it.
     },

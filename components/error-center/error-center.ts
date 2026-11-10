@@ -1,4 +1,5 @@
 import { reportText, type ErrorReport, type ErrorSeverity } from '../../services/error-report'
+import { engine } from '../../services/skin/engine'
 
 /** severity → 自动关闭时长（悬浮 toast 语义：轻提醒短停，错误长停）。 */
 const DURATION: Record<ErrorSeverity, number> = {
@@ -33,6 +34,8 @@ Component({
   },
 
   data: {
+    layout: '',
+    shellVars: '',
     toastViews: [] as ToastView[],
     modalRows: [] as DiagRow[],
     modalDetail: '',
@@ -103,10 +106,18 @@ Component({
   },
 
   lifetimes: {
+    attached() {
+      ;(this as unknown as { _unwatchSkin?: () => void })._unwatchSkin = engine.watchMode(() => {
+        this.syncShell()
+      })
+      this.syncShell()
+    },
     created() {
       ;(this as unknown as { _timers: Map<string, ReturnType<typeof setTimeout>> })._timers = new Map()
     },
     detached() {
+      const unwatch = (this as unknown as { _unwatchSkin?: () => void })._unwatchSkin
+      if (typeof unwatch === 'function') unwatch()
       const timers = (this as unknown as { _timers?: Map<string, ReturnType<typeof setTimeout>> })._timers
       if (timers !== undefined) {
         for (const t of timers.values()) clearTimeout(t)
@@ -116,6 +127,12 @@ Component({
   },
 
   methods: {
+    syncShell() {
+      const shellVars = engine.componentVars('error-center')
+      const layout = engine.componentLayout('error-center')
+      if (shellVars === this.data.shellVars && layout === this.data.layout) return
+      this.setData({ shellVars, layout })
+    },
     noop() {},
 
     onDismissToast(event: WechatMiniprogram.TouchEvent) {

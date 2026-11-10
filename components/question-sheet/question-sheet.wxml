@@ -1,4 +1,4 @@
-<view wx:if="{{visible && request.id && current}}" class="question-card">
+<view wx:if="{{visible && request.id && current}}" class="question-card layout-{{layout}}" style="{{shellVars}}">
   <view class="question-head">
     <text class="question-title">{{current.text}}</text>
     <view class="question-close" data-anchor="question.close" bindtap="close">

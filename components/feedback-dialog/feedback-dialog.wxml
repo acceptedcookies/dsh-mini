@@ -1,6 +1,6 @@
 <view wx:if="{{render}}" class="feedback-layer {{closing ? 'feedback-closing' : ''}}" style="{{kb > 0 ? 'padding-bottom: calc(' + kb + 'px + 16px)' : ''}}" catchtouchmove="noop" data-anchor-exempt="gesture-shield">
   <view class="feedback-mask" data-anchor="feedback.mask" bindtap="cancel"></view>
-  <view class="feedback-card" data-anchor-exempt="gesture-shield" catchtap="noop">
+  <view class="feedback-card layout-{{layout}}" data-anchor-exempt="gesture-shield" catchtap="noop" style="{{shellVars}}">
     <view class="feedback-header">
       <text class="feedback-title">提交反馈</text>
       <view class="feedback-close" data-anchor="feedback.close" bindtap="cancel">

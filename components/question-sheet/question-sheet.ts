@@ -1,3 +1,4 @@
+import { engine } from '../../services/skin/engine'
 interface QuestionOptionView {
   id: string
   label: string
@@ -43,6 +44,8 @@ Component({
   },
 
   data: {
+    layout: '',
+    shellVars: '',
     view: [] as QuestionView[],
     index: 0,
     error: '',
@@ -58,7 +61,25 @@ Component({
     },
   },
 
+  lifetimes: {
+    attached() {
+      ;(this as unknown as { _unwatchSkin?: () => void })._unwatchSkin = engine.watchMode(() => {
+        this.syncShell()
+      })
+      this.syncShell()
+    },
+    detached() {
+      const unwatch = (this as unknown as { _unwatchSkin?: () => void })._unwatchSkin
+      if (typeof unwatch === 'function') unwatch()
+    },
+  },
   methods: {
+    syncShell() {
+      const shellVars = engine.componentVars('question-sheet')
+      const layout = engine.componentLayout('question-sheet')
+      if (shellVars === this.data.shellVars && layout === this.data.layout) return
+      this.setData({ shellVars, layout })
+    },
     build(request: { id?: string; questions?: QuestionSource[] } | null) {
       const questions = request?.questions
       if (questions === undefined) {

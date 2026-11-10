@@ -1,4 +1,4 @@
-<view wx:if="{{visible && request.id}}" class="approval-card">
+<view wx:if="{{visible && request.id}}" class="approval-card layout-{{layout}}" style="{{shellVars}}">
   <view class="approval-strip">
     <view class="approval-dot {{answered ? 'approval-dot-ongoing' : ''}}"></view>
     <text>等待审批</text>
