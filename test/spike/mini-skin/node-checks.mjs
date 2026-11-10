@@ -706,6 +706,7 @@ check('MS02-T02', () => {
 })
 check('MS02-T03', () => {
   const matrix = JSON.parse(readFileSync(resolve(ROOT, 'test/spike/mini-skin/component-matrix.json'), 'utf8'))
+  const ledger = JSON.parse(readFileSync(resolve(ROOT, 'test/spike/mini-skin/component-literal-ledger.json'), 'utf8'))
   const dirs = readdirSync(resolve(ROOT, 'components'), { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort()
   const keys = Object.keys(matrix.rows).sort()
   eq(JSON.stringify(keys), JSON.stringify(dirs), '矩阵键集合 != 目录名')
@@ -713,28 +714,61 @@ check('MS02-T03', () => {
   eq(matrix.rows['trajectory-view'].verdict, 'empty-invariant', 'trajectory-view')
   eq(matrix.rows['markdown-view'].verdict, 'empty-service', 'markdown-view')
   eq(matrix.rows['dsh-icon'].verdict, 'empty-asset', 'dsh-icon')
-  const frozen = new Set(['trajectory-view', 'markdown-view', 'dsh-icon'])
-  const empties = []
+  const bareSlice = {
+    'components/dsh-icon/dsh-icon.ts:42': '/assets/icons/',
+    'components/dsh-icon/dsh-icon.less:1': ':host {',
+    'components/markdown-view/markdown-view.ts:11': 'theme:',
+    'services/markdown.ts:27': 'rich-text',
+    'components/trajectory-view/trajectory-view.less:213': '.traj-span-context',
+    'components/trajectory-view/trajectory-view.less:220': 'opacity: 1',
+  }
+  const seenBare = new Set()
+  const seenReason = new Set()
+  const seenExclusion = new Set()
+  const scanned = new Map()
   for (const [name, row] of Object.entries(matrix.rows)) {
     assert(row.verdict.length > 0, `${name} verdict 空`)
-    const refs = [...row.verdictReason.matchAll(/@(\S+?):(\d+)/g)]
-    assert(refs.length > 0, `${name} verdictReason 无 file:line`)
-    for (const ref of refs) {
-      const abs = resolve(ROOT, ref[1])
-      assert(existsSync(abs), `${name} 证据文件不存在 ${ref[1]}`)
-      const srcLines = readFileSync(abs, 'utf8').split('\n')
-      const lineNo = Number(ref[2])
-      assert(lineNo >= 1 && lineNo <= srcLines.length, `${name} 行越界 ${ref[1]}:${lineNo}`)
-      assert((srcLines[lineNo - 1] ?? '').trim().length > 0, `${name} 证据行是空行 ${ref[1]}:${lineNo}`)
-    }
-    if (row.verdict === 'empty' && !frozen.has(name)) empties.push(row)
-  }
-  const seen = new Set()
-  for (const row of empties) {
+    assert(row.verdict !== 'empty', `${name} 不许用普通 empty`)
     const dumped = JSON.stringify(row.verdictReason)
-    assert(!seen.has(dumped), '非特例 empty 的 verdictReason deep-equal')
-    seen.add(dumped)
+    assert(!seenReason.has(dumped), `${name} verdictReason 与另一行 deep-equal`)
+    seenReason.add(dumped)
+    const valued = [...row.verdictReason.matchAll(/(--[a-z0-9-]+)=(\S+)\s+@(\S+?):(\d+)/g)]
+    const bare = [...row.verdictReason.matchAll(/@(\S+?):(\d+)/g)].filter((ref) => !valued.some((hit) => hit.index <= ref.index && ref.index < hit.index + hit[0].length))
+    assert(valued.length + bare.length > 0, `${name} verdictReason 无 file:line`)
+    for (const hit of valued) {
+      const token = hit[1]
+      const value = hit[2]
+      const file = hit[3]
+      const lineNo = Number(hit[4])
+      const abs = resolve(ROOT, file)
+      assert(existsSync(abs), `${name} 证据文件不存在 ${file}`)
+      const cited = ledger.declarations.find((d) => d.file === file && d.line === lineNo && d.value === value)
+      assert(cited !== undefined, `${name} 台账切片不等 ${file}:${lineNo} ${value}`)
+      if (!scanned.has(file)) scanned.set(file, scanLessDecls(abs, ROOT))
+      const current = scanned.get(file).find((d) => d.line === lineNo && d.prop === cited.prop)
+      assert(current !== undefined, `${name} 当前行不是声明 ${file}:${lineNo}`)
+      eq(current.value, `var(${token})`, `${name} 当前行不是该 token ${file}:${lineNo}`)
+    }
+    for (const ref of bare) {
+      const key = `${ref[1]}:${ref[2]}`
+      const slice = bareSlice[key]
+      assert(slice !== undefined, `${name} 裸 file:line 不在冻结切片表 ${key}`)
+      const line = readFileSync(resolve(ROOT, ref[1]), 'utf8').split('\n')[Number(ref[2]) - 1] ?? ''
+      assert(line.includes(slice), `${name} 裸证据不是切片 ${key}`)
+      seenBare.add(key)
+    }
+    const exclusion = /排除且仍留在 less 的子串:\s*(.*)$/.exec(row.verdictReason)
+    if (exclusion !== null) {
+      const items = exclusion[1].split('|').map((item) => item.trim()).filter((item) => item.length > 0)
+      assert(items.length > 0, `${name} 排除列表空`)
+      const less = readFileSync(resolve(ROOT, 'components', name, `${name}.less`), 'utf8')
+      for (const item of items) assert(less.includes(item), `${name} 排除项不是 less 子串: ${item}`)
+      const dumpedItems = JSON.stringify(items)
+      assert(!seenExclusion.has(dumpedItems), `${name} 排除列表与另一行 deep-equal`)
+      seenExclusion.add(dumpedItems)
+    }
   }
+  eq(seenBare.size, Object.keys(bareSlice).length, '冻结裸 file:line 没有全部被引用')
 })
 
 function runNode(args) {
@@ -890,6 +924,28 @@ check('MS02-T07', () => {
   } finally {
     writeFileSync(file, original)
   }
+  const dir = resolve(ROOT, 'components/ms02-probe')
+  mkdirSync(dir, { recursive: true })
+  try {
+    writeFileSync(resolve(dir, 'ms02-probe.contract.ts'), "export const CONTRACT = { contractVersion: '1.0.0', vars: { '--dsw-ms02-probe': { kind: 'length', units: ['px'], default: '9px' } } }\n")
+    const seg1 = runNode(['scripts/build-skin.mjs', '--check'])
+    const seg1Report = JSON.parse(seg1.stdout)
+    assert(seg1Report.crossCheck.errors.some((e) => e.includes('components.ms02-probe')), `段 1 未点名 components.ms02-probe: ${JSON.stringify(seg1Report.crossCheck.errors)}`)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+  const genFile = resolve(ROOT, 'skin.gen.wxss')
+  const genOriginal = readFileSync(genFile, 'utf8')
+  try {
+    const needle = '  --dsw-upd-height: 33.333vh;'
+    assert(genOriginal.includes(needle), 'gen 里没有 up-drawer height 默认')
+    writeFileSync(genFile, genOriginal.replace(needle, '  --dsw-upd-height: 99vh;'))
+    const seg3 = runNode(['scripts/build-skin.mjs', '--check'])
+    const seg3Report = JSON.parse(seg3.stdout)
+    assert(seg3Report.crossCheck.errors.some((e) => e.includes('--dsw-upd-height') && e.includes('gen 默认不等')), `段 3 未点名 gen 默认不等: ${JSON.stringify(seg3Report.crossCheck.errors)}`)
+  } finally {
+    writeFileSync(genFile, genOriginal)
+  }
 })
 
 const MS02_BASE = '3dfda292892cf047d84dc49b6def2dd2c34304a9'
@@ -966,6 +1022,11 @@ check('MS02-T08', () => {
     writeFileSync(resolve(dir, 'ms02-probe.contract.ts'), "export const CONTRACT = { contractVersion: '1.0.0' }\n")
     const extra = runNode(['scripts/build-skin.mjs', '--check'])
     eq(extra.status, 1, '多一份合同必须 exit 1')
+    assert(extra.stderr.includes('contract 三元等号失败'), `多文件 plant 不是三元失败: ${extra.stderr.slice(0, 400)}`)
+    const extraReport = JSON.parse(extra.stdout)
+    assert(extraReport.contractNames.disk.includes('ms02-probe'), `disk 未看到探针: ${JSON.stringify(extraReport.contractNames.disk)}`)
+    assert(!extraReport.contractNames.matrix.includes('ms02-probe'), 'matrix 被写成了 disk')
+    assert(!extraReport.contractNames.vocab.includes('ms02-probe'), 'vocab 被写成了 disk')
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
@@ -977,6 +1038,11 @@ check('MS02-T08', () => {
     writeFileSync(matrixPath, JSON.stringify(planted))
     const missing = runNode(['scripts/build-skin.mjs', '--check'])
     eq(missing.status, 1, '矩阵指向不存在的文件必须 exit 1')
+    assert(missing.stderr.includes('contract 三元等号失败'), `缺文件 plant 不是三元失败: ${missing.stderr.slice(0, 400)}`)
+    const missingReport = JSON.parse(missing.stdout)
+    assert(missingReport.contractNames.matrix.includes('ms02-missing'), 'matrix 未看到缺行')
+    assert(!missingReport.contractNames.disk.includes('ms02-missing'), 'disk 被写成了 matrix')
+    assert(!missingReport.contractNames.vocab.includes('ms02-missing'), 'vocab 被写成了 matrix')
   } finally {
     writeFileSync(matrixPath, original)
   }
@@ -1010,8 +1076,22 @@ check('MS02-T13', () => {
   }
   eq(fallbackCount, 14, '14 处 fallback')
   const byPos = new Map()
-  for (const row of Object.values(matrix.rows)) {
-    for (const lit of row.skinDomainLiterals) byPos.set(`${lit.file}:${lit.line}:${lit.prop}`, lit)
+  const baseLines = new Map()
+  for (const [name, row] of Object.entries(matrix.rows)) {
+    if (row.skinDomainLiterals.length === 0) continue
+    const contract = requireTs(resolve(ROOT, 'components', name, `${name}.contract.ts`)).CONTRACT
+    for (const lit of row.skinDomainLiterals) {
+      byPos.set(`${lit.file}:${lit.line}:${lit.prop}`, lit)
+      eq(contract.vars[lit.token]?.default, lit.value, `${lit.token} default != 矩阵`)
+      if (!baseLines.has(lit.file)) {
+        baseLines.set(lit.file, execFileSync('git', ['show', `${MS02_BASE}:${lit.file}`], { cwd: ROOT, encoding: 'utf8' }).split('\n'))
+      }
+      const line = baseLines.get(lit.file)[lit.line - 1] ?? ''
+      const prop = lit.prop.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const sliced = new RegExp(`^\\s*${prop}\\s*:\\s*(.*);\\s*$`).exec(line)
+      assert(sliced !== null, `BASE 不是单行声明 ${lit.file}:${lit.line} ${lit.prop}: ${line}`)
+      eq(sliced[1].trim(), lit.value, `BASE 切片 ${lit.file}:${lit.line}`)
+    }
   }
   const scanned = new Map()
   for (const decl of ledger.declarations) {
@@ -1041,11 +1121,26 @@ check('MS02-T14', () => {
     ts.forEachChild(node, visit)
   }
   visit(sf)
-  assert(attached !== null && attached.getText(sf).includes('.watchMode('), 'attached 没有订阅')
-  assert(detached !== null, '缺 detached')
-  const detachedText = detached.getText(sf)
-  assert(detachedText.includes('_unwatchSkin'), 'detached 没有退订')
-  assert(detachedText.indexOf('_unwatchSkin') < detachedText.indexOf('clearTimeout'), '退订必须先于清 timer')
+  assert(attached !== null && detached !== null, '缺 attached 或 detached')
+  function callsIn(node) {
+    const found = []
+    function walk(current) {
+      if (ts.isCallExpression(current)) found.push(current)
+      ts.forEachChild(current, walk)
+    }
+    walk(node)
+    return found
+  }
+  const attachedCalls = callsIn(attached)
+  assert(attachedCalls.some((call) => call.expression.getText(sf).includes('watchMode')), 'attached 没有 watchMode 调用')
+  const detachedCalls = callsIn(detached)
+  const unwatch = detachedCalls.find((call) => {
+    const callee = call.expression.getText(sf)
+    return callee === 'unwatch' || callee.includes('_unwatchSkin')
+  })
+  const timer = detachedCalls.find((call) => call.expression.getText(sf) === 'clearTimeout')
+  assert(unwatch !== undefined && timer !== undefined, 'detached 没有退订调用或 clearTimeout 调用')
+  assert(unwatch.getStart(sf) < timer.getStart(sf), '退订调用必须先于清 timer')
 })
 check('MS02-T21', () => {
   const files = [

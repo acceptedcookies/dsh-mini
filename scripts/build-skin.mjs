@@ -125,7 +125,9 @@ const contractNames = contracts.map((c) => c.name)
 if (new Set(contractNames).size !== contractNames.length) problems.push('contract name 重复')
 if (problems.length > 0) {
   console.error('FATAL: build-skin 契约断言失败：\n - ' + problems.join('\n - '))
-  process.exit(1)
+  // 写盘路径仍在生成前退出，避免把坏契约写进五产物。
+  // --check 不在 crossCheck 前退出：段 1/3 的点名必须出现在同一份 report 里。
+  if (!CHECK) process.exit(1)
 }
 
 // ── 产物 1：skin.gen.wxss ────────────────────────────────────────────────
@@ -426,5 +428,6 @@ if (versionProblems.length > 0) {
   console.error('FATAL: contractVersion 格式失配：\n - ' + versionProblems.join('\n - '))
   failed = true
 }
+if (problems.length > 0) failed = true
 console.log(JSON.stringify(report, null, 2))
 process.exit(failed ? 1 : 0)
