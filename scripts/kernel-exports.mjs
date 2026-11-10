@@ -98,17 +98,14 @@ export const KERNEL_EXPORTS = [
   {
     spec: '@haimang/agent-provider-executor/credentials',
     names: ['BINDING_ALIAS', 'resolveCredential'],
-    enabled: false,
   },
   {
     spec: '@haimang/agent-provider-executor/luna-responses-request',
     names: ['createLunaResponsesBindingBody'],
-    enabled: false,
   },
   {
     spec: '@haimang/agent-provider-executor/execution-budget-proof',
     names: ['verifyProviderExecutionBudgetProof', 'isVerifiedProviderExecutionBudget'],
-    enabled: false,
   },
   {
     spec: '@haimang/agent-core-worker/host/llm-bridge/runtime-mainline-llm/system-prompt',

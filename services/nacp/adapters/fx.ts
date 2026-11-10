@@ -40,7 +40,6 @@ export const toCanonical: ToCanonical = (input: unknown): CanonicalEvent => {
       severity: 'info',
       message: sessionUpdate,
       reason: 'absent',
-      absent_reason: 'absent',
     })
   }
   if (sessionUpdate === 'agent_message_chunk') {

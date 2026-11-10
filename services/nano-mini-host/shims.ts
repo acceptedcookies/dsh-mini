@@ -8,12 +8,14 @@
  */
 
 import { sha256Hex } from '../vfs/sha256'
+import { randomUUID } from '../crypto/random'
 import { TextEncoderImpl, TextDecoderImpl } from '../fx/utf8'
 
 declare const globalThis: {
   wx?: { base64ToArrayBuffer(b64: string): ArrayBuffer; arrayBufferToBase64(buf: ArrayBuffer): string }
   crypto?: {
     getRandomValues?: (buf: Uint8Array) => Uint8Array
+    randomUUID?: () => string
     subtle?: { digest(algo: string, data: ArrayBuffer): Promise<ArrayBuffer> }
   }
   atob?: (s: string) => string
@@ -47,9 +49,13 @@ export function installKernelShims(): boolean {
       },
     }
     // 只补 digest。已有 getRandomValues 必须留下；禁止换成只有 digest 的对象。
-    globalThis.crypto = prev?.getRandomValues !== undefined
+    const next = prev?.getRandomValues !== undefined
       ? { getRandomValues: prev.getRandomValues.bind(prev), subtle }
       : { ...(prev ?? {}), subtle }
+    if (typeof next.randomUUID !== 'function') next.randomUUID = () => randomUUID()
+    globalThis.crypto = next
+  } else if (typeof globalThis.crypto.randomUUID !== 'function') {
+    globalThis.crypto.randomUUID = () => randomUUID()
   }
 
   if (globalThis.atob === undefined) {

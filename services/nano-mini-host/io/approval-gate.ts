@@ -9,7 +9,7 @@ export interface ApprovalAsk {
   reason?: string
 }
 
-type Waiter = { resolve: (verdict: 'allow' | 'deny') => void }
+type Waiter = { sessionId: string; resolve: (verdict: 'allow' | 'deny') => void }
 
 const pending = new Map<string, Waiter>()
 let emitApproval: ((ask: ApprovalAsk) => void) | undefined
@@ -17,6 +17,15 @@ let seq = 0
 
 export function setApprovalEmitter(emitter: ((ask: ApprovalAsk) => void) | undefined): void {
   emitApproval = emitter
+}
+
+export function cancelHostApprovals(sessionId?: string): void {
+  for (const [id, waiter] of pending) {
+    if (sessionId === undefined || waiter.sessionId === sessionId) {
+      pending.delete(id)
+      waiter.resolve('deny')
+    }
+  }
 }
 
 export function settleHostApproval(approvalId: string, verdict: 'allow' | 'deny'): boolean {
@@ -57,7 +66,7 @@ export function askHostApproval(input: { sessionId: string; toolName: string; re
   const id = `approval-${Date.now().toString(16)}-${seq += 1}`
   if (emitApproval === undefined) return Promise.resolve('deny')
   return new Promise((resolve) => {
-    pending.set(id, { resolve })
+    pending.set(id, { sessionId: input.sessionId, resolve })
     emitApproval?.({ id, sessionId: input.sessionId, toolName: input.toolName, reason: input.reason })
   })
 }

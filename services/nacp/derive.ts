@@ -33,7 +33,7 @@ function notice(ev: CanonicalEvent, text: string, level: 'info' | 'warn' | 'erro
 }
 
 function absentNotice(kind: StreamEventKind, ev: CanonicalEvent): Derived {
-  return notice({ ...ev, kind: 'system.notify', absent_reason: 'absent', reason: 'absent' }, `absent: ${kind}`)
+  return notice({ ...ev, kind: 'system.notify', reason: 'absent' }, `absent: ${kind}`)
 }
 
 export function derive(input: CanonicalEvent): Derived {
@@ -107,7 +107,7 @@ export function derive(input: CanonicalEvent): Derived {
     case 'system.notify':
       return notice(
         input,
-        input.absent_reason === 'absent' ? `absent: ${input.message ?? input.reason ?? ''}` : (input.message ?? ''),
+        input.reason === 'absent' ? `absent: ${input.message ?? ''}` : (input.message ?? ''),
         input.severity === 'error' ? 'error' : input.severity === 'warning' ? 'warn' : 'info',
       )
     case 'system.error':

@@ -37,6 +37,5 @@ export function asNotifyIfAbsent(event: CanonicalEvent): CanonicalEvent {
     severity: 'info',
     message: kind,
     reason: 'absent',
-    absent_reason: 'absent',
   }
 }

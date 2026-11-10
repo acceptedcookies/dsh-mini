@@ -5,6 +5,7 @@ import { callContainer, isContainerUrl, parseContainerUrl } from './container'
 import { loadDevConfig } from './dev'
 import { ensureSubpackageForPath, navEnsureSubpackage } from '../subpackage'
 import { getRandomValues as readRandomBytes } from '../crypto/random'
+import { egressDecision } from '../config'
 
 export interface FetchLikeResult {
   status: number
@@ -40,6 +41,8 @@ export function wxFetch(url: string, init: { method?: string; headers?: Record<s
   if (isContainerUrl(url)) {
     return containerFetch(url, init)
   }
+  const gate = egressDecision(url)
+  if (!gate.ok) return Promise.reject(Object.assign(new Error(gate.reason), { code: gate.code }))
   return new Promise((resolve, reject) => {
     const queue: Uint8Array[] = []
     let ended = false

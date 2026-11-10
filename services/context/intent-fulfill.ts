@@ -32,7 +32,11 @@ export async function fulfillIntent(text: string, sessionId = ''): Promise<strin
   } catch {
     return text
   }
-  if (parsed.schema_version !== 'gtz7i.bash-admitted-intent.v1') return text
+  const schema = parsed.schema_version
+  if (schema !== 'gtz7i.bash-admitted-intent.v1' && schema !== 'gtz7i.bash-sync-read.v1') {
+    if (text.includes('gtz7i.bash-admitted-intent.v1') || text.includes('gtz7i.bash-sync-read.v1')) return 'admitted intent'
+    return text
+  }
   const tool = typeof parsed.tool_id === 'string' ? parsed.tool_id : ''
   const input = parsed.input
   if (tool === 'memory') notes.memory.push(JSON.stringify(input ?? {}))

@@ -5,7 +5,8 @@
 
 import { vfs } from '../../vfs/vfs'
 import { VfsError } from '../../vfs/paths'
-import { decide } from '../../permissions'
+import { decide, permissionOf } from '../../permissions'
+import { storage } from '../../storage'
 import { egressDecision } from '../../config'
 import { randomUUID } from '../../crypto/random'
 import { fulfillIntent } from '../../context/intent-fulfill'
@@ -224,7 +225,7 @@ export function bindBashSession(kernel: BashKernel, sessionId: string): SessionE
             effect_class?: string
             approval_policy?: { mode?: 'allow' | 'ask' | 'deny' }
           } | undefined
-          const verdict = decide('workspace-write', {
+          const verdict = decide(permissionOf(storage.getPermission()).id, {
             name: ctx.plan.capabilityName,
             effect: row?.effect_class,
             approval: row?.approval_policy?.mode,
@@ -249,7 +250,7 @@ export async function runCanonicalTool(kernel: BashKernel, sessionId: string, na
   try {
     const bound = bindBashSession(kernel, sessionId)
     const plan = kernel.planFromToolCall(name, args ?? {}, bound.registry)
-    if (plan === null || plan === undefined) return errorResult('tool-not-registered', name)
+    if (plan === null || plan === undefined) return errorResult('tool-call-failed', name)
     const out = await bound.executor.execute(plan, {
       workspace: workspaceFor(sessionId),
       sessionUuid: sessionId,

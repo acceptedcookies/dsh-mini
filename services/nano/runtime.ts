@@ -10,6 +10,7 @@ import type {
 } from '../../types/protocol'
 import { randomId } from '../../utils/uuid'
 import { projectReceipt, toCanonical } from '../nacp/adapters/remote'
+import { derive } from '../nacp/derive'
 import {
   cancelTurn,
   clearAuth,
@@ -448,6 +449,7 @@ export class NanoRuntime {
   }
 
   private ignoredTransportFrames = 0
+  private readonly remoteReceipts = new Map<string, Record<string, unknown>>()
 
   private handleFrame(id: string, frame: NanoFrame): void {
     if (frame.kind === 'session.heartbeat' || frame.kind === 'session.pong') {
@@ -481,7 +483,7 @@ export class NanoRuntime {
 
   /** 业务帧先进 adapter。未知 kind 可见为 system.notify，不吞掉。不写 episodes。 */
   private projectRemote(id: string, payload: Record<string, unknown>): void {
-    projectReceipt(payload)
+    this.remoteReceipts.set(id, projectReceipt(payload))
     try {
       const event = toCanonical({ ...payload, session_uuid: id })
       this.handleStreamEvent(id, event as unknown as Record<string, unknown>)
@@ -550,6 +552,25 @@ export class NanoRuntime {
       const running = phase === 'turn_running' || phase === 'compact_running'
       state.summary.status = running ? 'running' : 'idle'
       this.emit({ type: 'status', sessionId: id, state: state.summary.status })
+      return
+    }
+    try {
+      const derived = derive({ ...payload, kind: kind as 'tool.call', session_uuid: id })
+      if (derived.surface === 'chat-item') {
+        this.append(state, { ...derived.item, id: derived.item.id || randomId('remote'), seq: this.nextSeq(state) })
+      } else if (derived.event.type === 'status' || derived.event.type === 'assistant.delta' || derived.event.type === 'error') {
+        this.emit(derived.event.type === 'status' || derived.event.type === 'assistant.delta'
+          ? { ...derived.event, sessionId: id }
+          : derived.event)
+      }
+    } catch {
+      this.append(state, {
+        kind: 'notice',
+        id: randomId('notice'),
+        seq: this.nextSeq(state),
+        level: 'info',
+        text: kind || 'unknown',
+      })
     }
   }
 

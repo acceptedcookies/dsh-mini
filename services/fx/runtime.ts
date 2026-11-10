@@ -9,7 +9,7 @@ import { guessMime } from '../vfs/api'
 import { loadKernel } from '../nano-mini-host/kernel-loader'
 import { canonicalAcpTools, isBashKernel, runCanonicalTool } from '../nano-mini-host/io/bash-exec'
 import { toCanonical as fxToCanonical } from '../nacp/adapters/fx'
-import { settleHostApproval } from '../nano-mini-host/io/approval-gate'
+import { askHostApproval, cancelHostApprovals, setApprovalEmitter, settleHostApproval } from '../nano-mini-host/io/approval-gate'
 import { derive } from '../nacp/derive'
 import type { FxRuntime as WasmRuntime, HostToolResult } from './fx-host'
 import { createFxRuntime } from './fx-host'
@@ -98,6 +98,18 @@ export class FxLocalRuntime {
   private activeDshId: string | undefined
 
   constructor() {
+    setApprovalEmitter((ask) => {
+      this.emit({
+        type: 'approval.request',
+        approval: {
+          id: ask.id,
+          sessionId: ask.sessionId,
+          toolName: ask.toolName,
+          reason: ask.reason,
+          createdAt: Date.now(),
+        },
+      })
+    })
     const saved = storage.getSessions<StoredSession>()
     if (saved !== undefined) {
       for (const s of saved) {
@@ -260,6 +272,7 @@ export class FxLocalRuntime {
 
   /** 未决 permission 以 null 收+approval.cancel 同步 UI 卡；id 缺席=全会话（审查九轮 D9a）。 */
   private resolveSessionApprovals(id?: string): void {
+    cancelHostApprovals(id)
     for (const p of this.pendingPermissions.values()) {
       if (id === undefined || p.sessionId === id) {
         p.resolve(null)
@@ -641,26 +654,18 @@ export class FxLocalRuntime {
     }
   }
 
-  private onPermission(params: unknown): Promise<string | null> {
+  private async onPermission(params: unknown): Promise<string | null> {
     const p = params as { sessionId?: string; toolCall?: { title?: string }; options?: Array<{ optionId: string; kind?: string; name?: string }> }
     const acpId = typeof p.sessionId === 'string' ? p.sessionId : ''
     const dshId = this.findDshId(acpId)
     if (dshId === undefined) return Promise.resolve(null)
     const allow = (p.options ?? []).find((o) => o.kind === 'allow_once' || o.kind === 'allow_always')
-    const approvalId = randomId('approval')
-    return new Promise<string | null>((resolve) => {
-      this.pendingPermissions.set(approvalId, { approvalId, sessionId: dshId, allowOptionId: allow?.optionId ?? null, resolve })
-      this.emit({
-        type: 'approval.request',
-        approval: {
-          id: approvalId,
-          sessionId: dshId,
-          toolName: p.toolCall?.title ?? 'tool',
-          reason: 'fx runtime 请求执行许可',
-          createdAt: Date.now(),
-        },
-      })
+    const verdict = await askHostApproval({
+      sessionId: dshId,
+      toolName: p.toolCall?.title ?? 'tool',
+      reason: 'fx runtime 请求执行许可',
     })
+    return verdict === 'allow' ? (allow?.optionId ?? null) : null
   }
 
   private findDshId(acpId: string): string | undefined {

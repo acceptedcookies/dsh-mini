@@ -15,6 +15,7 @@ import { isContainerUrl, callContainer, parseContainerUrl } from '../../fx/conta
 import { storage } from '../../storage'
 import type { LlmChunk } from '../types'
 import { loadKernel } from '../kernel-loader'
+import { egressDecision } from '../../config'
 import type { AssembledContext } from '../../context/assemble'
 
 async function wxRequestJson(url: string, headers: Record<string, string>, data: unknown): Promise<{ status: number; body: unknown }> {
@@ -32,6 +33,8 @@ async function wxRequestJson(url: string, headers: Record<string, string>, data:
       url = pub + parseContainerUrl(url).path
     }
   }
+  const gate = egressDecision(url)
+  if (!gate.ok) return Promise.reject(Object.assign(new Error(gate.reason), { code: gate.code }))
   return new Promise((resolve, reject) => {
     wx.request({
       url,

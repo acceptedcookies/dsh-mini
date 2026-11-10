@@ -223,7 +223,8 @@ async function runCompaction(
       { role: 'system', content: `[compaction summary · episode ${closedUuid ?? 'genesis'}]\n${summaryText}` },
       ...tail,
     ]
-    const tokensFreed = Math.max(0, tokensBefore - tokensAfter)
+    const tokensFreed = tokensBefore - tokensAfter
+    if (tokensFreed <= 0) return null
     ep = await openEpisode(ctx, sessionId, {
       episode_uuid: evUuid(),
       trigger: 'auto',

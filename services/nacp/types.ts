@@ -105,8 +105,6 @@ export interface CanonicalEvent {
   fallback_reason?: string
   trigger?: 'auto' | 'manual' | 'manual_async_control'
   trigger_kind?: string
-  /** 物化备注。fork 三 kind 固定为 absent；不是新的 error 枚举。 */
-  absent_reason?: 'absent'
 }
 
 export const CANONICAL_KEYS = [
@@ -122,7 +120,7 @@ export const CANONICAL_KEYS = [
   'child_conversation_uuid', 'forked_at', 'cloned_message_count', 'job_uuid',
   'from_message_uuid', 'mutation_kind', 'superseded_count', 'replacement_message_uuid',
   'requested_model_id', 'fallback_model_id', 'fallback_reason', 'trigger',
-  'trigger_kind', 'absent_reason',
+  'trigger_kind',
 ] as const
 
 export type ToCanonical = (input: unknown) => CanonicalEvent
