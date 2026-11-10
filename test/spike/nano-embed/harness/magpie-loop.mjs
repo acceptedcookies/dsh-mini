@@ -81,6 +81,17 @@ try {
       check('turn2:reply', String(last?.text ?? '').includes('gsth-ok'), String(last?.text ?? ''))
     }
   }
+
+  if (withTool) {
+    const beforePanel = await page.data()
+    if (beforePanel?.rightOpen === true) await page.callMethod('refreshRightPanel').catch(() => null)
+    else await page.callMethod('toggleRightPanel').catch(() => null)
+    await sleep(900)
+    const panel = await page.data()
+    const files = panel?.rightFiles ?? []
+    check('vfs:panel-open', panel?.rightOpen === true, JSON.stringify({ rightOpen: panel?.rightOpen, tab: panel?.rightTab }))
+    check('vfs:file-visible', files.some((f) => String(f.path) === toolPath), JSON.stringify(files.filter((f) => String(f.path).includes('gsth')).slice(0, 5)))
+  }
 } catch (e) {
   check('run:error', false, e instanceof Error ? e.message : String(e))
 } finally {
