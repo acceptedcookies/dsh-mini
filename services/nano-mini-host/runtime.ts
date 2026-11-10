@@ -19,7 +19,8 @@ import { markdownToHtml, plainText } from '../markdown'
 import { reportSilent } from '../error-report'
 import { storage } from '../storage'
 import { randomId } from '../../utils/uuid'
-import { setApprovalEmitter, settleHostApproval } from './io/approval-gate'
+import { askHostQuestion, setApprovalEmitter, setQuestionEmitter, settleHostApproval, settleHostQuestion } from './io/approval-gate'
+import { setArtifactPublisher, setAskUser } from '../context/intent-fulfill'
 import { ioStateFor, ensureDurableTicket, vfsRemoteFor } from '../state/provider'
 import { encodeUtf8 } from '../fx/utf8'
 import { pendingEngine, routeDefaultEngine } from '../session-engine'
@@ -77,6 +78,17 @@ export class KernelMiniRuntime {
   private readonly running = new Set<string>()
 
   constructor() {
+    setAskUser((ask) => askHostQuestion(ask))
+    setQuestionEmitter((ask) => {
+      this.emit({
+        type: 'question.ask',
+        question: {
+          id: ask.id,
+          sessionId: ask.sessionId,
+          questions: [{ id: ask.id, text: ask.text, options: [], custom: true }],
+        },
+      })
+    })
     setApprovalEmitter((ask) => {
       this.emit({
         type: 'approval.request',
@@ -318,7 +330,11 @@ export class KernelMiniRuntime {
   answerApproval(approvalId: string, outcome: ApprovalOutcome): void {
     settleHostApproval(approvalId, outcome === 'allowed-once' ? 'allow' : 'deny')
   }
-  answerQuestion(_questionId: string, _answers: QuestionAnswer[]): void { /* 同上 */ }
+  answerQuestion(questionId: string, answers: QuestionAnswer[]): void {
+    const answer = answers.find((item) => item.id === questionId) ?? answers[0]
+    const text = answer?.custom ?? answer?.selected?.[0] ?? null
+    settleHostQuestion(questionId, text === undefined || text.length === 0 ? null : text)
+  }
 
   /** kernel pump 驱动一轮 turn；io 回调内投影 UI 事件。 */
   private async drive(sessionId: string, input: unknown): Promise<void> {
@@ -361,15 +377,19 @@ export class KernelMiniRuntime {
       // compaction 账行挂账面（T-O-12）：vfsRemoteFor 缺位→null，pump 降级内嵌。
       artifacts: {
         async publishJson(obj) {
-          const r = vfsRemoteFor()
-          if (r === null) return null
-          try {
-            const res = await r.publishArtifact(encodeUtf8(JSON.stringify(obj)).buffer as ArrayBuffer, 'application/json')
-            return { sha256: res.sha256 }
-          } catch (e) {
-            reportSilent(e, { op: 'artifact-publish', lane: 'background', sessionId })
-            return null
+          const publish = async (body: unknown) => {
+            const r = vfsRemoteFor()
+            if (r === null) return null
+            try {
+              const res = await r.publishArtifact(encodeUtf8(JSON.stringify(body)).buffer as ArrayBuffer, 'application/json')
+              return { sha256: res.sha256 }
+            } catch (e) {
+              reportSilent(e, { op: 'artifact-publish', lane: 'background', sessionId })
+              return null
+            }
           }
+          setArtifactPublisher(publish)
+          return publish(obj)
         },
       },
       llm: (context) => {

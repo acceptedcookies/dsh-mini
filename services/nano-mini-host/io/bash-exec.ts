@@ -256,7 +256,7 @@ export async function runCanonicalTool(kernel: BashKernel, sessionId: string, na
       workspaceUuid: sessionId,
       networkPolicyMode: 'restricted',
     })
-    const visible = typeof out.result.text === 'string' ? fulfillIntent(out.result.text) : out.result.text
+    const visible = typeof out.result.text === 'string' ? await fulfillIntent(out.result.text, sessionId) : out.result.text
     if (visible === out.result.text) return out.result
     return { ...out.result, text: visible, message: visible }
   } catch (e) {

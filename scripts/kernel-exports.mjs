@@ -74,7 +74,41 @@ export const KERNEL_EXPORTS = [
   },
   {
     spec: '@haimang/agent-provider-executor/wire-seams',
-    names: ['dispatchSingleWire', 'WIRE_KINDS'],
+    names: ['dispatchSingleWire', 'WIRE_KINDS', 'wireKindFromPin'],
+  },
+  {
+    spec: '@haimang/agent-provider-executor/execute-provider-attempt',
+    names: [
+      'ADAPTER_RETRY', 'EXECUTOR_VERSION', 'PRODUCTION_ACTIVATION', 'SECOND_EXECUTOR', 'WIRE_CAP',
+      'deriveSelectedPinDigest', 'executeProviderAttemptV1', 'inspectExecutorSource',
+    ],
+  },
+  {
+    spec: '@haimang/agent-provider-executor/result-body',
+    names: ['collectKnownResult', 'honestOverflow', 'verifyKnownObservation'],
+  },
+  {
+    spec: '@haimang/agent-provider-executor/responses-request',
+    names: ['renderInputImagePart', 'responsesError', 'responsesPrefix', 'DEEPSEEK_RESPONSES_IMAGE_URL_MAX_CHARS'],
+  },
+  {
+    spec: '@haimang/agent-provider-executor/tool-args',
+    names: ['normalizeToolCallArguments'],
+  },
+  {
+    spec: '@haimang/agent-provider-executor/credentials',
+    names: ['BINDING_ALIAS', 'resolveCredential'],
+    enabled: false,
+  },
+  {
+    spec: '@haimang/agent-provider-executor/luna-responses-request',
+    names: ['createLunaResponsesBindingBody'],
+    enabled: false,
+  },
+  {
+    spec: '@haimang/agent-provider-executor/execution-budget-proof',
+    names: ['verifyProviderExecutionBudgetProof', 'isVerifiedProviderExecutionBudget'],
+    enabled: false,
   },
   {
     spec: '@haimang/agent-core-worker/host/llm-bridge/runtime-mainline-llm/system-prompt',

@@ -27,6 +27,32 @@ export function settleHostApproval(approvalId: string, verdict: 'allow' | 'deny'
   return true
 }
 
+type QuestionWaiter = { resolve: (answer: string | null) => void }
+const questions = new Map<string, QuestionWaiter>()
+let emitQuestion: ((ask: { id: string; sessionId: string; text: string }) => void) | undefined
+
+export function setQuestionEmitter(emitter: ((ask: { id: string; sessionId: string; text: string }) => void) | undefined): void {
+  emitQuestion = emitter
+}
+
+export function settleHostQuestion(questionId: string, answer: string | null): boolean {
+  const waiter = questions.get(questionId)
+  if (waiter === undefined) return false
+  questions.delete(questionId)
+  waiter.resolve(answer)
+  return true
+}
+
+/** 没有提问 UI 时取消，不挂死。 */
+export function askHostQuestion(input: { sessionId: string; text: string }): Promise<string | null> {
+  if (emitQuestion === undefined) return Promise.resolve(null)
+  const id = `question-${Date.now().toString(16)}-${seq += 1}`
+  return new Promise((resolve) => {
+    questions.set(id, { resolve })
+    emitQuestion?.({ id, sessionId: input.sessionId, text: input.text })
+  })
+}
+
 export function askHostApproval(input: { sessionId: string; toolName: string; reason?: string }): Promise<'allow' | 'deny'> {
   const id = `approval-${Date.now().toString(16)}-${seq += 1}`
   if (emitApproval === undefined) return Promise.resolve('deny')
