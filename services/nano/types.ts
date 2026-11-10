@@ -96,7 +96,15 @@ export interface NanoFrame {
   seq?: number
   name?: string
   payload?: Record<string, unknown>
-  [key: string]: unknown
+  confirmation_uuid?: string
+  confirmation_kind?: string
+  status?: string
+  request_uuid?: string
+  session_uuid?: string
+  cursor?: string
+  resume_cursor?: string
+  last_event_seq?: number
+  stream_uuid?: string
 }
 
 export interface NanoConfirmationFrame {

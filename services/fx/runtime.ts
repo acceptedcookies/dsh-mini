@@ -8,6 +8,8 @@ import { createAcpClient } from './acp'
 import { guessMime } from '../vfs/api'
 import { loadKernel } from '../nano-mini-host/kernel-loader'
 import { canonicalAcpTools, isBashKernel, runCanonicalTool } from '../nano-mini-host/io/bash-exec'
+import { toCanonical as fxToCanonical } from '../nacp/adapters/fx'
+import { derive } from '../nacp/derive'
 import type { FxRuntime as WasmRuntime, HostToolResult } from './fx-host'
 import { createFxRuntime } from './fx-host'
 import { createWxEnv } from './env'
@@ -606,63 +608,33 @@ export class FxLocalRuntime {
     const dshId = this.findDshId(acpId)
     if (dshId === undefined) return
     const turn = this.turns.get(acpId)
-    const kind = update.sessionUpdate
-    if (kind === 'agent_message_chunk') {
-      const text = (update.content as { text?: string } | undefined)?.text
-      if (typeof text !== 'string' || text.length === 0) return
+    let canonical
+    try {
+      canonical = fxToCanonical(update)
+    } catch (error) {
+      this.emit({ type: 'error', code: 'fx.update', message: error instanceof Error ? error.message : String(error), retryable: false })
+      return
+    }
+    const derived = derive({ ...canonical, session_uuid: dshId })
+    if (derived.surface === 'local-event' && derived.event.type === 'assistant.delta') {
+      const text = derived.event.text
+      if (text.length === 0) return
       const index = turn ? turn.deltaIndex++ : 0
       if (turn) turn.text += text
       this.emit({ type: 'assistant.delta', sessionId: dshId, attemptId: turn?.attemptId ?? 'unknown', index, text })
       return
     }
-    if (kind === 'agent_thought_chunk' && turn) {
-      const text = (update.content as { text?: string } | undefined)?.text
-      if (typeof text === 'string') turn.thinking += text
+    if (derived.surface === 'chat-item' && derived.item.kind === 'notice' && turn && update.sessionUpdate === 'agent_thought_chunk') {
+      turn.thinking += derived.item.text
       return
     }
-    if (kind === 'tool_call' && typeof update.toolCallId === 'string') {
+    if (derived.surface === 'chat-item') {
       const s = this.require(dshId)
-      const name = typeof update.name === 'string' && update.name.length > 0 ? update.name : 'tool_call'
-      const args = update.rawInput !== undefined ? truncate(JSON.stringify(update.rawInput)) : undefined
-      const item: ChatItem = {
-        kind: 'tool_call',
-        id: randomId('tool'),
-        seq: this.nextSeq(s),
-        tool: name,
-        status: 'running',
-        title: typeof update.title === 'string' ? update.title : name,
-        callId: update.toolCallId,
-        detail: args,
-        args,
+      const item = { ...derived.item, id: derived.item.id || randomId('fx'), seq: this.nextSeq(s) }
+      if (item.kind === 'tool_call' && typeof update.toolCallId === 'string') {
+        turn?.toolItemByCallId.set(update.toolCallId, item.id)
       }
-      turn?.toolItemByCallId.set(update.toolCallId, item.id)
       this.append(dshId, item)
-      return
-    }
-    if (kind === 'tool_call_update' && typeof update.toolCallId === 'string') {
-      const s = this.require(dshId)
-      const itemId = turn?.toolItemByCallId.get(update.toolCallId)
-      const status = update.status === 'completed' ? 'ok' : update.status === 'failed' ? 'error' : 'running'
-      const out = extractToolOutput(update)
-      if (itemId !== undefined) {
-        const current = s.items.find((i) => i.id === itemId)
-        if (current?.kind === 'tool_call') {
-          this.replace(dshId, { ...current, status, detail: out !== undefined ? truncate(out) : current.detail })
-        }
-      }
-      if (status !== 'running' && out !== undefined) {
-        const toolItem = itemId !== undefined ? s.items.find((i) => i.id === itemId) : undefined
-        this.append(dshId, {
-          kind: 'tool_result',
-          id: randomId('result'),
-          seq: this.nextSeq(s),
-          tool: toolItem?.kind === 'tool_call' ? toolItem.tool : 'tool_call',
-          status,
-          summary: truncate(out.split('\n')[0] || out, 120),
-          detail: truncate(out),
-        })
-      }
-      return
     }
   }
 

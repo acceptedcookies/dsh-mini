@@ -5,6 +5,7 @@
  */
 
 import { loadKernel } from '../nano-mini-host/kernel-loader'
+import { microcompactToolResults } from './microcompact/index'
 
 const FULL_COMPACT_TRIGGER = ['manual', 'deferred-next-full', 'structural', 'breakthrough'] as const
 
@@ -81,23 +82,19 @@ export function protectedTail(messages: readonly unknown[]): unknown[] {
   })
 }
 
-/** 缺 source_turn_index 不对 durable ordinal：不折、不记新判词。不写 episodes。 */
-export function foldTranscript(messages: readonly unknown[], currentTurnIndex: number | undefined): unknown[] {
-  const loaded = kernel()
-  if (loaded?.decideToolResultFold === undefined) return [...messages]
-  return messages.map((message) => {
-    if (message === null || typeof message !== 'object') return message
-    const row = message as Record<string, unknown>
-    if (typeof row.source_turn_index !== 'number' || currentTurnIndex === undefined) return message
-    const decision = loaded.decideToolResultFold!({
-      turnDistance: currentTurnIndex - row.source_turn_index,
-      estimatedTokens: 0,
-      layer: row.context_layer === 'transcript' ? 'transcript' : null,
-      property: row.context_property === 'tool-result' ? 'tool-result' : null,
-      declared: row.declared === true,
-      alreadyHeadlined: row.alreadyHeadlined === true,
-    })
-    if (!decision.fold) return message
-    return { ...row, content: '', alreadyHeadlined: true }
-  })
+/**
+ * 没有 currentTurnIndex 就不折：durable ordinal 对不上时记未观察，不新造判词。
+ * receipt 留在返回值里，不写 episodes，也不带摘要正文。
+ */
+export function foldTranscript(
+  messages: readonly unknown[],
+  currentTurnIndex: number | undefined,
+  currentTurnTailLength = 0,
+): { readonly messages: readonly unknown[]; readonly receipt: { readonly compactedCount: number; readonly toolCallIds: readonly string[] } | null } {
+  if (currentTurnIndex === undefined) return { messages, receipt: null }
+  const folded = microcompactToolResults(messages, { currentTurnIndex, currentTurnTailLength })
+  return {
+    messages: folded.messages,
+    receipt: { compactedCount: folded.receipt.compactedCount, toolCallIds: folded.receipt.toolCallIds },
+  }
 }

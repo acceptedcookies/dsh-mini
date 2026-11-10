@@ -1,5 +1,6 @@
 /** 最小 ACP+libfx 客户端：initialize → libfx/new → session/prompt + 控制请求应答。 */
 import type { FxRuntime } from './fx-host'
+import { loadKernel } from '../nano-mini-host/kernel-loader'
 import { TextDecoderImpl, TextEncoderImpl } from './utf8'
 
 export interface AcpToolDescriptor {
@@ -13,8 +14,21 @@ export interface AcpToolResult {
   isError?: boolean
   rich?: boolean
 }
+export type AcpSessionUpdate =
+  | 'agent_message_chunk'
+  | 'agent_thought_chunk'
+  | 'tool_call'
+  | 'tool_call_update'
+  | 'usage_update'
+  | 'session_info_update'
+  | 'notice'
+  | 'user_message_chunk'
+  | 'available_commands_update'
+  | 'plan'
+  | 'current_mode_update'
+
 export interface AcpUpdate {
-  sessionUpdate?: string
+  sessionUpdate: AcpSessionUpdate
   /** agent_message_chunk: {type:'text',text}; tool_call_update: content 数组。 */
   content?: unknown
   toolCallId?: string
@@ -26,7 +40,7 @@ export interface AcpUpdate {
   kind?: string
   rawInput?: unknown
   rawOutput?: unknown
-  [k: string]: unknown
+  usage?: { input_tokens?: number; output_tokens?: number; total_tokens?: number }
 }
 interface AcpMessage {
   jsonrpc?: string
@@ -161,9 +175,12 @@ export function createAcpClient(runtime: FxRuntime, options: AcpClientOptions): 
 
   return {
     async init(): Promise<void> {
+      const kernel = loadKernel() as { NANO_AGENT_SYSTEM_PROMPT?: string } | undefined
+      const instructions = typeof kernel?.NANO_AGENT_SYSTEM_PROMPT === 'string' ? kernel.NANO_AGENT_SYSTEM_PROMPT : undefined
       await request('initialize', {
         protocolVersion: 1,
         clientCapabilities: { libfx: { tools: options.tools || [] } },
+        ...(instructions !== undefined ? { instructions } : {}),
       })
     },
     async newSession(requestedId?: string): Promise<string> {

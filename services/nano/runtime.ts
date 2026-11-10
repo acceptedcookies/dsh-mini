@@ -9,6 +9,7 @@ import type {
   SessionSummary,
 } from '../../types/protocol'
 import { randomId } from '../../utils/uuid'
+import { projectReceipt, toCanonical } from '../nacp/adapters/remote'
 import {
   cancelTurn,
   clearAuth,
@@ -446,8 +447,13 @@ export class NanoRuntime {
     this.streams.delete(id)
   }
 
+  private ignoredTransportFrames = 0
+
   private handleFrame(id: string, frame: NanoFrame): void {
-    if (frame.kind === 'session.heartbeat' || frame.kind === 'session.pong') return
+    if (frame.kind === 'session.heartbeat' || frame.kind === 'session.pong') {
+      this.ignoredTransportFrames += 1
+      return
+    }
     if (frame.kind === 'session.confirmation.request') {
       this.handleConfirmation(id, frame)
       return
@@ -467,10 +473,22 @@ export class NanoRuntime {
       return
     }
     if (frame.kind === 'event' && frame.payload !== undefined) {
-      this.handleStreamEvent(id, frame.payload)
+      this.projectRemote(id, frame.payload)
       return
     }
-    if (typeof frame.kind === 'string') this.handleStreamEvent(id, frame as Record<string, unknown>)
+    if (typeof frame.kind === 'string') this.projectRemote(id, frame)
+  }
+
+  /** 业务帧先进 adapter。未知 kind 可见为 system.notify，不吞掉。不写 episodes。 */
+  private projectRemote(id: string, payload: Record<string, unknown>): void {
+    projectReceipt(payload)
+    try {
+      const event = toCanonical({ ...payload, session_uuid: id })
+      this.handleStreamEvent(id, event as unknown as Record<string, unknown>)
+    } catch {
+      const kind = typeof payload.kind === 'string' ? payload.kind : 'unknown'
+      this.handleStreamEvent(id, { kind: 'system.notify', severity: 'info', message: kind, reason: 'absent' })
+    }
   }
 
   private handleStreamEvent(id: string, payload: Record<string, unknown>): void {

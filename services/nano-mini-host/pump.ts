@@ -180,7 +180,7 @@ async function runCompaction(
     const closedEvents = ep !== null ? [...ep.events] : []
     const closedUuid = ep?.uuid
     const headSeq = ep?.seq ?? 0
-    const msgs = foldTranscript(turn?.messages ?? [], undefined)
+    const msgs = foldTranscript(turn?.messages ?? [], undefined).messages
     // summarize：kernel 当前 turn messages 序列化后求摘要（截断 60K 防超载）。
     const sum = await readLlm(ctx.io.llm(assemble({
       transcript: [{
@@ -341,7 +341,7 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
     pushEvent(d)
 
     if (d.kind === 'llm_call') {
-      const out = await readLlm(ctx.io.llm(assemble({ transcript: foldTranscript(turn?.messages ?? [], undefined), steering: null })))
+      const out = await readLlm(ctx.io.llm(assemble({ transcript: foldTranscript(turn?.messages ?? [], undefined).messages, steering: null })))
       if (out.usage !== undefined) lastUsage.set(sessionId, out.usage)
       const hasUsage = out.usage !== undefined
         && (typeof out.usage.inputTokens === 'number' || typeof out.usage.outputTokens === 'number')
