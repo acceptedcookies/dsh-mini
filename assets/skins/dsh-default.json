@@ -62,7 +62,9 @@
       "--dsw-specific-sidebar-nav-item-active": "#ebedf0",
       "--dsw-sidebar-list-fade": "linear-gradient(to bottom, rgba(249, 250, 251, 0), #f9fafb)",
       "--dsw-alias-bg-mask-3": "rgba(0, 0, 0, 0.48)",
-      "--dsw-alias-markdown-code-text": "#0f1115"
+      "--dsw-alias-markdown-code-text": "#0f1115",
+      "--dsw-alias-markdown-tertiary": "#81858c",
+      "--dsw-alias-markdown-table-row-alt": "rgba(0,0,0,0.02)"
     },
     "shape": {
       "--dsw-radius-xs": "4px",
@@ -151,6 +153,9 @@
       "workspace-mask": "var(--dsw-alias-bg-mask-3)",
       "markdown-code": "var(--dsw-alias-markdown-code-block)"
     },
+    "effects": {
+      "--dsw-blur-surface": "blur(20px)"
+    },
     "chrome": {
       "navBackground": "#ffffff",
       "navFront": "#000000",
@@ -214,7 +219,9 @@
       "--dsw-specific-sidebar-nav-item-active": "#353436",
       "--dsw-sidebar-list-fade": "linear-gradient(to bottom, rgba(27, 27, 28, 0), #1b1b1c)",
       "--dsw-alias-bg-mask-3": "rgba(0, 0, 0, 0.56)",
-      "--dsw-alias-markdown-code-text": "#e6e6e6"
+      "--dsw-alias-markdown-code-text": "#e6e6e6",
+      "--dsw-alias-markdown-tertiary": "#81858c",
+      "--dsw-alias-markdown-table-row-alt": "rgba(255,255,255,0.03)"
     },
     "shape": {
       "--dsw-radius-xs": "4px",
@@ -302,6 +309,9 @@
       "toast": "var(--dsw-alias-toast-bg)",
       "workspace-mask": "var(--dsw-alias-bg-mask-3)",
       "markdown-code": "var(--dsw-alias-markdown-code-block)"
+    },
+    "effects": {
+      "--dsw-blur-surface": "blur(20px)"
     },
     "chrome": {
       "navBackground": "#151517",

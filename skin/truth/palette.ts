@@ -1305,5 +1305,33 @@ export const PALETTE_ENTRIES: TokenEntry[] = [
     retired: false,
     linkedWith: [],
     source: "T-O-8（MS01 新增）"
+  },
+  {
+    key: "--dsw-alias-markdown-tertiary",
+    family: "palette",
+    domain: "color",
+    light: "#81858c",
+    dark: "#81858c",
+    darkOverridden: false,
+    writable: true,
+    invariant: false,
+    derived: false,
+    retired: false,
+    linkedWith: [],
+    source: "MS02-P6a"
+  },
+  {
+    key: "--dsw-alias-markdown-table-row-alt",
+    family: "palette",
+    domain: "color",
+    light: "rgba(0,0,0,0.02)",
+    dark: "rgba(255,255,255,0.03)",
+    darkOverridden: true,
+    writable: true,
+    invariant: false,
+    derived: false,
+    retired: false,
+    linkedWith: [],
+    source: "MS02-P6a"
   }
 ]

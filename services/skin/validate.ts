@@ -64,7 +64,6 @@ export interface SkinJson {
 const TOP_LEVEL_KEYS = new Set(['$schema', 'slug', 'name', 'meta', 'fonts', 'sounds', 'components', 'light', 'dark'])
 const MODE_FAMILIES = new Set(['palette', 'surfaces', 'shape', 'spacing', 'typography', 'assets', 'elevation', 'effects', 'chrome'])
 const CHROME_KEYS = new Set(['navBackground', 'navFront', 'pullBackground'])
-const EFFECT_KEYS = new Set(['--dsw-blur-surface'])
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/
 const SURFACE_KEY_RE = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/
 const SURFACE_EMIT_RE = /^--dsw-surface-[a-z0-9]+(?:-[a-z0-9]+)*$/
@@ -336,10 +335,11 @@ export function validate(skinJson: unknown, vocab: VocabLike): ValidateResult {
           continue
         }
         if (family === 'effects') {
-          if (EFFECT_KEYS.has(key)) {
-            push(errors, path, 'L6.capability.unsupported', 'effects 为 provisional，MS01 构建不投影（unsupported-in-this-build）')
-          } else {
+          const effect = vocab.tokens[key]
+          if (effect === undefined || effect.family !== 'effects') {
             push(errors, path, 'L2.unknown-key', `未知 effects 键: ${key}`)
+          } else {
+            checkValueDomain(path, family, effect.domain, value, errors)
           }
           continue
         }

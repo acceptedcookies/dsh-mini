@@ -443,7 +443,7 @@ function compare(phase) {
   errors.push(...tokenCheck.errors)
   const projected = tokenCheck.projected
   const newKeys = Object.keys(vocab.tokens).filter((k) => baselineTokens[k] === undefined)
-  const expectedNew = ['--dsw-alias-bg-mask-3', '--dsw-alias-markdown-code-text']
+  const expectedNew = ['--dsw-alias-bg-mask-3', '--dsw-alias-markdown-code-text', '--dsw-blur-surface', '--dsw-alias-markdown-tertiary', '--dsw-alias-markdown-table-row-alt']
   for (const key of expectedNew) {
     if (!newKeys.includes(key)) errors.push(`T-O-8 新键未投影: ${key}`)
   }

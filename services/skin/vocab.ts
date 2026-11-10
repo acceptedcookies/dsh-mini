@@ -875,6 +875,28 @@ export const VOCAB = {
     "derived": false,
     "linkedWith": []
   },
+  "--dsw-alias-markdown-tertiary": {
+    "key": "--dsw-alias-markdown-tertiary",
+    "family": "palette",
+    "domain": "color",
+    "light": "#81858c",
+    "dark": "#81858c",
+    "writable": true,
+    "invariant": false,
+    "derived": false,
+    "linkedWith": []
+  },
+  "--dsw-alias-markdown-table-row-alt": {
+    "key": "--dsw-alias-markdown-table-row-alt",
+    "family": "palette",
+    "domain": "color",
+    "light": "rgba(0,0,0,0.02)",
+    "dark": "rgba(255,255,255,0.03)",
+    "writable": true,
+    "invariant": false,
+    "derived": false,
+    "linkedWith": []
+  },
   "--dsw-radius-xs": {
     "key": "--dsw-radius-xs",
     "family": "shape",
@@ -1576,6 +1598,17 @@ export const VOCAB = {
     "dark": "-12px 0 40px rgba(0, 0, 0, 0.14)",
     "writable": false,
     "invariant": true,
+    "derived": false,
+    "linkedWith": []
+  },
+  "--dsw-blur-surface": {
+    "key": "--dsw-blur-surface",
+    "family": "effects",
+    "domain": "filter",
+    "light": "blur(20px)",
+    "dark": "blur(20px)",
+    "writable": true,
+    "invariant": false,
     "derived": false,
     "linkedWith": []
   }

@@ -8,10 +8,7 @@ export const PALETTE_MAP: Record<string, PaletteFieldMap> = {
     "token": "--dsw-alias-label-secondary"
   },
   "tertiary": {
-    "literal": {
-      "light": "#81858c",
-      "dark": "#81858c"
-    }
+    "token": "--dsw-alias-markdown-tertiary"
   },
   "border": {
     "token": "--dsw-alias-border-l2"
@@ -35,10 +32,7 @@ export const PALETTE_MAP: Record<string, PaletteFieldMap> = {
     "token": "--dsw-alias-markdown-code-block-banner"
   },
   "tableRowAlt": {
-    "literal": {
-      "light": "rgba(0,0,0,0.02)",
-      "dark": "rgba(255,255,255,0.03)"
-    }
+    "token": "--dsw-alias-markdown-table-row-alt"
   }
 }
 

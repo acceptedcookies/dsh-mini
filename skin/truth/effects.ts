@@ -13,7 +13,7 @@ export const EFFECT_ENTRIES: EffectEntry[] = [
     key: '--dsw-blur-surface',
     light: 'blur(20px)',
     dark: 'blur(20px)',
-    provisional: true,
-    source: 'docs/eval/mini-skin/skin-policy-JSON-v1.md:377',
+    provisional: false,
+    source: 'components/dsh-menu/dsh-menu.less:18',
   },
 ]

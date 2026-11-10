@@ -47,8 +47,8 @@ const { ALL_TOKEN_ENTRIES, PROJECTED_ENTRIES, SURFACE_ENTRIES, ASSET_ENTRIES, CH
 
 // ── 契约断言 ─────────────────────────────────────────────────────────────
 const problems = []
-if (ALL_TOKEN_ENTRIES.length !== 151) problems.push(`entries=${ALL_TOKEN_ENTRIES.length} != 151`)
-if (PROJECTED_ENTRIES.length !== 134) problems.push(`projected=${PROJECTED_ENTRIES.length} != 134`)
+if (ALL_TOKEN_ENTRIES.length !== 154) problems.push(`entries=${ALL_TOKEN_ENTRIES.length} != 154`)
+if (PROJECTED_ENTRIES.length !== 137) problems.push(`projected=${PROJECTED_ENTRIES.length} != 137`)
 const derived = ALL_TOKEN_ENTRIES.filter((e) => e.derived)
 if (derived.length !== 17) problems.push(`derived=${derived.length} != 17`)
 const invariant = ALL_TOKEN_ENTRIES.filter((e) => e.invariant)
@@ -206,14 +206,11 @@ export type Vocab = typeof VOCAB
 `
 
 // ── 产物 3：palette-map.ts ───────────────────────────────────────────────
-// palette() 的 11 字段中有 2 个在 151 词表内无同值 token：
-//   tertiary（#81858c 双模式恒定；label-tertiary dark=#adb2b8 不等价）
-//   tableRowAlt（0.02/0.03 alpha 无同值键）
-// 以 literal 明确登记，不作静默硬编码；MS02 词表扩展时转 token（执行日志偏差 #1/#2）。
+// tertiary / tableRowAlt 在 MS02 P6a 转成等值 token。不得借 label-tertiary（dark=#adb2b8）。
 const paletteMap = {
   text: { token: '--dsw-alias-label-primary' },
   secondary: { token: '--dsw-alias-label-secondary' },
-  tertiary: { literal: { light: '#81858c', dark: '#81858c' } },
+  tertiary: { token: '--dsw-alias-markdown-tertiary' },
   border: { token: '--dsw-alias-border-l2' },
   link: { token: '--dsw-alias-state-business-primary' },
   codeBg: { token: '--dsw-alias-markdown-code-block' },
@@ -221,7 +218,7 @@ const paletteMap = {
   codeText: { token: '--dsw-alias-markdown-code-text' },
   inlineBg: { token: '--dsw-alias-markdown-inline-code' },
   tableHeadBg: { token: '--dsw-alias-markdown-code-block-banner' },
-  tableRowAlt: { literal: { light: 'rgba(0,0,0,0.02)', dark: 'rgba(255,255,255,0.03)' } },
+  tableRowAlt: { token: '--dsw-alias-markdown-table-row-alt' },
 }
 const paletteMapTs = `/* GENERATED — do not edit. source: skin/truth/*.ts (MS01 build-skin.mjs) */
 export type PaletteFieldMap = { token: string } | { literal: { light: string; dark: string } }

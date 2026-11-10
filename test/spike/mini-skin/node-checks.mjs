@@ -54,8 +54,8 @@ const baseline = JSON.parse(readFileSync(resolve(ROOT, '.anote/ms01-baseline/res
 
 // ── §A 真源计数/元数据自洽 ───────────────────────────────────────────────
 section('A')
-check('A1 entries==151', () => eq(truth.ALL_TOKEN_ENTRIES.length, 151, 'ALL_TOKEN_ENTRIES.length'))
-check('A2 projected==134', () => eq(truth.PROJECTED_ENTRIES.length, 134, 'PROJECTED_ENTRIES.length'))
+check('A1 entries==154', () => eq(truth.ALL_TOKEN_ENTRIES.length, 154, 'ALL_TOKEN_ENTRIES.length'))
+check('A2 projected==137', () => eq(truth.PROJECTED_ENTRIES.length, 137, 'PROJECTED_ENTRIES.length'))
 check('A3 derived==17', () => eq(truth.ALL_TOKEN_ENTRIES.filter((e) => e.derived).length, 17, 'derived'))
 check('A4 invariant==16', () => eq(truth.ALL_TOKEN_ENTRIES.filter((e) => e.invariant).length, 16, 'invariant'))
 check('A5 invariant/derived 不可写', () => {
@@ -71,7 +71,7 @@ check('A6 键唯一', () => {
 check('A7 每键 source 可锚', () => {
   for (const e of truth.ALL_TOKEN_ENTRIES) {
     assert(typeof e.source === 'string' && e.source.length > 0, `${e.key} 缺 source`)
-    if (!e.key.startsWith('--dsw-alias-bg-mask-3') && !e.key.startsWith('--dsw-alias-markdown-code-text')) {
+    if (!e.key.startsWith('--dsw-alias-bg-mask-3') && !e.key.startsWith('--dsw-alias-markdown-code-text') && e.key !== '--dsw-blur-surface' && e.key !== '--dsw-alias-markdown-tertiary' && e.key !== '--dsw-alias-markdown-table-row-alt') {
       assert(/^app\.less:\d+$/.test(e.source), `${e.key} source 非 app.less:NN: ${e.source}`)
     }
   }
@@ -97,7 +97,7 @@ check('A9 T-O-8 新键值正确', () => {
 check('A10 族计数自洽', () => {
   const by = {}
   for (const e of truth.ALL_TOKEN_ENTRIES) by[e.family] = (by[e.family] ?? 0) + 1
-  eq(by.palette, 87, 'palette')
+  eq(by.palette, 89, 'palette')
   eq(by.shape, 11, 'shape')
   eq(by.spacing, 16, 'spacing')
   eq(by.typography, 33, 'typography')
@@ -182,7 +182,7 @@ check('C2 skin.gen page = projected + surfaces + component vars / @media 55', ()
   const componentVars = Object.values(vocab.components ?? {}).reduce((n, entry) => n + Object.keys(entry?.vars ?? {}).length, 0)
   eq((page.match(/^\s{2}--/gm) ?? []).length, Object.keys(vocab.tokens).length + Object.keys(vocab.surfaces).length + componentVars, 'light 键数')
   const dark = css.slice(css.indexOf('@media'))
-  eq((dark.match(/^\s{4}--/gm) ?? []).length, 55, 'dark 键数')
+  eq((dark.match(/^\s{4}--/gm) ?? []).length, 56, 'dark 键数')
 })
 check('C3 skin.gen 无 less 语法', () => {
   const css = readFileSync(resolve(ROOT, 'skin.gen.wxss'), 'utf8')
@@ -190,9 +190,9 @@ check('C3 skin.gen 无 less 语法', () => {
   assert(!/@(?!media)/.test(css.replace(/@media/g, '')), '出现 less @ 语法')
   assert(!/&|\.mixin|@var/.test(css), '出现 less 嵌套/mixin/变量')
 })
-check('C4 vocab 134 token + 15 surface', () => {
+check('C4 vocab 137 token + 15 surface', () => {
   const vocab = requireTs(resolve(ROOT, 'services/skin/vocab.ts')).VOCAB
-  eq(Object.keys(vocab.tokens).length, 134, 'vocab.tokens')
+  eq(Object.keys(vocab.tokens).length, 137, 'vocab.tokens')
   eq(Object.keys(vocab.surfaces).length, 15, 'vocab.surfaces')
   assert(vocab.tokens['--bg'] === undefined, 'derived 不应进 vocab')
 })
@@ -217,8 +217,8 @@ check('C6 dsh-default ↔ vocab 字段级跨产物对账（非 validate 自证�
 check('C5 dsh-default 118 可写键 ×2 模式', () => {
   const def = JSON.parse(readFileSync(resolve(ROOT, 'assets/skins/dsh-default.json'), 'utf8'))
   const count = (block) => Object.entries(block).filter(([k]) => k !== 'chrome' && k !== 'surfaces').reduce((n, [, v]) => n + Object.keys(v).length, 0)
-  eq(count(def.light), 118, 'light token keys')
-  eq(count(def.dark), 118, 'dark token keys')
+  eq(count(def.light), 121, 'light token keys')
+  eq(count(def.dark), 121, 'dark token keys')
   eq(Object.keys(def.light.surfaces).length, 15, 'surface keys')
   eq(def.light.surfaces['chat.bubble-user'], 'var(--dsw-specific-bubble)', 'surface default')
 })
@@ -264,7 +264,7 @@ check('E3 setPref 三档 + eff=req', () => {
 })
 check('E4 resolved 全键 = 134+15', () => {
   const e = loadEngine()
-  eq(Object.keys(e.engine.tokens).length, 149, 'resolved keys')
+  eq(Object.keys(e.engine.tokens).length, 152, 'resolved keys')
   eq(e.engine.tokens['--dsw-surface-chat-interface'], 'var(--dsw-alias-bg-base)', 'surface var 原样')
 })
 
@@ -278,7 +278,7 @@ check('F1 compose 串序 skin 段 + metrics 段', () => {
   const firstMetric = style.indexOf('--app-status-bar')
   const lastSkin = style.lastIndexOf('--dsw-')
   assert(lastSkin < firstMetric, 'metrics 段必须在 skin 段之后')
-  eq((style.match(/--(?:dsw|ds)-[a-z0-9-]+:/g) ?? []).length, 149, 'skin 键数')
+  eq((style.match(/--(?:dsw|ds)-[a-z0-9-]+:/g) ?? []).length, 152, 'skin 键数')
   eq((style.match(/--app-[a-z-]+:/g) ?? []).length, 4, 'metrics 键数')
 })
 check('F2 compose 命名空间不交/无重复', () => {
@@ -360,8 +360,12 @@ check('G23 跨族重复/错误族归属拒绝', () => {
   expectRule(baseSkin({ light: { palette: { '--dsw-alias-bg-base': '#fff' }, shape: { '--dsw-alias-bg-base': '#fff' } } }), 'L2.duplicate-key')
   expectRule(baseSkin({ light: { shape: { '--dsw-alias-label-primary': '#fff' } } }), 'L2.family-mismatch')
 })
-check('G24 provisional effects 拒绝（不静默丢弃）', () => {
-  expectRule(baseSkin({ light: { effects: { '--dsw-blur-surface': 'blur(20px)' } } }), 'L6.capability.unsupported')
+check('G24', () => {
+  const { validate, vocab } = loadValidate()
+  const ok = validate(baseSkin({ light: { effects: { '--dsw-blur-surface': 'blur(20px)' } } }), vocab)
+  assert(ok.ok, `blur(20px) 被拒 ${JSON.stringify(ok.errors)}`)
+  expectRule(baseSkin({ light: { effects: { '--dsw-blur-surface': 'blur(20px);color:red' } } }), 'L3.value.css-injection')
+  expectRule(baseSkin({ light: { effects: { '--dsw-no-such-effect': 'blur(20px)' } } }), 'L2.unknown-key')
 })
 check('G21 url 仅限 surfaces/assets/fonts（palette 注入拒绝）', () => {
   expectRule(baseSkin({ light: { palette: { '--dsw-alias-bg-base': 'url(https://evil.example/x.png)' } } }), 'L3.url.domain')
@@ -608,7 +612,7 @@ check('K2 forest-light applySkin 写键生效/未写键 defaults/键集闭集', 
   e.applySkin(forest)
   eq(e.engine.tokens['--dsw-alias-state-business-primary'], '#2f855a', 'accent 写键')
   eq(e.engine.tokens['--dsw-alias-bg-base'], '#ffffff', '未写键 defaults')
-  eq(Object.keys(e.engine.tokens).length, 149, 'resolved 键集 ≡ vocab 键集')
+  eq(Object.keys(e.engine.tokens).length, 152, 'resolved 键集 ≡ vocab 键集')
   eq(e.engine.tokens['--dsw-surface-chat-interface'], '#f7fdf9', 'surface 写键')
 })
 check('K3 light-only 切 dark 回落 defaults[dark]（D12(a)）', () => {
@@ -1015,6 +1019,7 @@ check('MS02-T13', () => {
     const current = scanned.get(decl.file).find((d) => d.line === decl.line && d.prop === decl.prop)
     assert(current !== undefined, `扫描丢了 ${decl.file}:${decl.line} ${decl.prop}`)
     if (current.value === decl.value) continue
+    if (current.value === 'var(--dsw-blur-surface)' && decl.value === 'blur(20px)') continue
     const lit = byPos.get(`${decl.file}:${decl.line}:${decl.prop}`)
     assert(lit !== undefined, `未进合同的声明被改了 ${decl.file}:${decl.line} ${decl.prop}`)
     eq(current.value, `var(${lit.token})`, `改写不是无兜底 var ${decl.file}:${decl.line}`)
@@ -1041,6 +1046,39 @@ check('MS02-T14', () => {
   const detachedText = detached.getText(sf)
   assert(detachedText.includes('_unwatchSkin'), 'detached 没有退订')
   assert(detachedText.indexOf('_unwatchSkin') < detachedText.indexOf('clearTimeout'), '退订必须先于清 timer')
+})
+check('MS02-T21', () => {
+  const files = [
+    'components/dsh-menu/dsh-menu.less',
+    'components/model-picker/model-picker.less',
+    'components/command-menu/command-menu.less',
+  ]
+  let n = 0
+  for (const file of files) {
+    const text = readFileSync(resolve(ROOT, file), 'utf8')
+    assert(!text.includes('blur(20px)'), `${file} 仍有裸 blur(20px)`)
+    n += (text.match(/var\(--dsw-blur-surface\)/g) ?? []).length
+    assert(!text.includes('var(--dsw-blur-surface,'), `${file} 写了 fallback`)
+  }
+  eq(n, 6, '六处 blur var')
+  const vocab = requireTs(resolve(ROOT, 'services/skin/vocab.ts')).VOCAB
+  eq(vocab.tokens['--dsw-blur-surface'].light, 'blur(20px)', 'light')
+  eq(vocab.tokens['--dsw-blur-surface'].dark, 'blur(20px)', 'dark')
+  const equiv = readFileSync(resolve(ROOT, 'scripts/skin-equiv-check.mjs'), 'utf8')
+  assert(equiv.includes("'--dsw-blur-surface'"), 'expectedNew 未登记 blur')
+})
+check('MS02-T22', () => {
+  const vocab = requireTs(resolve(ROOT, 'services/skin/vocab.ts')).VOCAB
+  const map = requireTs(resolve(ROOT, 'services/skin/palette-map.ts')).PALETTE_MAP
+  assert(map.tertiary.token === '--dsw-alias-markdown-tertiary', 'tertiary 仍是 literal')
+  assert(map.tableRowAlt.token === '--dsw-alias-markdown-table-row-alt', 'tableRowAlt 仍是 literal')
+  assert(map.tertiary.literal === undefined && map.tableRowAlt.literal === undefined, 'literal 分支还在')
+  eq(vocab.tokens['--dsw-alias-markdown-tertiary'].light, '#81858c', 'tertiary light')
+  eq(vocab.tokens['--dsw-alias-markdown-tertiary'].dark, '#81858c', 'tertiary dark')
+  eq(vocab.tokens['--dsw-alias-markdown-table-row-alt'].light, 'rgba(0,0,0,0.02)', 'row light')
+  eq(vocab.tokens['--dsw-alias-markdown-table-row-alt'].dark, 'rgba(255,255,255,0.03)', 'row dark')
+  eq(vocab.tokens['--dsw-alias-label-tertiary'].dark, '#adb2b8', 'label-tertiary dark')
+  assert(vocab.tokens['--dsw-alias-markdown-tertiary'].dark !== vocab.tokens['--dsw-alias-label-tertiary'].dark, '借了 label-tertiary')
 })
 check('MS02-T15', () => {
   const src = readFileSync(resolve(ROOT, 'test/spike/mini-skin/node-checks.mjs'), 'utf8')
