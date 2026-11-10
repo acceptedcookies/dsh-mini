@@ -9,8 +9,9 @@ import { openEvidence } from '../lib/evidence.mjs'
 const dir = dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
 const kernelMod = require('../../../cloud/functions/sweeper/vendor/kernel.cjs')
-const host = require('../../../cloud/functions/sweeper/vendor/host.cjs')
 const kernel = kernelMod.kernel ?? kernelMod
+globalThis.__dshKernelBundle = kernel
+const host = require('../../../cloud/functions/sweeper/vendor/host.cjs')
 
 const evidence = openEvidence(dir, 'm2')
 const check = (name, ok, detail) => evidence.check(name, ok === true, detail)

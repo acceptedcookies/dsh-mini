@@ -1,5 +1,6 @@
-// sim-wx-alarm · P6 episode/compaction 泵级验证（真实 kernel + 真实 host + 内存 CAS）。
-// 覆盖 T-O-12：genesis 账行 / compact 真路径 / episode 边界事件归属 / claims 标记释放。
+// sim-wx-alarm · episode/compaction 泵级验证（真实 kernel + 真实 host + 内存 CAS）。
+// T-O-12 genesis 账行保持不变；T-O-20 ③ / P5-02：96KB 字节近似已退役。
+// 本文件验证「大 transcript 不再触发压缩」：无子 episode、无 compact_done、无 artifact。
 // 用法: node test/simulation/sim-wx-alarm/episode-compact.mjs
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -9,8 +10,9 @@ import { openEvidence } from '../lib/evidence.mjs'
 const dir = dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
 const kernelMod = require('../../../cloud/functions/sweeper/vendor/kernel.cjs')
-const host = require('../../../cloud/functions/sweeper/vendor/host.cjs')
 const kernel = kernelMod.kernel ?? kernelMod
+globalThis.__dshKernelBundle = kernel
+const host = require('../../../cloud/functions/sweeper/vendor/host.cjs')
 
 const evidence = openEvidence(dir, 'm2')
 const check = (name, ok, detail) => evidence.check(name, ok === true, detail)
@@ -36,7 +38,7 @@ function newCas() {
 
 const ctx = (io) => ({ kernel, io, owner: 'local', holder: 'p6-host' })
 const now = Date.now()
-const BIG = 'x'.repeat(120 * 1024) // >96KB → compactRequired 触发
+const BIG = 'x'.repeat(120 * 1024) // >96KB，旧实现会在这里触发压缩
 
 function readSnap(cas, sid) {
   const row = cas.get(`dsh-mini/state/local/${sid}`)
@@ -67,19 +69,17 @@ const epRows = (cas) => cas.listPrefix('dsh-mini/episodes/local/')
   check('ep:events-tagged', (snap.ep?.events ?? []).every((e) => e.episode_uuid === snap.ep.uuid && e.event_seq >= 1), `n=${snap.ep?.events?.length}`)
 }
 
-// 2. compact 真路径：>96KB messages → kernel compact → 账行链 + summary/replay artifact + 新 ep + compact_done
+// 2. 大 transcript 不再因字节数压缩：无子账行、compactCount 仍 0、无 artifact、无残留 claim
 {
   const cas = newCas()
-  const sid = `p6-compact-${now}`
+  const sid = `p6-big-${now}`
   const published = []
   let calls = 0
   const io = {
     state: cas,
-    llm: async function* (context) {
+    llm: async function* () {
       calls += 1
-      const c = JSON.stringify(context)
-      const text = c.includes('Summarize this agent conversation') ? 'SUMMARY-BODY' : calls === 1 ? BIG : 'final'
-      yield { kind: 'content', text }
+      yield { kind: 'content', text: calls === 1 ? BIG : 'final' }
       yield { kind: 'done' }
     },
     tool: async () => ({ kind: 'inline-text', text: 'ok' }),
@@ -91,63 +91,38 @@ const epRows = (cas) => cas.listPrefix('dsh-mini/episodes/local/')
   const snap = readSnap(cas, sid)
   const rows = epRows(cas)
   const child = rows.find((x) => x.row.trigger_kind === 'compact_required')
+  const compactCount = snap?.frag?.session?.compactCount ?? 0
   const replayDoc = published.find((p) => p.obj.kind === 'episode-replay')
   const sumDoc = published.find((p) => p.obj.kind === 'episode-summary')
-  // turn 完成后 activeTurn 已清——断 compact_done 生效看 kernel 计数器 compactCount。
-  const compactCount = snap?.frag?.session?.compactCount ?? 0
-  check('ep:compact-completed', r.outcome === 'completed' && snap !== null && snap.envelope, JSON.stringify({ outcome: r.outcome, trace: r.trace }))
-  check('ep:compact-ledger-child', child !== undefined && child.row.parent_episode_uuid !== undefined && child.row.episode_uuid === snap.ep.uuid && child.row.summary_sha === 'sha-1' && child.row.replay_sha === 'sha-0', JSON.stringify(child?.row))
-  check('ep:replay-artifact', replayDoc !== undefined && replayDoc.obj.events.length > 0 && replayDoc.obj.events.every((e) => e.episode_uuid === child?.row.parent_episode_uuid), `events=${replayDoc?.obj.events.length}`)
-  check('ep:summary-artifact', sumDoc !== undefined && sumDoc.obj.summary === 'SUMMARY-BODY' && sumDoc.obj.replay_sha === 'sha-0', JSON.stringify(sumDoc?.obj.episode_uuid))
-  check('ep:compact_done-messages', compactCount >= 1, `compactCount=${compactCount}`)
-  check('ep:marker-released', cas.get(`dsh-mini/claims/local/compact-${sid}`) === null)
-  check('ep:seq-monotonic', snap.ep.seq > child.row.head_event_seq || snap.ep.seq >= child.row.head_event_seq, `seq=${snap.ep.seq} head=${child.row.head_event_seq}`)
+  check('ep:big-completed', r.outcome === 'completed' && snap !== null && snap.envelope, JSON.stringify({ outcome: r.outcome, trace: r.trace }))
+  check('ep:no-byte-compact', child === undefined && compactCount === 0, JSON.stringify({ child: child?.row?.trigger_kind, compactCount }))
+  check('ep:no-artifacts', replayDoc === undefined && sumDoc === undefined, `published=${published.length}`)
+  check('ep:no-compact-claim', cas.get(`dsh-mini/claims/local/compact-${sid}`) === null)
 }
 
-// 3. compact 标记被对手持有 → suspended、无新账行、ep 不换
+// 3. 对手占用 compact 标记也不影响：不压缩就不读这个标记
 {
   const cas = newCas()
   const sid = `p6-rival-${now}`
   cas.putCas(`dsh-mini/claims/local/compact-${sid}`, JSON.stringify({ holder: 'rival', expires: new Date(Date.now() + 60000).toISOString() }), { ifNoneMatch: '*' })
   const io = {
     state: cas,
-    llm: async function* (context) {
-      const c = JSON.stringify(context)
-      yield { kind: 'content', text: c.includes('Summarize this agent conversation') ? 'SUM' : BIG }
+    llm: async function* () {
+      yield { kind: 'content', text: BIG }
       yield { kind: 'done' }
     },
     tool: async () => ({ kind: 'inline-text', text: 'ok' }),
   }
   const r = await host.runPump(ctx(io), sid, { input: 'go', maxSteps: 10 })
-  const snap = readSnap(cas, sid)
   const rows = epRows(cas).filter((x) => x.row.trigger_kind === 'compact_required')
-  check('ep:rival-suspended', r.outcome === 'suspended' && rows.length === 0, JSON.stringify({ outcome: r.outcome, rows: rows.length }))
-}
-
-// 4. 无 artifacts 车道降级：summary_text 内嵌账行（summary_sha 缺位）
-{
-  const cas = newCas()
-  const sid = `p6-degrade-${now}`
-  const io = {
-    state: cas,
-    llm: async function* (context) {
-      const c = JSON.stringify(context)
-      yield { kind: 'content', text: c.includes('Summarize this agent conversation') ? 'INLINE-SUM' : BIG }
-      yield { kind: 'done' }
-    },
-    tool: async () => ({ kind: 'inline-text', text: 'ok' }),
-  }
-  const r = await host.runPump(ctx(io), sid, { input: 'go', maxSteps: 10 })
-  const rows = epRows(cas)
-  const child = rows.find((x) => x.row.trigger_kind === 'compact_required')
-  check('ep:degrade-inline', r.outcome === 'completed' && child !== undefined && child.row.summary_sha === undefined && child.row.summary_text === 'INLINE-SUM', JSON.stringify({ outcome: r.outcome, child: child?.row }))
+  check('ep:rival-no-compact', r.outcome === 'completed' && rows.length === 0, JSON.stringify({ outcome: r.outcome, rows: rows.length }))
 }
 
 const result = evidence.finish({
   sim: 'sim-wx-alarm/episode-compact',
   endpoint: 'memory-cas',
   control_mock: ['real-kernel', 'real-host', 'memory-cas', 'scripted-llm', 'mock-artifacts-sha'],
-  note: 'P6 T-O-12：genesis/compact 账行链、episode 边界事件归属、claims 标记、artifacts 降级面',
+  note: 'T-O-12 genesis 账行；T-O-20 ③ 大 transcript 不做字节压缩（无子 episode/无 artifact）',
 })
 console.log(JSON.stringify({ status: result.status, checks: result.checks.length }, null, 2))
 process.exit(result.status === 'm2-pass' ? 0 : 1)

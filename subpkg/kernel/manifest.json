@@ -1,7 +1,7 @@
 {
   "kernelPin": "f72875054f65c2b1a4224192fd1fbe3b3ad6a3b0",
   "entry_hash": "d266137505a789693eef4d2b61a39bd9be39a1b3c499b9f0a169d2a5c0b030f3",
-  "bundle_sha256": "f5a715506404caab8cf9c05cd2d20ba755b0c819cac6ca6bae842f34c4694a67",
+  "bundle_sha256": "4bd78c7445627be3583a09d1ebc4296455173c90e0719799082d9cfc576810e8",
   "exports": [
     "createInitialSessionState",
     "createKernelSnapshot",

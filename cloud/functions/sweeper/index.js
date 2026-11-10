@@ -7,6 +7,8 @@
 const cloud = require("wx-server-sdk");
 const crypto = require("node:crypto");
 const kernel = require("./vendor/kernel.cjs");
+// host.cjs 的 assemble/loader 只认 globalThis 槽（与 mp 同源），Node 宿主在此注入。
+globalThis.__dshKernelBundle = kernel.kernel ?? kernel;
 const host = require("./vendor/host.cjs");
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
