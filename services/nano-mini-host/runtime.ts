@@ -19,6 +19,7 @@ import { markdownToHtml, plainText } from '../markdown'
 import { reportSilent } from '../error-report'
 import { storage } from '../storage'
 import { randomId } from '../../utils/uuid'
+import { setApprovalEmitter, settleHostApproval } from './io/approval-gate'
 import { ioStateFor, ensureDurableTicket, vfsRemoteFor } from '../state/provider'
 import { encodeUtf8 } from '../fx/utf8'
 import { pendingEngine, routeDefaultEngine } from '../session-engine'
@@ -76,6 +77,18 @@ export class KernelMiniRuntime {
   private readonly running = new Set<string>()
 
   constructor() {
+    setApprovalEmitter((ask) => {
+      this.emit({
+        type: 'approval.request',
+        approval: {
+          id: ask.id,
+          sessionId: ask.sessionId,
+          toolName: ask.toolName,
+          reason: ask.reason,
+          createdAt: Date.now(),
+        },
+      })
+    })
     const saved = storage.getSessions<StoredSession>()
     if (saved !== undefined) {
       for (const s of saved) {
@@ -302,7 +315,9 @@ export class KernelMiniRuntime {
     }
   }
 
-  answerApproval(_approvalId: string, _outcome: ApprovalOutcome): void { /* kernel 审批面后续 AP */ }
+  answerApproval(approvalId: string, outcome: ApprovalOutcome): void {
+    settleHostApproval(approvalId, outcome === 'allowed-once' ? 'allow' : 'deny')
+  }
   answerQuestion(_questionId: string, _answers: QuestionAnswer[]): void { /* 同上 */ }
 
   /** kernel pump 驱动一轮 turn；io 回调内投影 UI 事件。 */

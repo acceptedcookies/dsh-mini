@@ -9,6 +9,7 @@ import { guessMime } from '../vfs/api'
 import { loadKernel } from '../nano-mini-host/kernel-loader'
 import { canonicalAcpTools, isBashKernel, runCanonicalTool } from '../nano-mini-host/io/bash-exec'
 import { toCanonical as fxToCanonical } from '../nacp/adapters/fx'
+import { settleHostApproval } from '../nano-mini-host/io/approval-gate'
 import { derive } from '../nacp/derive'
 import type { FxRuntime as WasmRuntime, HostToolResult } from './fx-host'
 import { createFxRuntime } from './fx-host'
@@ -269,10 +270,12 @@ export class FxLocalRuntime {
   }
 
   answerApproval(approvalId: string, outcome: ApprovalOutcome): void {
+    const verdict = outcome === 'allowed-once' ? 'allow' : 'deny'
+    if (settleHostApproval(approvalId, verdict)) return
     const p = this.pendingPermissions.get(approvalId)
     if (p === undefined) return
     this.pendingPermissions.delete(approvalId)
-    p.resolve(outcome === 'allowed-once' ? p.allowOptionId : null)
+    p.resolve(verdict === 'allow' ? p.allowOptionId : null)
   }
 
   answerQuestion(_questionId: string, _answers: QuestionAnswer[]): void {

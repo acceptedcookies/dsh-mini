@@ -7,6 +7,7 @@ import { canonicalToolEnvelope, isBashKernel } from '../nano-mini-host/io/bash-e
 import { partitionSlots } from './partitions'
 import { applyCanonicalPrompt, type PromptKernel } from './system-prompt'
 import { decodeSteering, type SteeringUnit } from './steering'
+import { intentNotes } from './intent-fulfill'
 
 export interface AssembledContext {
   messages: readonly unknown[]
@@ -74,5 +75,10 @@ export function assemble(input: {
   if (partitions.model_steering !== undefined && steering !== null) {
     partitions.model_steering = { bytes: steering.content }
   }
+  const noted = intentNotes()
+  if (partitions.memory !== undefined && noted.memory.length > 0) partitions.memory = { bytes: noted.memory.join('\n') }
+  if (partitions.todo !== undefined && noted.todo.length > 0) partitions.todo = { bytes: noted.todo.join('\n') }
+  if (partitions.file_read !== undefined && noted.fileRead.length > 0) partitions.file_read = { bytes: noted.fileRead.join('\n') }
+  if (partitions.skill_catalog !== undefined) partitions.skill_catalog = { bytes: '', degradedReason: partitions.skill_catalog.degradedReason }
   return { messages, tools, allowedToolIds, partitions, steering }
 }

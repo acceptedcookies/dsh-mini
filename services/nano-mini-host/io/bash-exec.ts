@@ -7,6 +7,9 @@ import { vfs } from '../../vfs/vfs'
 import { VfsError } from '../../vfs/paths'
 import { decide } from '../../permissions'
 import { egressDecision } from '../../config'
+import { randomUUID } from '../../crypto/random'
+import { fulfillIntent } from '../../context/intent-fulfill'
+import { askHostApproval } from './approval-gate'
 import type { ToolCallResult } from '../types'
 
 export interface ContractRow {
@@ -211,6 +214,10 @@ export function bindBashSession(kernel: BashKernel, sessionId: string): SessionE
     new kernel.CapabilityPolicyGate(registry),
     {
       timeoutMs: 30000,
+      permissionContextProvider: () => ({
+        sessionUuid: sessionId,
+        traceUuid: randomUUID(),
+      }),
       permissionAuthorizer: {
         async authorize(ctx) {
           const row = kernel.BASH_TOOL_CONTRACT_SOURCE.find((item) => item.canonical_id === ctx.plan.capabilityName) as {
@@ -223,7 +230,11 @@ export function bindBashSession(kernel: BashKernel, sessionId: string): SessionE
             approval: row?.approval_policy?.mode,
           })
           if (verdict === 'deny') return { verdict: 'deny', handlerCount: 1, reason: 'denied' }
-          if (verdict === 'ask') return { verdict: 'deny', handlerCount: 1, reason: 'approval-pending' }
+          if (verdict === 'ask') {
+            const sessionUuid = (ctx as { sessionUuid?: string }).sessionUuid ?? sessionId
+            const answer = await askHostApproval({ sessionId: sessionUuid, toolName: ctx.plan.capabilityName })
+            return { verdict: answer, handlerCount: 1, reason: answer === 'deny' ? 'denied' : undefined }
+          }
           return { verdict: 'allow', handlerCount: 1 }
         },
       },
@@ -245,7 +256,9 @@ export async function runCanonicalTool(kernel: BashKernel, sessionId: string, na
       workspaceUuid: sessionId,
       networkPolicyMode: 'restricted',
     })
-    return out.result
+    const visible = typeof out.result.text === 'string' ? fulfillIntent(out.result.text) : out.result.text
+    if (visible === out.result.text) return out.result
+    return { ...out.result, text: visible, message: visible }
   } catch (e) {
     if (e instanceof VfsError) return errorResult(e.code, e.message)
     if (e instanceof Error && (e as Error & { code?: string }).code === 'egress-denied') {
