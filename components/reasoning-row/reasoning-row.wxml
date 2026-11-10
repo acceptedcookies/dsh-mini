@@ -1,4 +1,4 @@
-<view class="reasoning">
+<view class="reasoning layout-{{layout}}" style="{{shellVars}}">
   <view class="reasoning-head" data-anchor-exempt="fold" bindtap="toggle">
     <view class="reasoning-leading">
       <dsh-icon

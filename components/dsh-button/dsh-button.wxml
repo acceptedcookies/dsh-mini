@@ -1,7 +1,8 @@
 <view
-  class="dbtn dbtn-{{variant}} {{variant !== 'icon' ? 'dbtn-' + size : ''}} {{disabled ? 'dbtn-dis' : ''}}"
+  class="layout-{{layout}} dbtn dbtn-{{variant}} {{variant !== 'icon' ? 'dbtn-' + size : ''}} {{disabled ? 'dbtn-dis' : ''}}"
   data-anchor-exempt="component-internal"
   catchtap="onTap"
+  style="{{shellVars}}"
 >
   <dsh-icon wx:if="{{icon}}" name="{{icon}}" theme="{{theme}}" size="{{iconSize}}" />
   <text wx:if="{{label}}" class="dbtn-label">{{label}}</text>

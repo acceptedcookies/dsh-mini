@@ -1,0 +1,33 @@
+{
+  "id": "ms02-w5",
+  "lane": "mini-skin",
+  "verdict": "PASS",
+  "reason": "seven basic components wired; isolated shells are on the component root",
+  "envClass": "host-node",
+  "grade": "H1",
+  "at": "2026-11-10T06:44:25.059Z",
+  "headSha": "cfcc8c60267b97f65b06460293a6baa43a2f8313",
+  "dirtyWorktree": true,
+  "device": null,
+  "counts": {
+    "nodeChecks": "95/95"
+  },
+  "timing": null,
+  "plants": [
+    {
+      "id": "fallback-count-14",
+      "fired": true,
+      "restored": true
+    }
+  ],
+  "budget": null,
+  "remoteOps": [],
+  "detail": {
+    "argv": [
+      "node test/spike/mini-skin/node-checks.mjs"
+    ],
+    "stdoutSha256": {
+      "nodeChecks": "08f444afc9254ace09c51fc5851c16b8dd01fa2f96fe5c2387df1580f3528454"
+    }
+  }
+}

@@ -1,3 +1,4 @@
+import { engine } from '../../services/skin/engine'
 Component({
   properties: {
     /** [{id, label, icon?}] */
@@ -10,7 +11,29 @@ Component({
     /** 图标主题（pill+icon 时透传 dsh-icon） */
     theme: { type: String, value: 'light' },
   },
+  data: {
+    layout: '',
+    shellVars: '',
+  },
+  lifetimes: {
+    attached() {
+      ;(this as unknown as { _unwatchSkin?: () => void })._unwatchSkin = engine.watchMode(() => {
+        this.syncShell()
+      })
+      this.syncShell()
+    },
+    detached() {
+      const unwatch = (this as unknown as { _unwatchSkin?: () => void })._unwatchSkin
+      if (typeof unwatch === 'function') unwatch()
+    },
+  },
   methods: {
+    syncShell() {
+      const shellVars = engine.componentVars('dsh-tabs')
+      const layout = engine.componentLayout('dsh-tabs')
+      if (shellVars === this.data.shellVars && layout === this.data.layout) return
+      this.setData({ shellVars, layout })
+    },
     onSelect(e: WechatMiniprogram.TouchEvent) {
       const id = (e.currentTarget.dataset as { id?: string }).id
       if (id !== undefined && id !== this.data.active) {

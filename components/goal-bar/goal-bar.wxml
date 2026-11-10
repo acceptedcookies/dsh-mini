@@ -1,4 +1,4 @@
-<view wx:if="{{goal}}" class="goal-dock">
+<view wx:if="{{goal}}" class="goal-dock layout-{{layout}}" style="{{shellVars}}">
   <view wx:if="{{!editing}}" class="goal-bar">
     <view class="goal-glyph">
       <dsh-icon name="goal-outline" tone="tertiary" theme="{{theme}}" size="{{14}}" />

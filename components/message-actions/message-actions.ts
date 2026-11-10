@@ -1,5 +1,6 @@
 import { formatMessageClock } from '../../utils/time'
 import { errorBus } from '../../services/error-report'
+import { engine } from '../../services/skin/engine'
 
 const COPY_RESET_MS = 1600
 
@@ -17,6 +18,8 @@ Component({
   },
 
   data: {
+    layout: '',
+    shellVars: '',
     copied: false,
     clockText: '',
     copyTimer: 0 as ReturnType<typeof setTimeout> | 0,
@@ -29,13 +32,27 @@ Component({
   },
 
   lifetimes: {
+    attached() {
+      ;(this as unknown as { _unwatchSkin?: () => void })._unwatchSkin = engine.watchMode(() => {
+        this.syncShell()
+      })
+      this.syncShell()
+    },
     detached() {
+      const unwatch = (this as unknown as { _unwatchSkin?: () => void })._unwatchSkin
+      if (typeof unwatch === 'function') unwatch()
       const timer = this.data.copyTimer as ReturnType<typeof setTimeout> | 0
       if (timer !== 0) clearTimeout(timer)
     },
   },
 
   methods: {
+    syncShell() {
+      const shellVars = engine.componentVars('message-actions')
+      const layout = engine.componentLayout('message-actions')
+      if (shellVars === this.data.shellVars && layout === this.data.layout) return
+      this.setData({ shellVars, layout })
+    },
     copy() {
       if (this.properties.text.length === 0) return
       wx.setClipboardData({

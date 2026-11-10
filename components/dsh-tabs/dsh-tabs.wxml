@@ -1,6 +1,7 @@
 <view
   wx:if="{{variant === 'underline' && density === 'normal'}}"
-  class="dtabs dtabs-underline dtabs-underline-normal"
+  class="layout-{{layout}} dtabs dtabs-underline dtabs-underline-normal"
+  style="{{shellVars}}"
 >
   <view
     wx:for="{{tabs}}"
@@ -16,10 +17,11 @@
 </view>
 <scroll-view
   wx:else
-  class="dtabs dtabs-{{variant}} dtabs-{{variant}}-{{density}}"
+  class="layout-{{layout}} dtabs dtabs-{{variant}} dtabs-{{variant}}-{{density}}"
   scroll-x
   enhanced
   show-scrollbar="{{false}}"
+  style="{{shellVars}}"
 >
   <view
     wx:for="{{tabs}}"

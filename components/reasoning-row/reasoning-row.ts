@@ -1,3 +1,4 @@
+import { engine } from '../../services/skin/engine'
 function firstLine(text: string): string {
   const newline = text.indexOf('\n')
   return newline === -1 ? text : text.slice(0, newline)
@@ -30,6 +31,8 @@ Component({
     theme: { type: String, value: 'light' },
   },
   data: {
+    layout: '',
+    shellVars: '',
     expanded: false,
     summary: '',
   },
@@ -39,7 +42,25 @@ Component({
       this.setData({ summary: summary.split('**').join('').slice(0, 120) })
     },
   },
+  lifetimes: {
+    attached() {
+      ;(this as unknown as { _unwatchSkin?: () => void })._unwatchSkin = engine.watchMode(() => {
+        this.syncShell()
+      })
+      this.syncShell()
+    },
+    detached() {
+      const unwatch = (this as unknown as { _unwatchSkin?: () => void })._unwatchSkin
+      if (typeof unwatch === 'function') unwatch()
+    },
+  },
   methods: {
+    syncShell() {
+      const shellVars = engine.componentVars('reasoning-row')
+      const layout = engine.componentLayout('reasoning-row')
+      if (shellVars === this.data.shellVars && layout === this.data.layout) return
+      this.setData({ shellVars, layout })
+    },
     toggle() {
       this.setData({ expanded: !this.data.expanded })
     },

@@ -1,6 +1,6 @@
 <view
-  class="switch {{checked ? 'switch-on' : ''}} {{disabled ? 'switch-disabled' : ''}}"
+  class="layout-{{layout}} switch {{checked ? 'switch-on' : ''}} {{disabled ? 'switch-disabled' : ''}}"
   data-anchor-exempt="component-internal" bindtap="toggle"
->
+ style="{{shellVars}}">
   <view class="switch-thumb"></view>
 </view>

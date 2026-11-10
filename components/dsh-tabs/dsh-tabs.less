@@ -21,13 +21,13 @@
 .dtabs-underline-normal {
   display: flex;
   gap: var(--dsw-space-32);
-  height: 32px;
+  height: var(--dsw-dsh-tabs-height);
   padding-left: var(--dsw-space-8);
 }
 
 .dtabs-underline-normal .dtab {
   position: relative;
-  height: 32px;
+  height: var(--dsw-dsh-tabs-height-2);
   padding: 0;
   color: var(--dsw-alias-label-tertiary);
   font-size: var(--dsw-text-label);
@@ -40,9 +40,9 @@
   content: '';
   position: absolute;
   right: 0;
-  bottom: -1px;
+  bottom: var(--dsw-dsh-tabs-bottom);
   left: 0;
-  height: 2px;
+  height: var(--dsw-dsh-tabs-height-3);
   border-radius: var(--dsw-radius-hairline);
   background: var(--dsw-alias-state-business-primary);
   opacity: 0;
@@ -61,19 +61,19 @@
 
 /* ── underline · compact ── */
 .dtabs-underline-compact {
-  height: 34px;
+  height: var(--dsw-dsh-tabs-height-4);
   padding: 0 var(--dsw-space-8);
   border-bottom: 0.5px solid var(--dsw-alias-border-l2);
   box-sizing: border-box;
 }
 
 .dtabs-underline-compact .dtab {
-  margin-right: 1px;
+  margin-right: var(--dsw-dsh-tabs-margin-right);
 }
 
 .dtabs-underline-compact .dtab {
   position: relative;
-  height: 34px;
+  height: var(--dsw-dsh-tabs-height-5);
   padding: 0 9px;
   color: var(--dsw-alias-label-tertiary);
   font-size: var(--dsw-text-label);
@@ -93,10 +93,10 @@
 .dtabs-underline-compact .dtab-on::after {
   content: '';
   position: absolute;
-  right: 9px;
+  right: var(--dsw-dsh-tabs-right);
   bottom: 0;
-  left: 9px;
-  height: 2px;
+  left: var(--dsw-dsh-tabs-left);
+  height: var(--dsw-dsh-tabs-height-6);
   border-radius: var(--dsw-radius-micro) var(--dsw-radius-micro) 0 0;
   background: var(--dsw-alias-state-business-primary);
 }
@@ -104,14 +104,14 @@
 /* ── underline · flush：贴槽边——无横向内边距，首个 tab 文字顶容器左缘；
  *   底部分隔线宽度=容器宽（由消费者 gutter 决定左右边距）。抽屉专用。── */
 .dtabs-underline-flush {
-  height: 36px;
+  height: var(--dsw-dsh-tabs-height-7);
   border-bottom: 0.5px solid var(--dsw-alias-border-l2);
   box-sizing: border-box;
 }
 
 .dtabs-underline-flush .dtab {
   position: relative;
-  height: 36px;
+  height: var(--dsw-dsh-tabs-height-8);
   padding: 0 var(--dsw-space-8) 0 0;
   margin-right: var(--dsw-space-8);
   color: var(--dsw-alias-label-tertiary);
@@ -132,9 +132,9 @@
   content: '';
   position: absolute;
   right: var(--dsw-space-8);
-  bottom: -0.5px;
+  bottom: var(--dsw-dsh-tabs-bottom-2);
   left: 0;
-  height: 2px;
+  height: var(--dsw-dsh-tabs-height-9);
   border-radius: var(--dsw-radius-micro) var(--dsw-radius-micro) 0 0;
   background: var(--dsw-alias-state-business-primary);
 }
@@ -142,9 +142,9 @@
 /* ── pill ── */
 .dtabs-pill .dtab {
   gap: var(--dsw-space-4);
-  height: 28px;
-  min-width: 64px;
-  max-width: 140px;
+  height: var(--dsw-dsh-tabs-height-10);
+  min-width: var(--dsw-dsh-tabs-min-width);
+  max-width: var(--dsw-dsh-tabs-max-width);
   justify-content: center;
   padding: 0 var(--dsw-space-8);
   margin-right: var(--dsw-space-2);

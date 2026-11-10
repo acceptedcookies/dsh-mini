@@ -1,6 +1,6 @@
 :host {
   display: block;
-  margin-bottom: 16px;
+  margin-bottom: var(--dsw-reasoning-row-margin-bottom);
 }
 
 .reasoning {
@@ -11,7 +11,7 @@
 .reasoning-head {
   display: flex;
   align-items: center;
-  height: 24px;
+  height: var(--dsw-reasoning-row-height);
   color: var(--dsw-alias-label-tertiary);
   font-size: var(--dsw-text-label);
   line-height: var(--dsw-lh-24);
@@ -26,8 +26,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: var(--dsw-reasoning-row-width);
+  height: var(--dsw-reasoning-row-height-2);
   margin-right: var(--dsw-space-6);
 }
 
@@ -38,13 +38,13 @@
 
 .reasoning-sep {
   flex: none;
-  width: 2px;
-  height: 2px;
+  width: var(--dsw-reasoning-row-width-2);
+  height: var(--dsw-reasoning-row-height-3);
   margin: 0 var(--dsw-space-8);
   overflow: hidden;
   border-radius: var(--dsw-radius-micro);
   background: var(--dsw-alias-label-caption);
-  color: transparent;
+  color: var(--dsw-reasoning-row-color);
 }
 
 .reasoning-summary-wrap {
@@ -82,7 +82,7 @@
   background-size: 220% 100%;
   -webkit-background-clip: text;
   background-clip: text;
-  -webkit-text-fill-color: transparent;
+  -webkit-text-fill-color: var(--dsw-reasoning-row--webkit-text-fill-color);
   animation: reasoning-shimmer 1.5s linear infinite;
 }
 

@@ -1,4 +1,4 @@
-<view class="actions" data-clock="{{clock}}">
+<view class="actions layout-{{layout}}" data-clock="{{clock}}" style="{{shellVars}}">
   <text wx:if="{{clock === 'start' && clockText}}" class="time time-start">{{clockText}}</text>
   <view class="action" data-anchor="message.action.copy" bindtap="copy">
     <dsh-icon name="{{copied ? 'check-outline' : 'copy-outline'}}" tone="tertiary" theme="{{theme}}" size="{{clock === 'end' ? 17 : 15}}" />

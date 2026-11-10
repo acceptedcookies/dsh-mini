@@ -1,4 +1,4 @@
-<view class="tool-card">
+<view class="tool-card layout-{{layout}}" style="{{shellVars}}">
   <view class="tool-head" data-anchor-exempt="fold" bindtap="toggle">
     <view class="tool-leading">
       <dsh-icon
