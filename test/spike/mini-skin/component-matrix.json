@@ -1,0 +1,2421 @@
+{
+  "tool": "MS02 P0 component-matrix",
+  "componentCount": 23,
+  "rows": {
+    "approval-sheet": {
+      "isolation": "apply-shared",
+      "shell": "components/approval-sheet/approval-sheet.wxml:1 .approval-card",
+      "skinDomainLiterals": [
+        {
+          "token": "--dsw-approval-sheet-max-width",
+          "prop": "max-width",
+          "value": "760px",
+          "line": 7,
+          "file": "components/approval-sheet/approval-sheet.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-approval-sheet-width",
+          "prop": "width",
+          "value": "6px",
+          "line": 28,
+          "file": "components/approval-sheet/approval-sheet.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-approval-sheet-height",
+          "prop": "height",
+          "value": "6px",
+          "line": 29,
+          "file": "components/approval-sheet/approval-sheet.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-approval-sheet-max-height",
+          "prop": "max-height",
+          "value": "336px",
+          "line": 47,
+          "file": "components/approval-sheet/approval-sheet.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-approval-sheet-min-width",
+          "prop": "min-width",
+          "value": "88px",
+          "line": 85,
+          "file": "components/approval-sheet/approval-sheet.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-approval-sheet-height-2",
+          "prop": "height",
+          "value": "32px",
+          "line": 86,
+          "file": "components/approval-sheet/approval-sheet.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        }
+      ],
+      "zSlotBreakpoint": "none",
+      "consumedVars": [
+        "--dsw-approval-sheet-max-width",
+        "--dsw-approval-sheet-width",
+        "--dsw-approval-sheet-height",
+        "--dsw-approval-sheet-max-height",
+        "--dsw-approval-sheet-min-width",
+        "--dsw-approval-sheet-height-2"
+      ],
+      "verdict": "vars+options",
+      "contractFile": "",
+      "verdictReason": "--dsw-approval-sheet-max-width=760px @components/approval-sheet/approval-sheet.less:7; --dsw-approval-sheet-width=6px @components/approval-sheet/approval-sheet.less:28; --dsw-approval-sheet-height=6px @components/approval-sheet/approval-sheet.less:29; --dsw-approval-sheet-max-height=336px @components/approval-sheet/approval-sheet.less:47; --dsw-approval-sheet-min-width=88px @components/approval-sheet/approval-sheet.less:85; --dsw-approval-sheet-height-2=32px @components/approval-sheet/approval-sheet.less:86"
+    },
+    "chat-bubble": {
+      "isolation": "apply-shared",
+      "shell": "components/chat-bubble/chat-bubble.wxml:1 .row",
+      "skinDomainLiterals": [
+        {
+          "token": "--dsw-chat-bubble-margin-top",
+          "prop": "margin-top",
+          "value": "20px",
+          "line": 74,
+          "file": "components/chat-bubble/chat-bubble.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-chat-bubble-margin-top-2",
+          "prop": "margin-top",
+          "value": "8px",
+          "line": 79,
+          "file": "components/chat-bubble/chat-bubble.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-chat-bubble-width",
+          "prop": "width",
+          "value": "240px",
+          "line": 96,
+          "file": "components/chat-bubble/chat-bubble.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-chat-bubble-max-width",
+          "prop": "max-width",
+          "value": "100%",
+          "line": 97,
+          "file": "components/chat-bubble/chat-bubble.less",
+          "kind": "length",
+          "units": [
+            "%"
+          ]
+        },
+        {
+          "token": "--dsw-chat-bubble-min-height",
+          "prop": "min-height",
+          "value": "64px",
+          "line": 98,
+          "file": "components/chat-bubble/chat-bubble.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-chat-bubble-width-2",
+          "prop": "width",
+          "value": "28px",
+          "line": 111,
+          "file": "components/chat-bubble/chat-bubble.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-chat-bubble-height",
+          "prop": "height",
+          "value": "28px",
+          "line": 112,
+          "file": "components/chat-bubble/chat-bubble.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-chat-bubble-width-3",
+          "prop": "width",
+          "value": "160px",
+          "line": 152,
+          "file": "components/chat-bubble/chat-bubble.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-chat-bubble-height-2",
+          "prop": "height",
+          "value": "160px",
+          "line": 153,
+          "file": "components/chat-bubble/chat-bubble.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-chat-bubble-margin-bottom",
+          "prop": "margin-bottom",
+          "value": "6px",
+          "line": 172,
+          "file": "components/chat-bubble/chat-bubble.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-chat-bubble-min-height-2",
+          "prop": "min-height",
+          "value": "18px",
+          "line": 198,
+          "file": "components/chat-bubble/chat-bubble.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-chat-bubble-width-4",
+          "prop": "width",
+          "value": "10px",
+          "line": 235,
+          "file": "components/chat-bubble/chat-bubble.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-chat-bubble-height-3",
+          "prop": "height",
+          "value": "10px",
+          "line": 236,
+          "file": "components/chat-bubble/chat-bubble.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-chat-bubble-margin-top-3",
+          "prop": "margin-top",
+          "value": "5px",
+          "line": 237,
+          "file": "components/chat-bubble/chat-bubble.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-chat-bubble-max-width-2",
+          "prop": "max-width",
+          "value": "82%",
+          "line": 272,
+          "file": "components/chat-bubble/chat-bubble.less",
+          "kind": "length",
+          "units": [
+            "%"
+          ]
+        }
+      ],
+      "zSlotBreakpoint": "@media",
+      "consumedVars": [
+        "--dsw-chat-bubble-margin-top",
+        "--dsw-chat-bubble-margin-top-2",
+        "--dsw-chat-bubble-width",
+        "--dsw-chat-bubble-max-width",
+        "--dsw-chat-bubble-min-height",
+        "--dsw-chat-bubble-width-2",
+        "--dsw-chat-bubble-height",
+        "--dsw-chat-bubble-width-3",
+        "--dsw-chat-bubble-height-2",
+        "--dsw-chat-bubble-margin-bottom",
+        "--dsw-chat-bubble-min-height-2",
+        "--dsw-chat-bubble-width-4",
+        "--dsw-chat-bubble-height-3",
+        "--dsw-chat-bubble-margin-top-3",
+        "--dsw-chat-bubble-max-width-2"
+      ],
+      "verdict": "vars+options",
+      "contractFile": "",
+      "verdictReason": "--dsw-chat-bubble-margin-top=20px @components/chat-bubble/chat-bubble.less:74; --dsw-chat-bubble-margin-top-2=8px @components/chat-bubble/chat-bubble.less:79; --dsw-chat-bubble-width=240px @components/chat-bubble/chat-bubble.less:96; --dsw-chat-bubble-max-width=100% @components/chat-bubble/chat-bubble.less:97; --dsw-chat-bubble-min-height=64px @components/chat-bubble/chat-bubble.less:98; --dsw-chat-bubble-width-2=28px @components/chat-bubble/chat-bubble.less:111; --dsw-chat-bubble-height=28px @components/chat-bubble/chat-bubble.less:112; --dsw-chat-bubble-width-3=160px @components/chat-bubble/chat-bubble.less:152; --dsw-chat-bubble-height-2=160px @components/chat-bubble/chat-bubble.less:153; --dsw-chat-bubble-margin-bottom=6px @components/chat-bubble/chat-bubble.less:172; --dsw-chat-bubble-min-height-2=18px @components/chat-bubble/chat-bubble.less:198; --dsw-chat-bubble-width-4=10px @components/chat-bubble/chat-bubble.less:235; --dsw-chat-bubble-height-3=10px @components/chat-bubble/chat-bubble.less:236; --dsw-chat-bubble-margin-top-3=5px @components/chat-bubble/chat-bubble.less:237; --dsw-chat-bubble-max-width-2=82% @components/chat-bubble/chat-bubble.less:272"
+    },
+    "command-menu": {
+      "isolation": "apply-shared",
+      "shell": "components/command-menu/command-menu.wxml:3 .cm-menu（与 surfaceStyle 单点拼接）",
+      "skinDomainLiterals": [
+        {
+          "token": "--dsw-command-menu-background",
+          "prop": "background",
+          "value": "transparent",
+          "line": 9,
+          "file": "components/command-menu/command-menu.less",
+          "kind": "color",
+          "units": []
+        },
+        {
+          "token": "--dsw-command-menu-min-height",
+          "prop": "min-height",
+          "value": "23px",
+          "line": 64,
+          "file": "components/command-menu/command-menu.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-command-menu-margin-top",
+          "prop": "margin-top",
+          "value": "3px",
+          "line": 73,
+          "file": "components/command-menu/command-menu.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-command-menu-min-height-2",
+          "prop": "min-height",
+          "value": "34px",
+          "line": 81,
+          "file": "components/command-menu/command-menu.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-command-menu-width",
+          "prop": "width",
+          "value": "14px",
+          "line": 101,
+          "file": "components/command-menu/command-menu.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-command-menu-height",
+          "prop": "height",
+          "value": "14px",
+          "line": 102,
+          "file": "components/command-menu/command-menu.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-command-menu-max-width",
+          "prop": "max-width",
+          "value": "40%",
+          "line": 110,
+          "file": "components/command-menu/command-menu.less",
+          "kind": "length",
+          "units": [
+            "%"
+          ]
+        },
+        {
+          "token": "--dsw-command-menu-max-width-2",
+          "prop": "max-width",
+          "value": "20%",
+          "line": 118,
+          "file": "components/command-menu/command-menu.less",
+          "kind": "length",
+          "units": [
+            "%"
+          ]
+        }
+      ],
+      "zSlotBreakpoint": "z-index @keyframes",
+      "consumedVars": [
+        "--dsw-command-menu-background",
+        "--dsw-command-menu-min-height",
+        "--dsw-command-menu-margin-top",
+        "--dsw-command-menu-min-height-2",
+        "--dsw-command-menu-width",
+        "--dsw-command-menu-height",
+        "--dsw-command-menu-max-width",
+        "--dsw-command-menu-max-width-2"
+      ],
+      "verdict": "vars+options",
+      "contractFile": "",
+      "verdictReason": "--dsw-command-menu-background=transparent @components/command-menu/command-menu.less:9; --dsw-command-menu-min-height=23px @components/command-menu/command-menu.less:64; --dsw-command-menu-margin-top=3px @components/command-menu/command-menu.less:73; --dsw-command-menu-min-height-2=34px @components/command-menu/command-menu.less:81; --dsw-command-menu-width=14px @components/command-menu/command-menu.less:101; --dsw-command-menu-height=14px @components/command-menu/command-menu.less:102; --dsw-command-menu-max-width=40% @components/command-menu/command-menu.less:110; --dsw-command-menu-max-width-2=20% @components/command-menu/command-menu.less:118"
+    },
+    "composer-bar": {
+      "isolation": "apply-shared",
+      "shell": "components/composer-bar/composer-bar.wxml:1 .composer-card",
+      "skinDomainLiterals": [
+        {
+          "token": "--dsw-composer-bar-padding-top",
+          "prop": "padding-top",
+          "value": "8px",
+          "line": 10,
+          "file": "components/composer-bar/composer-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-composer-bar-width",
+          "prop": "width",
+          "value": "56px",
+          "line": 32,
+          "file": "components/composer-bar/composer-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-composer-bar-height",
+          "prop": "height",
+          "value": "56px",
+          "line": 33,
+          "file": "components/composer-bar/composer-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-composer-bar-top",
+          "prop": "top",
+          "value": "-6px",
+          "line": 39,
+          "file": "components/composer-bar/composer-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-composer-bar-right",
+          "prop": "right",
+          "value": "-6px",
+          "line": 40,
+          "file": "components/composer-bar/composer-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-composer-bar-width-2",
+          "prop": "width",
+          "value": "18px",
+          "line": 41,
+          "file": "components/composer-bar/composer-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-composer-bar-height-2",
+          "prop": "height",
+          "value": "18px",
+          "line": 42,
+          "file": "components/composer-bar/composer-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-composer-bar-min-height",
+          "prop": "min-height",
+          "value": "36px",
+          "line": 53,
+          "file": "components/composer-bar/composer-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-composer-bar-max-height",
+          "prop": "max-height",
+          "value": "240px",
+          "line": 54,
+          "file": "components/composer-bar/composer-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-composer-bar-min-height-2",
+          "prop": "min-height",
+          "value": "52px",
+          "line": 64,
+          "file": "components/composer-bar/composer-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-composer-bar-width-3",
+          "prop": "width",
+          "value": "28px",
+          "line": 87,
+          "file": "components/composer-bar/composer-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-composer-bar-height-3",
+          "prop": "height",
+          "value": "28px",
+          "line": 88,
+          "file": "components/composer-bar/composer-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-composer-bar-max-width",
+          "prop": "max-width",
+          "value": "220px",
+          "line": 110,
+          "file": "components/composer-bar/composer-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-composer-bar-height-4",
+          "prop": "height",
+          "value": "28px",
+          "line": 111,
+          "file": "components/composer-bar/composer-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-composer-bar-max-width-2",
+          "prop": "max-width",
+          "value": "220px",
+          "line": 150,
+          "file": "components/composer-bar/composer-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-composer-bar-height-5",
+          "prop": "height",
+          "value": "28px",
+          "line": 151,
+          "file": "components/composer-bar/composer-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-composer-bar-width-4",
+          "prop": "width",
+          "value": "34px",
+          "line": 184,
+          "file": "components/composer-bar/composer-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-composer-bar-height-6",
+          "prop": "height",
+          "value": "34px",
+          "line": 185,
+          "file": "components/composer-bar/composer-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-composer-bar-width-5",
+          "prop": "width",
+          "value": "14px",
+          "line": 201,
+          "file": "components/composer-bar/composer-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-composer-bar-height-7",
+          "prop": "height",
+          "value": "14px",
+          "line": 202,
+          "file": "components/composer-bar/composer-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        }
+      ],
+      "zSlotBreakpoint": "@media @keyframes",
+      "consumedVars": [
+        "--dsw-composer-bar-padding-top",
+        "--dsw-composer-bar-width",
+        "--dsw-composer-bar-height",
+        "--dsw-composer-bar-top",
+        "--dsw-composer-bar-right",
+        "--dsw-composer-bar-width-2",
+        "--dsw-composer-bar-height-2",
+        "--dsw-composer-bar-min-height",
+        "--dsw-composer-bar-max-height",
+        "--dsw-composer-bar-min-height-2",
+        "--dsw-composer-bar-width-3",
+        "--dsw-composer-bar-height-3",
+        "--dsw-composer-bar-max-width",
+        "--dsw-composer-bar-height-4",
+        "--dsw-composer-bar-max-width-2",
+        "--dsw-composer-bar-height-5",
+        "--dsw-composer-bar-width-4",
+        "--dsw-composer-bar-height-6",
+        "--dsw-composer-bar-width-5",
+        "--dsw-composer-bar-height-7"
+      ],
+      "verdict": "vars+options",
+      "contractFile": "",
+      "verdictReason": "--dsw-composer-bar-padding-top=8px @components/composer-bar/composer-bar.less:10; --dsw-composer-bar-width=56px @components/composer-bar/composer-bar.less:32; --dsw-composer-bar-height=56px @components/composer-bar/composer-bar.less:33; --dsw-composer-bar-top=-6px @components/composer-bar/composer-bar.less:39; --dsw-composer-bar-right=-6px @components/composer-bar/composer-bar.less:40; --dsw-composer-bar-width-2=18px @components/composer-bar/composer-bar.less:41; --dsw-composer-bar-height-2=18px @components/composer-bar/composer-bar.less:42; --dsw-composer-bar-min-height=36px @components/composer-bar/composer-bar.less:53; --dsw-composer-bar-max-height=240px @components/composer-bar/composer-bar.less:54; --dsw-composer-bar-min-height-2=52px @components/composer-bar/composer-bar.less:64; --dsw-composer-bar-width-3=28px @components/composer-bar/composer-bar.less:87; --dsw-composer-bar-height-3=28px @components/composer-bar/composer-bar.less:88; --dsw-composer-bar-max-width=220px @components/composer-bar/composer-bar.less:110; --dsw-composer-bar-height-4=28px @components/composer-bar/composer-bar.less:111; --dsw-composer-bar-max-width-2=220px @components/composer-bar/composer-bar.less:150; --dsw-composer-bar-height-5=28px @components/composer-bar/composer-bar.less:151; --dsw-composer-bar-width-4=34px @components/composer-bar/composer-bar.less:184; --dsw-composer-bar-height-6=34px @components/composer-bar/composer-bar.less:185; --dsw-composer-bar-width-5=14px @components/composer-bar/composer-bar.less:201; --dsw-composer-bar-height-7=14px @components/composer-bar/composer-bar.less:202"
+    },
+    "dsh-button": {
+      "isolation": "isolated",
+      "shell": "components/dsh-button/dsh-button.wxml:1 .dbtn",
+      "skinDomainLiterals": [
+        {
+          "token": "--dsw-dsh-button-height",
+          "prop": "height",
+          "value": "36px",
+          "line": 20,
+          "file": "components/dsh-button/dsh-button.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-button-height-2",
+          "prop": "height",
+          "value": "28px",
+          "line": 29,
+          "file": "components/dsh-button/dsh-button.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-button-background",
+          "prop": "background",
+          "value": "transparent",
+          "line": 50,
+          "file": "components/dsh-button/dsh-button.less",
+          "kind": "color",
+          "units": []
+        },
+        {
+          "token": "--dsw-dsh-button-width",
+          "prop": "width",
+          "value": "28px",
+          "line": 59,
+          "file": "components/dsh-button/dsh-button.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-button-height-3",
+          "prop": "height",
+          "value": "28px",
+          "line": 60,
+          "file": "components/dsh-button/dsh-button.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-button-background-2",
+          "prop": "background",
+          "value": "transparent",
+          "line": 65,
+          "file": "components/dsh-button/dsh-button.less",
+          "kind": "color",
+          "units": []
+        }
+      ],
+      "zSlotBreakpoint": "none",
+      "consumedVars": [
+        "--dsw-dsh-button-height",
+        "--dsw-dsh-button-height-2",
+        "--dsw-dsh-button-background",
+        "--dsw-dsh-button-width",
+        "--dsw-dsh-button-height-3",
+        "--dsw-dsh-button-background-2"
+      ],
+      "verdict": "vars+options",
+      "contractFile": "",
+      "verdictReason": "--dsw-dsh-button-height=36px @components/dsh-button/dsh-button.less:20; --dsw-dsh-button-height-2=28px @components/dsh-button/dsh-button.less:29; --dsw-dsh-button-background=transparent @components/dsh-button/dsh-button.less:50; --dsw-dsh-button-width=28px @components/dsh-button/dsh-button.less:59; --dsw-dsh-button-height-3=28px @components/dsh-button/dsh-button.less:60; --dsw-dsh-button-background-2=transparent @components/dsh-button/dsh-button.less:65"
+    },
+    "dsh-dialog": {
+      "isolation": "apply-shared",
+      "shell": "components/dsh-dialog/dsh-dialog.wxml:3 .dialog-card（键盘 padding 留在 :1）",
+      "skinDomainLiterals": [
+        {
+          "token": "--dsw-dsh-dialog-max-height",
+          "prop": "max-height",
+          "value": "100%",
+          "line": 34,
+          "file": "components/dsh-dialog/dsh-dialog.less",
+          "kind": "length",
+          "units": [
+            "%"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-dialog-margin-top",
+          "prop": "margin-top",
+          "value": "3px",
+          "line": 103,
+          "file": "components/dsh-dialog/dsh-dialog.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-dialog-width",
+          "prop": "width",
+          "value": "28px",
+          "line": 111,
+          "file": "components/dsh-dialog/dsh-dialog.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-dialog-height",
+          "prop": "height",
+          "value": "28px",
+          "line": 112,
+          "file": "components/dsh-dialog/dsh-dialog.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-dialog-height-2",
+          "prop": "height",
+          "value": "36px",
+          "line": 139,
+          "file": "components/dsh-dialog/dsh-dialog.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-dialog-min-height",
+          "prop": "min-height",
+          "value": "72px",
+          "line": 153,
+          "file": "components/dsh-dialog/dsh-dialog.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-dialog-max-height-2",
+          "prop": "max-height",
+          "value": "140px",
+          "line": 154,
+          "file": "components/dsh-dialog/dsh-dialog.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-dialog-min-width",
+          "prop": "min-width",
+          "value": "64px",
+          "line": 176,
+          "file": "components/dsh-dialog/dsh-dialog.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-dialog-height-3",
+          "prop": "height",
+          "value": "36px",
+          "line": 177,
+          "file": "components/dsh-dialog/dsh-dialog.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        }
+      ],
+      "zSlotBreakpoint": "z-index @keyframes",
+      "consumedVars": [
+        "--dsw-dsh-dialog-max-height",
+        "--dsw-dsh-dialog-margin-top",
+        "--dsw-dsh-dialog-width",
+        "--dsw-dsh-dialog-height",
+        "--dsw-dsh-dialog-height-2",
+        "--dsw-dsh-dialog-min-height",
+        "--dsw-dsh-dialog-max-height-2",
+        "--dsw-dsh-dialog-min-width",
+        "--dsw-dsh-dialog-height-3"
+      ],
+      "verdict": "vars+options",
+      "contractFile": "",
+      "verdictReason": "--dsw-dsh-dialog-max-height=100% @components/dsh-dialog/dsh-dialog.less:34; --dsw-dsh-dialog-margin-top=3px @components/dsh-dialog/dsh-dialog.less:103; --dsw-dsh-dialog-width=28px @components/dsh-dialog/dsh-dialog.less:111; --dsw-dsh-dialog-height=28px @components/dsh-dialog/dsh-dialog.less:112; --dsw-dsh-dialog-height-2=36px @components/dsh-dialog/dsh-dialog.less:139; --dsw-dsh-dialog-min-height=72px @components/dsh-dialog/dsh-dialog.less:153; --dsw-dsh-dialog-max-height-2=140px @components/dsh-dialog/dsh-dialog.less:154; --dsw-dsh-dialog-min-width=64px @components/dsh-dialog/dsh-dialog.less:176; --dsw-dsh-dialog-height-3=36px @components/dsh-dialog/dsh-dialog.less:177"
+    },
+    "dsh-icon": {
+      "isolation": "apply-shared",
+      "shell": "n/a empty-asset 不绑壳 components/dsh-icon/dsh-icon.wxml:1",
+      "skinDomainLiterals": [],
+      "zSlotBreakpoint": "none",
+      "consumedVars": [],
+      "verdict": "empty-asset",
+      "contractFile": "",
+      "verdictReason": "T-O-2 ④ empty-asset。证据 @components/dsh-icon/dsh-icon.ts:21 与 @components/dsh-icon/dsh-icon.less:1。路径与纯布局不进合约，less 不改。未升格子串 `flex: none`。"
+    },
+    "dsh-menu": {
+      "isolation": "apply-shared",
+      "shell": "components/dsh-menu/dsh-menu.wxml:2 .menu-surface（与 surfaceStyle 单点拼接）",
+      "skinDomainLiterals": [
+        {
+          "token": "--dsw-dsh-menu-max-height",
+          "prop": "max-height",
+          "value": "320px",
+          "line": 56,
+          "file": "components/dsh-menu/dsh-menu.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-menu-min-height",
+          "prop": "min-height",
+          "value": "34px",
+          "line": 63,
+          "file": "components/dsh-menu/dsh-menu.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-menu-gap",
+          "prop": "gap",
+          "value": "1px",
+          "line": 88,
+          "file": "components/dsh-menu/dsh-menu.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-menu-gap-2",
+          "prop": "gap",
+          "value": "5px",
+          "line": 94,
+          "file": "components/dsh-menu/dsh-menu.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        }
+      ],
+      "zSlotBreakpoint": "z-index @keyframes",
+      "consumedVars": [
+        "--dsw-dsh-menu-max-height",
+        "--dsw-dsh-menu-min-height",
+        "--dsw-dsh-menu-gap",
+        "--dsw-dsh-menu-gap-2"
+      ],
+      "verdict": "vars+options",
+      "contractFile": "",
+      "verdictReason": "--dsw-dsh-menu-max-height=320px @components/dsh-menu/dsh-menu.less:56; --dsw-dsh-menu-min-height=34px @components/dsh-menu/dsh-menu.less:63; --dsw-dsh-menu-gap=1px @components/dsh-menu/dsh-menu.less:88; --dsw-dsh-menu-gap-2=5px @components/dsh-menu/dsh-menu.less:94"
+    },
+    "dsh-switch": {
+      "isolation": "apply-shared",
+      "shell": "components/dsh-switch/dsh-switch.wxml:1 .switch",
+      "skinDomainLiterals": [
+        {
+          "token": "--dsw-dsh-switch-width",
+          "prop": "width",
+          "value": "36px",
+          "line": 9,
+          "file": "components/dsh-switch/dsh-switch.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-switch-height",
+          "prop": "height",
+          "value": "20px",
+          "line": 10,
+          "file": "components/dsh-switch/dsh-switch.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-switch-width-2",
+          "prop": "width",
+          "value": "16px",
+          "line": 27,
+          "file": "components/dsh-switch/dsh-switch.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-switch-height-2",
+          "prop": "height",
+          "value": "16px",
+          "line": 28,
+          "file": "components/dsh-switch/dsh-switch.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        }
+      ],
+      "zSlotBreakpoint": "none",
+      "consumedVars": [
+        "--dsw-dsh-switch-width",
+        "--dsw-dsh-switch-height",
+        "--dsw-dsh-switch-width-2",
+        "--dsw-dsh-switch-height-2"
+      ],
+      "verdict": "vars+options",
+      "contractFile": "",
+      "verdictReason": "--dsw-dsh-switch-width=36px @components/dsh-switch/dsh-switch.less:9; --dsw-dsh-switch-height=20px @components/dsh-switch/dsh-switch.less:10; --dsw-dsh-switch-width-2=16px @components/dsh-switch/dsh-switch.less:27; --dsw-dsh-switch-height-2=16px @components/dsh-switch/dsh-switch.less:28"
+    },
+    "dsh-tabs": {
+      "isolation": "isolated",
+      "shell": "components/dsh-tabs/dsh-tabs.wxml:3 与 :19 .dtabs",
+      "skinDomainLiterals": [
+        {
+          "token": "--dsw-dsh-tabs-height",
+          "prop": "height",
+          "value": "32px",
+          "line": 24,
+          "file": "components/dsh-tabs/dsh-tabs.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-tabs-height-2",
+          "prop": "height",
+          "value": "32px",
+          "line": 30,
+          "file": "components/dsh-tabs/dsh-tabs.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-tabs-bottom",
+          "prop": "bottom",
+          "value": "-1px",
+          "line": 43,
+          "file": "components/dsh-tabs/dsh-tabs.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-tabs-height-3",
+          "prop": "height",
+          "value": "2px",
+          "line": 45,
+          "file": "components/dsh-tabs/dsh-tabs.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-tabs-height-4",
+          "prop": "height",
+          "value": "34px",
+          "line": 64,
+          "file": "components/dsh-tabs/dsh-tabs.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-tabs-margin-right",
+          "prop": "margin-right",
+          "value": "1px",
+          "line": 71,
+          "file": "components/dsh-tabs/dsh-tabs.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-tabs-height-5",
+          "prop": "height",
+          "value": "34px",
+          "line": 76,
+          "file": "components/dsh-tabs/dsh-tabs.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-tabs-right",
+          "prop": "right",
+          "value": "9px",
+          "line": 96,
+          "file": "components/dsh-tabs/dsh-tabs.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-tabs-left",
+          "prop": "left",
+          "value": "9px",
+          "line": 98,
+          "file": "components/dsh-tabs/dsh-tabs.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-tabs-height-6",
+          "prop": "height",
+          "value": "2px",
+          "line": 99,
+          "file": "components/dsh-tabs/dsh-tabs.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-tabs-height-7",
+          "prop": "height",
+          "value": "36px",
+          "line": 107,
+          "file": "components/dsh-tabs/dsh-tabs.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-tabs-height-8",
+          "prop": "height",
+          "value": "36px",
+          "line": 114,
+          "file": "components/dsh-tabs/dsh-tabs.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-tabs-bottom-2",
+          "prop": "bottom",
+          "value": "-0.5px",
+          "line": 135,
+          "file": "components/dsh-tabs/dsh-tabs.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-tabs-height-9",
+          "prop": "height",
+          "value": "2px",
+          "line": 137,
+          "file": "components/dsh-tabs/dsh-tabs.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-tabs-height-10",
+          "prop": "height",
+          "value": "28px",
+          "line": 145,
+          "file": "components/dsh-tabs/dsh-tabs.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-tabs-min-width",
+          "prop": "min-width",
+          "value": "64px",
+          "line": 146,
+          "file": "components/dsh-tabs/dsh-tabs.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-dsh-tabs-max-width",
+          "prop": "max-width",
+          "value": "140px",
+          "line": 147,
+          "file": "components/dsh-tabs/dsh-tabs.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        }
+      ],
+      "zSlotBreakpoint": "none",
+      "consumedVars": [
+        "--dsw-dsh-tabs-height",
+        "--dsw-dsh-tabs-height-2",
+        "--dsw-dsh-tabs-bottom",
+        "--dsw-dsh-tabs-height-3",
+        "--dsw-dsh-tabs-height-4",
+        "--dsw-dsh-tabs-margin-right",
+        "--dsw-dsh-tabs-height-5",
+        "--dsw-dsh-tabs-right",
+        "--dsw-dsh-tabs-left",
+        "--dsw-dsh-tabs-height-6",
+        "--dsw-dsh-tabs-height-7",
+        "--dsw-dsh-tabs-height-8",
+        "--dsw-dsh-tabs-bottom-2",
+        "--dsw-dsh-tabs-height-9",
+        "--dsw-dsh-tabs-height-10",
+        "--dsw-dsh-tabs-min-width",
+        "--dsw-dsh-tabs-max-width"
+      ],
+      "verdict": "vars+options",
+      "contractFile": "",
+      "verdictReason": "--dsw-dsh-tabs-height=32px @components/dsh-tabs/dsh-tabs.less:24; --dsw-dsh-tabs-height-2=32px @components/dsh-tabs/dsh-tabs.less:30; --dsw-dsh-tabs-bottom=-1px @components/dsh-tabs/dsh-tabs.less:43; --dsw-dsh-tabs-height-3=2px @components/dsh-tabs/dsh-tabs.less:45; --dsw-dsh-tabs-height-4=34px @components/dsh-tabs/dsh-tabs.less:64; --dsw-dsh-tabs-margin-right=1px @components/dsh-tabs/dsh-tabs.less:71; --dsw-dsh-tabs-height-5=34px @components/dsh-tabs/dsh-tabs.less:76; --dsw-dsh-tabs-right=9px @components/dsh-tabs/dsh-tabs.less:96; --dsw-dsh-tabs-left=9px @components/dsh-tabs/dsh-tabs.less:98; --dsw-dsh-tabs-height-6=2px @components/dsh-tabs/dsh-tabs.less:99; --dsw-dsh-tabs-height-7=36px @components/dsh-tabs/dsh-tabs.less:107; --dsw-dsh-tabs-height-8=36px @components/dsh-tabs/dsh-tabs.less:114; --dsw-dsh-tabs-bottom-2=-0.5px @components/dsh-tabs/dsh-tabs.less:135; --dsw-dsh-tabs-height-9=2px @components/dsh-tabs/dsh-tabs.less:137; --dsw-dsh-tabs-height-10=28px @components/dsh-tabs/dsh-tabs.less:145; --dsw-dsh-tabs-min-width=64px @components/dsh-tabs/dsh-tabs.less:146; --dsw-dsh-tabs-max-width=140px @components/dsh-tabs/dsh-tabs.less:147"
+    },
+    "dsh-toast": {
+      "isolation": "apply-shared",
+      "shell": "components/dsh-toast/dsh-toast.wxml:1 .toast",
+      "skinDomainLiterals": [
+        {
+          "token": "--dsw-dsh-toast-left",
+          "prop": "left",
+          "value": "50%",
+          "line": 8,
+          "file": "components/dsh-toast/dsh-toast.less",
+          "kind": "length",
+          "units": [
+            "%"
+          ]
+        }
+      ],
+      "zSlotBreakpoint": "z-index @keyframes",
+      "consumedVars": [
+        "--dsw-dsh-toast-left"
+      ],
+      "verdict": "vars+options",
+      "contractFile": "",
+      "verdictReason": "--dsw-dsh-toast-left=50% @components/dsh-toast/dsh-toast.less:8"
+    },
+    "error-center": {
+      "isolation": "apply-shared",
+      "shell": "components/error-center/error-center.wxml:1 .ec-root",
+      "skinDomainLiterals": [
+        {
+          "token": "--dsw-error-center-left",
+          "prop": "left",
+          "value": "50%",
+          "line": 11,
+          "file": "components/error-center/error-center.less",
+          "kind": "length",
+          "units": [
+            "%"
+          ]
+        },
+        {
+          "token": "--dsw-error-center-min-width",
+          "prop": "min-width",
+          "value": "220px",
+          "line": 27,
+          "file": "components/error-center/error-center.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-error-center-margin-top",
+          "prop": "margin-top",
+          "value": "1px",
+          "line": 49,
+          "file": "components/error-center/error-center.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-error-center-width",
+          "prop": "width",
+          "value": "20px",
+          "line": 106,
+          "file": "components/error-center/error-center.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-error-center-height",
+          "prop": "height",
+          "value": "20px",
+          "line": 107,
+          "file": "components/error-center/error-center.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-error-center-max-height",
+          "prop": "max-height",
+          "value": "100%",
+          "line": 148,
+          "file": "components/error-center/error-center.less",
+          "kind": "length",
+          "units": [
+            "%"
+          ]
+        },
+        {
+          "token": "--dsw-error-center-width-2",
+          "prop": "width",
+          "value": "28px",
+          "line": 206,
+          "file": "components/error-center/error-center.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-error-center-height-2",
+          "prop": "height",
+          "value": "28px",
+          "line": 207,
+          "file": "components/error-center/error-center.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-error-center-max-height-2",
+          "prop": "max-height",
+          "value": "160px",
+          "line": 218,
+          "file": "components/error-center/error-center.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-error-center-max-height-3",
+          "prop": "max-height",
+          "value": "240px",
+          "line": 246,
+          "file": "components/error-center/error-center.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-error-center-width-3",
+          "prop": "width",
+          "value": "76px",
+          "line": 262,
+          "file": "components/error-center/error-center.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        }
+      ],
+      "zSlotBreakpoint": "z-index @keyframes",
+      "consumedVars": [
+        "--dsw-error-center-left",
+        "--dsw-error-center-min-width",
+        "--dsw-error-center-margin-top",
+        "--dsw-error-center-width",
+        "--dsw-error-center-height",
+        "--dsw-error-center-max-height",
+        "--dsw-error-center-width-2",
+        "--dsw-error-center-height-2",
+        "--dsw-error-center-max-height-2",
+        "--dsw-error-center-max-height-3",
+        "--dsw-error-center-width-3"
+      ],
+      "verdict": "vars+options",
+      "contractFile": "",
+      "verdictReason": "--dsw-error-center-left=50% @components/error-center/error-center.less:11; --dsw-error-center-min-width=220px @components/error-center/error-center.less:27; --dsw-error-center-margin-top=1px @components/error-center/error-center.less:49; --dsw-error-center-width=20px @components/error-center/error-center.less:106; --dsw-error-center-height=20px @components/error-center/error-center.less:107; --dsw-error-center-max-height=100% @components/error-center/error-center.less:148; --dsw-error-center-width-2=28px @components/error-center/error-center.less:206; --dsw-error-center-height-2=28px @components/error-center/error-center.less:207; --dsw-error-center-max-height-2=160px @components/error-center/error-center.less:218; --dsw-error-center-max-height-3=240px @components/error-center/error-center.less:246; --dsw-error-center-width-3=76px @components/error-center/error-center.less:262"
+    },
+    "feedback-dialog": {
+      "isolation": "apply-shared",
+      "shell": "components/feedback-dialog/feedback-dialog.wxml:3 .feedback-card（键盘 padding 留在 :1）",
+      "skinDomainLiterals": [
+        {
+          "token": "--dsw-feedback-dialog-max-height",
+          "prop": "max-height",
+          "value": "100%",
+          "line": 33,
+          "file": "components/feedback-dialog/feedback-dialog.less",
+          "kind": "length",
+          "units": [
+            "%"
+          ]
+        },
+        {
+          "token": "--dsw-feedback-dialog-padding-bottom",
+          "prop": "padding-bottom",
+          "value": "24px",
+          "line": 34,
+          "file": "components/feedback-dialog/feedback-dialog.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-feedback-dialog-width",
+          "prop": "width",
+          "value": "28px",
+          "line": 102,
+          "file": "components/feedback-dialog/feedback-dialog.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-feedback-dialog-height",
+          "prop": "height",
+          "value": "28px",
+          "line": 103,
+          "file": "components/feedback-dialog/feedback-dialog.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-feedback-dialog-margin-top",
+          "prop": "margin-top",
+          "value": "24px",
+          "line": 116,
+          "file": "components/feedback-dialog/feedback-dialog.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-feedback-dialog-height-2",
+          "prop": "height",
+          "value": "28px",
+          "line": 123,
+          "file": "components/feedback-dialog/feedback-dialog.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-feedback-dialog-background",
+          "prop": "background",
+          "value": "transparent",
+          "line": 127,
+          "file": "components/feedback-dialog/feedback-dialog.less",
+          "kind": "color",
+          "units": []
+        },
+        {
+          "token": "--dsw-feedback-dialog-min-height",
+          "prop": "min-height",
+          "value": "116px",
+          "line": 147,
+          "file": "components/feedback-dialog/feedback-dialog.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-feedback-dialog-max-height-2",
+          "prop": "max-height",
+          "value": "280px",
+          "line": 148,
+          "file": "components/feedback-dialog/feedback-dialog.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-feedback-dialog-height-3",
+          "prop": "height",
+          "value": "44px",
+          "line": 174,
+          "file": "components/feedback-dialog/feedback-dialog.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        }
+      ],
+      "zSlotBreakpoint": "z-index @keyframes",
+      "consumedVars": [
+        "--dsw-feedback-dialog-max-height",
+        "--dsw-feedback-dialog-padding-bottom",
+        "--dsw-feedback-dialog-width",
+        "--dsw-feedback-dialog-height",
+        "--dsw-feedback-dialog-margin-top",
+        "--dsw-feedback-dialog-height-2",
+        "--dsw-feedback-dialog-background",
+        "--dsw-feedback-dialog-min-height",
+        "--dsw-feedback-dialog-max-height-2",
+        "--dsw-feedback-dialog-height-3"
+      ],
+      "verdict": "vars+options",
+      "contractFile": "",
+      "verdictReason": "--dsw-feedback-dialog-max-height=100% @components/feedback-dialog/feedback-dialog.less:33; --dsw-feedback-dialog-padding-bottom=24px @components/feedback-dialog/feedback-dialog.less:34; --dsw-feedback-dialog-width=28px @components/feedback-dialog/feedback-dialog.less:102; --dsw-feedback-dialog-height=28px @components/feedback-dialog/feedback-dialog.less:103; --dsw-feedback-dialog-margin-top=24px @components/feedback-dialog/feedback-dialog.less:116; --dsw-feedback-dialog-height-2=28px @components/feedback-dialog/feedback-dialog.less:123; --dsw-feedback-dialog-background=transparent @components/feedback-dialog/feedback-dialog.less:127; --dsw-feedback-dialog-min-height=116px @components/feedback-dialog/feedback-dialog.less:147; --dsw-feedback-dialog-max-height-2=280px @components/feedback-dialog/feedback-dialog.less:148; --dsw-feedback-dialog-height-3=44px @components/feedback-dialog/feedback-dialog.less:174"
+    },
+    "goal-bar": {
+      "isolation": "apply-shared",
+      "shell": "components/goal-bar/goal-bar.wxml:1 .goal-dock",
+      "skinDomainLiterals": [
+        {
+          "token": "--dsw-goal-bar-height",
+          "prop": "height",
+          "value": "36px",
+          "line": 16,
+          "file": "components/goal-bar/goal-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-goal-bar-width",
+          "prop": "width",
+          "value": "28px",
+          "line": 59,
+          "file": "components/goal-bar/goal-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-goal-bar-height-2",
+          "prop": "height",
+          "value": "28px",
+          "line": 60,
+          "file": "components/goal-bar/goal-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-goal-bar-min-height",
+          "prop": "min-height",
+          "value": "36px",
+          "line": 74,
+          "file": "components/goal-bar/goal-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-goal-bar-min-height-2",
+          "prop": "min-height",
+          "value": "20px",
+          "line": 83,
+          "file": "components/goal-bar/goal-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-goal-bar-max-height",
+          "prop": "max-height",
+          "value": "96px",
+          "line": 84,
+          "file": "components/goal-bar/goal-bar.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        }
+      ],
+      "zSlotBreakpoint": "none",
+      "consumedVars": [
+        "--dsw-goal-bar-height",
+        "--dsw-goal-bar-width",
+        "--dsw-goal-bar-height-2",
+        "--dsw-goal-bar-min-height",
+        "--dsw-goal-bar-min-height-2",
+        "--dsw-goal-bar-max-height"
+      ],
+      "verdict": "vars+options",
+      "contractFile": "",
+      "verdictReason": "--dsw-goal-bar-height=36px @components/goal-bar/goal-bar.less:16; --dsw-goal-bar-width=28px @components/goal-bar/goal-bar.less:59; --dsw-goal-bar-height-2=28px @components/goal-bar/goal-bar.less:60; --dsw-goal-bar-min-height=36px @components/goal-bar/goal-bar.less:74; --dsw-goal-bar-min-height-2=20px @components/goal-bar/goal-bar.less:83; --dsw-goal-bar-max-height=96px @components/goal-bar/goal-bar.less:84"
+    },
+    "markdown-view": {
+      "isolation": "apply-shared",
+      "shell": "n/a empty-service 不绑壳 components/markdown-view/markdown-view.wxml:1",
+      "skinDomainLiterals": [],
+      "zSlotBreakpoint": "none",
+      "consumedVars": [],
+      "verdict": "empty-service",
+      "contractFile": "",
+      "verdictReason": "T-O-2 ④ empty-service。证据 @components/markdown-view/markdown-view.ts:6 与 @services/markdown.ts:27。palette 留在 service，less 不改。未升格子串 `width: 24px`。"
+    },
+    "message-actions": {
+      "isolation": "apply-shared",
+      "shell": "components/message-actions/message-actions.wxml:1 .actions",
+      "skinDomainLiterals": [
+        {
+          "token": "--dsw-message-actions-height",
+          "prop": "height",
+          "value": "28px",
+          "line": 9,
+          "file": "components/message-actions/message-actions.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-message-actions-width",
+          "prop": "width",
+          "value": "28px",
+          "line": 30,
+          "file": "components/message-actions/message-actions.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-message-actions-height-2",
+          "prop": "height",
+          "value": "28px",
+          "line": 31,
+          "file": "components/message-actions/message-actions.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        }
+      ],
+      "zSlotBreakpoint": "none",
+      "consumedVars": [
+        "--dsw-message-actions-height",
+        "--dsw-message-actions-width",
+        "--dsw-message-actions-height-2"
+      ],
+      "verdict": "vars+options",
+      "contractFile": "",
+      "verdictReason": "--dsw-message-actions-height=28px @components/message-actions/message-actions.less:9; --dsw-message-actions-width=28px @components/message-actions/message-actions.less:30; --dsw-message-actions-height-2=28px @components/message-actions/message-actions.less:31"
+    },
+    "model-picker": {
+      "isolation": "apply-shared",
+      "shell": "components/model-picker/model-picker.wxml:2 .picker-menu（与 surfaceStyle 单点拼接）",
+      "skinDomainLiterals": [
+        {
+          "token": "--dsw-model-picker-width",
+          "prop": "width",
+          "value": "260px",
+          "line": 14,
+          "file": "components/model-picker/model-picker.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-model-picker-max-height",
+          "prop": "max-height",
+          "value": "360px",
+          "line": 15,
+          "file": "components/model-picker/model-picker.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-model-picker-min-height",
+          "prop": "min-height",
+          "value": "34px",
+          "line": 65,
+          "file": "components/model-picker/model-picker.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        }
+      ],
+      "zSlotBreakpoint": "z-index @keyframes",
+      "consumedVars": [
+        "--dsw-model-picker-width",
+        "--dsw-model-picker-max-height",
+        "--dsw-model-picker-min-height"
+      ],
+      "verdict": "vars+options",
+      "contractFile": "",
+      "verdictReason": "--dsw-model-picker-width=260px @components/model-picker/model-picker.less:14; --dsw-model-picker-max-height=360px @components/model-picker/model-picker.less:15; --dsw-model-picker-min-height=34px @components/model-picker/model-picker.less:65"
+    },
+    "question-sheet": {
+      "isolation": "apply-shared",
+      "shell": "components/question-sheet/question-sheet.wxml:1 .question-card",
+      "skinDomainLiterals": [
+        {
+          "token": "--dsw-question-sheet-max-width",
+          "prop": "max-width",
+          "value": "760px",
+          "line": 9,
+          "file": "components/question-sheet/question-sheet.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-question-sheet-max-height",
+          "prop": "max-height",
+          "value": "60vh",
+          "line": 10,
+          "file": "components/question-sheet/question-sheet.less",
+          "kind": "length",
+          "units": [
+            "vh"
+          ]
+        },
+        {
+          "token": "--dsw-question-sheet-width",
+          "prop": "width",
+          "value": "28px",
+          "line": 38,
+          "file": "components/question-sheet/question-sheet.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-question-sheet-height",
+          "prop": "height",
+          "value": "28px",
+          "line": 39,
+          "file": "components/question-sheet/question-sheet.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-question-sheet-min-height",
+          "prop": "min-height",
+          "value": "40px",
+          "line": 62,
+          "file": "components/question-sheet/question-sheet.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-question-sheet-width-2",
+          "prop": "width",
+          "value": "20px",
+          "line": 80,
+          "file": "components/question-sheet/question-sheet.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-question-sheet-height-2",
+          "prop": "height",
+          "value": "20px",
+          "line": 81,
+          "file": "components/question-sheet/question-sheet.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-question-sheet-margin-top",
+          "prop": "margin-top",
+          "value": "2px",
+          "line": 82,
+          "file": "components/question-sheet/question-sheet.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-question-sheet-width-3",
+          "prop": "width",
+          "value": "14px",
+          "line": 96,
+          "file": "components/question-sheet/question-sheet.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-question-sheet-height-3",
+          "prop": "height",
+          "value": "14px",
+          "line": 97,
+          "file": "components/question-sheet/question-sheet.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-question-sheet-min-height-2",
+          "prop": "min-height",
+          "value": "24px",
+          "line": 147,
+          "file": "components/question-sheet/question-sheet.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-question-sheet-max-height-2",
+          "prop": "max-height",
+          "value": "96px",
+          "line": 148,
+          "file": "components/question-sheet/question-sheet.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-question-sheet-width-4",
+          "prop": "width",
+          "value": "24px",
+          "line": 176,
+          "file": "components/question-sheet/question-sheet.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-question-sheet-height-4",
+          "prop": "height",
+          "value": "24px",
+          "line": 177,
+          "file": "components/question-sheet/question-sheet.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-question-sheet-min-width",
+          "prop": "min-width",
+          "value": "64px",
+          "line": 218,
+          "file": "components/question-sheet/question-sheet.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-question-sheet-height-5",
+          "prop": "height",
+          "value": "32px",
+          "line": 219,
+          "file": "components/question-sheet/question-sheet.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        }
+      ],
+      "zSlotBreakpoint": "none",
+      "consumedVars": [
+        "--dsw-question-sheet-max-width",
+        "--dsw-question-sheet-max-height",
+        "--dsw-question-sheet-width",
+        "--dsw-question-sheet-height",
+        "--dsw-question-sheet-min-height",
+        "--dsw-question-sheet-width-2",
+        "--dsw-question-sheet-height-2",
+        "--dsw-question-sheet-margin-top",
+        "--dsw-question-sheet-width-3",
+        "--dsw-question-sheet-height-3",
+        "--dsw-question-sheet-min-height-2",
+        "--dsw-question-sheet-max-height-2",
+        "--dsw-question-sheet-width-4",
+        "--dsw-question-sheet-height-4",
+        "--dsw-question-sheet-min-width",
+        "--dsw-question-sheet-height-5"
+      ],
+      "verdict": "vars+options",
+      "contractFile": "",
+      "verdictReason": "--dsw-question-sheet-max-width=760px @components/question-sheet/question-sheet.less:9; --dsw-question-sheet-max-height=60vh @components/question-sheet/question-sheet.less:10; --dsw-question-sheet-width=28px @components/question-sheet/question-sheet.less:38; --dsw-question-sheet-height=28px @components/question-sheet/question-sheet.less:39; --dsw-question-sheet-min-height=40px @components/question-sheet/question-sheet.less:62; --dsw-question-sheet-width-2=20px @components/question-sheet/question-sheet.less:80; --dsw-question-sheet-height-2=20px @components/question-sheet/question-sheet.less:81; --dsw-question-sheet-margin-top=2px @components/question-sheet/question-sheet.less:82; --dsw-question-sheet-width-3=14px @components/question-sheet/question-sheet.less:96; --dsw-question-sheet-height-3=14px @components/question-sheet/question-sheet.less:97; --dsw-question-sheet-min-height-2=24px @components/question-sheet/question-sheet.less:147; --dsw-question-sheet-max-height-2=96px @components/question-sheet/question-sheet.less:148; --dsw-question-sheet-width-4=24px @components/question-sheet/question-sheet.less:176; --dsw-question-sheet-height-4=24px @components/question-sheet/question-sheet.less:177; --dsw-question-sheet-min-width=64px @components/question-sheet/question-sheet.less:218; --dsw-question-sheet-height-5=32px @components/question-sheet/question-sheet.less:219"
+    },
+    "reasoning-row": {
+      "isolation": "apply-shared",
+      "shell": "components/reasoning-row/reasoning-row.wxml:1 .reasoning",
+      "skinDomainLiterals": [
+        {
+          "token": "--dsw-reasoning-row-margin-bottom",
+          "prop": "margin-bottom",
+          "value": "16px",
+          "line": 3,
+          "file": "components/reasoning-row/reasoning-row.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-reasoning-row-height",
+          "prop": "height",
+          "value": "24px",
+          "line": 14,
+          "file": "components/reasoning-row/reasoning-row.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-reasoning-row-width",
+          "prop": "width",
+          "value": "16px",
+          "line": 29,
+          "file": "components/reasoning-row/reasoning-row.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-reasoning-row-height-2",
+          "prop": "height",
+          "value": "16px",
+          "line": 30,
+          "file": "components/reasoning-row/reasoning-row.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-reasoning-row-width-2",
+          "prop": "width",
+          "value": "2px",
+          "line": 41,
+          "file": "components/reasoning-row/reasoning-row.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-reasoning-row-height-3",
+          "prop": "height",
+          "value": "2px",
+          "line": 42,
+          "file": "components/reasoning-row/reasoning-row.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-reasoning-row-color",
+          "prop": "color",
+          "value": "transparent",
+          "line": 47,
+          "file": "components/reasoning-row/reasoning-row.less",
+          "kind": "color",
+          "units": []
+        },
+        {
+          "token": "--dsw-reasoning-row--webkit-text-fill-color",
+          "prop": "-webkit-text-fill-color",
+          "value": "transparent",
+          "line": 85,
+          "file": "components/reasoning-row/reasoning-row.less",
+          "kind": "color",
+          "units": []
+        }
+      ],
+      "zSlotBreakpoint": "@keyframes",
+      "consumedVars": [
+        "--dsw-reasoning-row-margin-bottom",
+        "--dsw-reasoning-row-height",
+        "--dsw-reasoning-row-width",
+        "--dsw-reasoning-row-height-2",
+        "--dsw-reasoning-row-width-2",
+        "--dsw-reasoning-row-height-3",
+        "--dsw-reasoning-row-color",
+        "--dsw-reasoning-row--webkit-text-fill-color"
+      ],
+      "verdict": "vars+options",
+      "contractFile": "",
+      "verdictReason": "--dsw-reasoning-row-margin-bottom=16px @components/reasoning-row/reasoning-row.less:3; --dsw-reasoning-row-height=24px @components/reasoning-row/reasoning-row.less:14; --dsw-reasoning-row-width=16px @components/reasoning-row/reasoning-row.less:29; --dsw-reasoning-row-height-2=16px @components/reasoning-row/reasoning-row.less:30; --dsw-reasoning-row-width-2=2px @components/reasoning-row/reasoning-row.less:41; --dsw-reasoning-row-height-3=2px @components/reasoning-row/reasoning-row.less:42; --dsw-reasoning-row-color=transparent @components/reasoning-row/reasoning-row.less:47; --dsw-reasoning-row--webkit-text-fill-color=transparent @components/reasoning-row/reasoning-row.less:85"
+    },
+    "right-panel": {
+      "isolation": "apply-shared",
+      "shell": "components/right-panel/right-panel.wxml:1 .right-panel",
+      "skinDomainLiterals": [
+        {
+          "token": "--dsw-right-panel-width",
+          "prop": "width",
+          "value": "380px",
+          "line": 29,
+          "file": "components/right-panel/right-panel.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-right-panel-height",
+          "prop": "height",
+          "value": "38px",
+          "line": 42,
+          "file": "components/right-panel/right-panel.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-right-panel-width-2",
+          "prop": "width",
+          "value": "28px",
+          "line": 55,
+          "file": "components/right-panel/right-panel.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-right-panel-height-2",
+          "prop": "height",
+          "value": "28px",
+          "line": 56,
+          "file": "components/right-panel/right-panel.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-right-panel-height-3",
+          "prop": "height",
+          "value": "36px",
+          "line": 78,
+          "file": "components/right-panel/right-panel.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-right-panel-min-height",
+          "prop": "min-height",
+          "value": "52px",
+          "line": 113,
+          "file": "components/right-panel/right-panel.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-right-panel-width-3",
+          "prop": "width",
+          "value": "32px",
+          "line": 120,
+          "file": "components/right-panel/right-panel.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-right-panel-height-4",
+          "prop": "height",
+          "value": "32px",
+          "line": 121,
+          "file": "components/right-panel/right-panel.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-right-panel-min-height-2",
+          "prop": "min-height",
+          "value": "52px",
+          "line": 166,
+          "file": "components/right-panel/right-panel.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-right-panel-width-4",
+          "prop": "width",
+          "value": "32px",
+          "line": 229,
+          "file": "components/right-panel/right-panel.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-right-panel-height-5",
+          "prop": "height",
+          "value": "32px",
+          "line": 230,
+          "file": "components/right-panel/right-panel.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-right-panel-margin-top",
+          "prop": "margin-top",
+          "value": "8px",
+          "line": 275,
+          "file": "components/right-panel/right-panel.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-right-panel-height-6",
+          "prop": "height",
+          "value": "40px",
+          "line": 284,
+          "file": "components/right-panel/right-panel.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-right-panel-height-7",
+          "prop": "height",
+          "value": "40px",
+          "line": 294,
+          "file": "components/right-panel/right-panel.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-right-panel-max-width",
+          "prop": "max-width",
+          "value": "260px",
+          "line": 319,
+          "file": "components/right-panel/right-panel.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-right-panel-width-5",
+          "prop": "width",
+          "value": "6px",
+          "line": 358,
+          "file": "components/right-panel/right-panel.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-right-panel-height-8",
+          "prop": "height",
+          "value": "6px",
+          "line": 359,
+          "file": "components/right-panel/right-panel.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-right-panel-margin-top-2",
+          "prop": "margin-top",
+          "value": "7px",
+          "line": 360,
+          "file": "components/right-panel/right-panel.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-right-panel-min-height-3",
+          "prop": "min-height",
+          "value": "20px",
+          "line": 409,
+          "file": "components/right-panel/right-panel.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-right-panel-min-height-4",
+          "prop": "min-height",
+          "value": "40px",
+          "line": 439,
+          "file": "components/right-panel/right-panel.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        }
+      ],
+      "zSlotBreakpoint": "z-index @keyframes",
+      "consumedVars": [
+        "--dsw-right-panel-width",
+        "--dsw-right-panel-height",
+        "--dsw-right-panel-width-2",
+        "--dsw-right-panel-height-2",
+        "--dsw-right-panel-height-3",
+        "--dsw-right-panel-min-height",
+        "--dsw-right-panel-width-3",
+        "--dsw-right-panel-height-4",
+        "--dsw-right-panel-min-height-2",
+        "--dsw-right-panel-width-4",
+        "--dsw-right-panel-height-5",
+        "--dsw-right-panel-margin-top",
+        "--dsw-right-panel-height-6",
+        "--dsw-right-panel-height-7",
+        "--dsw-right-panel-max-width",
+        "--dsw-right-panel-width-5",
+        "--dsw-right-panel-height-8",
+        "--dsw-right-panel-margin-top-2",
+        "--dsw-right-panel-min-height-3",
+        "--dsw-right-panel-min-height-4"
+      ],
+      "verdict": "vars+options",
+      "contractFile": "",
+      "verdictReason": "--dsw-right-panel-width=380px @components/right-panel/right-panel.less:29; --dsw-right-panel-height=38px @components/right-panel/right-panel.less:42; --dsw-right-panel-width-2=28px @components/right-panel/right-panel.less:55; --dsw-right-panel-height-2=28px @components/right-panel/right-panel.less:56; --dsw-right-panel-height-3=36px @components/right-panel/right-panel.less:78; --dsw-right-panel-min-height=52px @components/right-panel/right-panel.less:113; --dsw-right-panel-width-3=32px @components/right-panel/right-panel.less:120; --dsw-right-panel-height-4=32px @components/right-panel/right-panel.less:121; --dsw-right-panel-min-height-2=52px @components/right-panel/right-panel.less:166; --dsw-right-panel-width-4=32px @components/right-panel/right-panel.less:229; --dsw-right-panel-height-5=32px @components/right-panel/right-panel.less:230; --dsw-right-panel-margin-top=8px @components/right-panel/right-panel.less:275; --dsw-right-panel-height-6=40px @components/right-panel/right-panel.less:284; --dsw-right-panel-height-7=40px @components/right-panel/right-panel.less:294; --dsw-right-panel-max-width=260px @components/right-panel/right-panel.less:319; --dsw-right-panel-width-5=6px @components/right-panel/right-panel.less:358; --dsw-right-panel-height-8=6px @components/right-panel/right-panel.less:359; --dsw-right-panel-margin-top-2=7px @components/right-panel/right-panel.less:360; --dsw-right-panel-min-height-3=20px @components/right-panel/right-panel.less:409; --dsw-right-panel-min-height-4=40px @components/right-panel/right-panel.less:439"
+    },
+    "tool-card": {
+      "isolation": "apply-shared",
+      "shell": "components/tool-card/tool-card.wxml:1 .tool-card",
+      "skinDomainLiterals": [
+        {
+          "token": "--dsw-tool-card-height",
+          "prop": "height",
+          "value": "24px",
+          "line": 15,
+          "file": "components/tool-card/tool-card.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-tool-card-left",
+          "prop": "left",
+          "value": "22px",
+          "line": 35,
+          "file": "components/tool-card/tool-card.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-tool-card--webkit-text-fill-color",
+          "prop": "-webkit-text-fill-color",
+          "value": "transparent",
+          "line": 49,
+          "file": "components/tool-card/tool-card.less",
+          "kind": "color",
+          "units": []
+        },
+        {
+          "token": "--dsw-tool-card-width",
+          "prop": "width",
+          "value": "16px",
+          "line": 71,
+          "file": "components/tool-card/tool-card.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-tool-card-height-2",
+          "prop": "height",
+          "value": "16px",
+          "line": 72,
+          "file": "components/tool-card/tool-card.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-tool-card-width-2",
+          "prop": "width",
+          "value": "2px",
+          "line": 86,
+          "file": "components/tool-card/tool-card.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-tool-card-height-3",
+          "prop": "height",
+          "value": "2px",
+          "line": 87,
+          "file": "components/tool-card/tool-card.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-tool-card-max-height",
+          "prop": "max-height",
+          "value": "150px",
+          "line": 160,
+          "file": "components/tool-card/tool-card.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-tool-card-height-4",
+          "prop": "height",
+          "value": "0.5px",
+          "line": 178,
+          "file": "components/tool-card/tool-card.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        }
+      ],
+      "zSlotBreakpoint": "@keyframes",
+      "consumedVars": [
+        "--dsw-tool-card-height",
+        "--dsw-tool-card-left",
+        "--dsw-tool-card--webkit-text-fill-color",
+        "--dsw-tool-card-width",
+        "--dsw-tool-card-height-2",
+        "--dsw-tool-card-width-2",
+        "--dsw-tool-card-height-3",
+        "--dsw-tool-card-max-height",
+        "--dsw-tool-card-height-4"
+      ],
+      "verdict": "vars+options",
+      "contractFile": "",
+      "verdictReason": "--dsw-tool-card-height=24px @components/tool-card/tool-card.less:15; --dsw-tool-card-left=22px @components/tool-card/tool-card.less:35; --dsw-tool-card--webkit-text-fill-color=transparent @components/tool-card/tool-card.less:49; --dsw-tool-card-width=16px @components/tool-card/tool-card.less:71; --dsw-tool-card-height-2=16px @components/tool-card/tool-card.less:72; --dsw-tool-card-width-2=2px @components/tool-card/tool-card.less:86; --dsw-tool-card-height-3=2px @components/tool-card/tool-card.less:87; --dsw-tool-card-max-height=150px @components/tool-card/tool-card.less:160; --dsw-tool-card-height-4=0.5px @components/tool-card/tool-card.less:178"
+    },
+    "trajectory-view": {
+      "isolation": "apply-shared",
+      "shell": "n/a empty-invariant 不绑壳 components/trajectory-view/trajectory-view.wxml:1",
+      "skinDomainLiterals": [],
+      "zSlotBreakpoint": "z-index @media",
+      "consumedVars": [],
+      "verdict": "empty-invariant",
+      "contractFile": "",
+      "verdictReason": "T-O-2 ④ empty-invariant。证据 @components/trajectory-view/trajectory-view.less:213 与 @components/trajectory-view/trajectory-view.less:220。不造 --dsw-traj- 键，less 相对 BASE 不改。未升格子串 `height: 50px`。"
+    },
+    "up-drawer": {
+      "isolation": "isolated",
+      "shell": "components/up-drawer/up-drawer.wxml:3 .upd-sheet；mask :2 不绑",
+      "skinDomainLiterals": [
+        {
+          "token": "--dsw-upd-height",
+          "prop": "height",
+          "value": "33.333vh",
+          "line": 32,
+          "file": "components/up-drawer/up-drawer.less",
+          "kind": "length",
+          "units": [
+            "vh"
+          ]
+        },
+        {
+          "token": "--dsw-upd-close-top",
+          "prop": "top",
+          "value": "-44px",
+          "line": 49,
+          "file": "components/up-drawer/up-drawer.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-upd-close-size",
+          "prop": "width",
+          "value": "30px",
+          "line": 56,
+          "file": "components/up-drawer/up-drawer.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        },
+        {
+          "token": "--dsw-upd-close-size",
+          "prop": "height",
+          "value": "30px",
+          "line": 57,
+          "file": "components/up-drawer/up-drawer.less",
+          "kind": "length",
+          "units": [
+            "px"
+          ]
+        }
+      ],
+      "zSlotBreakpoint": "z-index @media @keyframes",
+      "consumedVars": [
+        "--dsw-upd-height",
+        "--dsw-upd-close-top",
+        "--dsw-upd-close-size"
+      ],
+      "verdict": "full",
+      "contractFile": "",
+      "verdictReason": "--dsw-upd-height=33.333vh @components/up-drawer/up-drawer.less:32; --dsw-upd-close-top=-44px @components/up-drawer/up-drawer.less:49; --dsw-upd-close-size=30px @components/up-drawer/up-drawer.less:56; --dsw-upd-close-size=30px @components/up-drawer/up-drawer.less:57；P4-01 只收这三键。排除且仍留在 less 的子串: 50% | 560px | 0.5px | var(--dsw-space- | z-index | @media"
+    }
+  }
+}

@@ -99,3 +99,13 @@ node scripts/skin-equiv-check.mjs --self-test
 | `T16` | `PASS` | H1 | `node-checks §J` J1–J5 |
 | `T17` | `NOT_RUN`（media）/`PASS`（var/url） | S1 | `evidence/t17/*`（reason `media-dark-not-triggerable-in-devtools`；真机交 MS03） |
 | `T18` | `PASS` | S1+H1 | `evidence/t18/*`（forest #2f855a/#f7fdf9/149 keys） |
+
+## MS02 判读指针
+
+> 创建发起：`[业主]` 要求按 MS02 执行计划落地；本节为 `[AGENT推导]`。
+
+- 改前字面量台账：`test/spike/mini-skin/component-literal-ledger.json`（`snapshot-literals.mjs` 拒绝覆写）。
+- 23 行矩阵：`test/spike/mini-skin/component-matrix.json`。
+- 短验：`node test/spike/mini-skin/node-checks.mjs` 的 `MS02-T01`…`MS02-T22`。
+- 波次 receipt：`test/spike/mini-skin/receipts/ms02-w1.json` … `ms02-w6.json`（被 git 跟踪；不放 `evidence/`）。
+- 真机 `@media` 不在本阶段判绿。交接字段名是 `ms01T17Media`，值只许 `NOT_RUN`。`MS02-T17` 是 W3 拼接，不是真机项。

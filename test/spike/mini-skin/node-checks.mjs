@@ -4,6 +4,7 @@
  * 用法: node test/spike/mini-skin/node-checks.mjs [--section A,B,D] [--json]
  * 退出: 0 = 全 PASS；1 = 有 FAIL；2 = 运行错误
  */
+import { execFileSync } from 'node:child_process'
 import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { dirname, resolve, relative } from 'node:path'
 import ts from 'typescript'
@@ -653,6 +654,76 @@ check('K6 null 重置默认 + 伪 dsh-default 不得免检', () => {
     threw = err instanceof Error && err.name === 'SkinValidationError'
   }
   assert(threw, '伪 dsh-default 绕过 validate')
+})
+
+// ── §M MS02 矩阵 / 台账（P0 起；不改产品计数） ───────────────────────────
+section('M')
+check('MS02-T01', () => {
+  const text = readFileSync(resolve(ROOT, 'docs/truth/mini-skin/MS01-qna.md'), 'utf8')
+  const lines = text.split('\n')
+  const cell = lines[46] ?? ''
+  assert(cell.includes('快径免检'), ':47 单元格不含快径免检')
+  assert(!cell.includes('engine.ts:210-213'), ':47 混入了 engine.ts:210-213')
+  assert(!cell.includes('伪 dsh-default'), ':47 混入了伪 dsh-default')
+  const start = text.indexOf('## 11. 跨册补登记 MS01-R1')
+  assert(start >= 0, '缺 §11 MS01-R1')
+  const next = text.indexOf('\n## ', start + 4)
+  const section11 = next === -1 ? text.slice(start) : text.slice(start, next)
+  assert(section11.includes('engine.ts:210-213'), '§11 缺 engine.ts:210-213')
+  assert(section11.includes('伪 `dsh-default`') || section11.includes('伪 dsh-default'), '§11 缺伪 dsh-default')
+})
+check('MS02-T02', () => {
+  const ledger = JSON.parse(readFileSync(resolve(ROOT, 'test/spike/mini-skin/component-literal-ledger.json'), 'utf8'))
+  const hard = { 32: '33.333vh', 49: '-44px', 56: '30px', 57: '30px' }
+  const file = 'components/up-drawer/up-drawer.less'
+  for (const [line, value] of Object.entries(hard)) {
+    const row = ledger.declarations.find((d) => d.file === file && d.line === Number(line) && d.value === value)
+    assert(row !== undefined, `台账缺 ${file}:${line} ${value}`)
+  }
+  execFileSync('git', ['merge-base', '--is-ancestor', ledger.headSha, 'HEAD'], { cwd: ROOT, stdio: 'ignore' })
+  const shown = execFileSync('git', ['show', `${ledger.headSha}:${file}`], { cwd: ROOT, encoding: 'utf8' }).split('\n')
+  for (const [line, value] of Object.entries(hard)) {
+    assert((shown[Number(line) - 1] ?? '').includes(value), `git show ${line} 不含 ${value}`)
+  }
+  let code = 0
+  try {
+    execFileSync('node', ['test/spike/mini-skin/snapshot-literals.mjs'], { cwd: ROOT, stdio: 'ignore' })
+  } catch (err) {
+    code = err.status ?? 1
+  }
+  eq(code, 1, '第二次生成必须 exit 1')
+})
+check('MS02-T03', () => {
+  const matrix = JSON.parse(readFileSync(resolve(ROOT, 'test/spike/mini-skin/component-matrix.json'), 'utf8'))
+  const dirs = readdirSync(resolve(ROOT, 'components'), { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort()
+  const keys = Object.keys(matrix.rows).sort()
+  eq(JSON.stringify(keys), JSON.stringify(dirs), '矩阵键集合 != 目录名')
+  eq(matrix.rows['up-drawer'].verdict, 'full', 'up-drawer')
+  eq(matrix.rows['trajectory-view'].verdict, 'empty-invariant', 'trajectory-view')
+  eq(matrix.rows['markdown-view'].verdict, 'empty-service', 'markdown-view')
+  eq(matrix.rows['dsh-icon'].verdict, 'empty-asset', 'dsh-icon')
+  const frozen = new Set(['trajectory-view', 'markdown-view', 'dsh-icon'])
+  const empties = []
+  for (const [name, row] of Object.entries(matrix.rows)) {
+    assert(row.verdict.length > 0, `${name} verdict 空`)
+    const refs = [...row.verdictReason.matchAll(/@(\S+?):(\d+)/g)]
+    assert(refs.length > 0, `${name} verdictReason 无 file:line`)
+    for (const ref of refs) {
+      const abs = resolve(ROOT, ref[1])
+      assert(existsSync(abs), `${name} 证据文件不存在 ${ref[1]}`)
+      const srcLines = readFileSync(abs, 'utf8').split('\n')
+      const lineNo = Number(ref[2])
+      assert(lineNo >= 1 && lineNo <= srcLines.length, `${name} 行越界 ${ref[1]}:${lineNo}`)
+      assert((srcLines[lineNo - 1] ?? '').trim().length > 0, `${name} 证据行是空行 ${ref[1]}:${lineNo}`)
+    }
+    if (row.verdict === 'empty' && !frozen.has(name)) empties.push(row)
+  }
+  const seen = new Set()
+  for (const row of empties) {
+    const dumped = JSON.stringify(row.verdictReason)
+    assert(!seen.has(dumped), '非特例 empty 的 verdictReason deep-equal')
+    seen.add(dumped)
+  }
 })
 
 // ── 输出 ─────────────────────────────────────────────────────────────────
