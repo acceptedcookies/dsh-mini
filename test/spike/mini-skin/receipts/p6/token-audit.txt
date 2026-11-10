@@ -1,0 +1,11 @@
+┌─ token-audit · 裸值残留 ─────────────────
+│ color         0
+│ radius        0
+│ fontSize      0
+│ lineHeight    0
+│ tracking      0
+│ weight        0
+│ gutter        0
+│ tokenDef      0
+│ fallback      0
+└─ total 0  ✅ clean

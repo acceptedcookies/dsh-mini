@@ -1,0 +1,141 @@
+{
+  "mode": "check",
+  "products": [
+    {
+      "file": "skin.gen.wxss",
+      "status": "in-sync"
+    },
+    {
+      "file": "services/skin/vocab.ts",
+      "status": "in-sync"
+    },
+    {
+      "file": "services/skin/palette-map.ts",
+      "status": "in-sync"
+    },
+    {
+      "file": "assets/skins/dsh-default.json",
+      "status": "in-sync"
+    },
+    {
+      "file": "theme.json",
+      "status": "in-sync"
+    }
+  ],
+  "genLine": "/* GEN:de0ac4372661739d */",
+  "contentHash": "de0ac4372661739d",
+  "appLessGen": {
+    "ok": true,
+    "actual": "/* GEN:de0ac4372661739d */"
+  },
+  "validate": {
+    "ok": true,
+    "errors": []
+  },
+  "crossCheck": {
+    "ok": true,
+    "errors": []
+  },
+  "discovered": [
+    "approval-sheet",
+    "chat-bubble",
+    "command-menu",
+    "composer-bar",
+    "dsh-button",
+    "dsh-dialog",
+    "dsh-icon",
+    "dsh-menu",
+    "dsh-switch",
+    "dsh-tabs",
+    "dsh-toast",
+    "error-center",
+    "feedback-dialog",
+    "goal-bar",
+    "markdown-view",
+    "message-actions",
+    "model-picker",
+    "question-sheet",
+    "reasoning-row",
+    "right-panel",
+    "tool-card",
+    "trajectory-view",
+    "up-drawer"
+  ],
+  "contractNames": {
+    "disk": [
+      "approval-sheet",
+      "chat-bubble",
+      "command-menu",
+      "composer-bar",
+      "dsh-button",
+      "dsh-dialog",
+      "dsh-icon",
+      "dsh-menu",
+      "dsh-switch",
+      "dsh-tabs",
+      "dsh-toast",
+      "error-center",
+      "feedback-dialog",
+      "goal-bar",
+      "markdown-view",
+      "message-actions",
+      "model-picker",
+      "question-sheet",
+      "reasoning-row",
+      "right-panel",
+      "tool-card",
+      "trajectory-view",
+      "up-drawer"
+    ],
+    "matrix": [
+      "approval-sheet",
+      "chat-bubble",
+      "command-menu",
+      "composer-bar",
+      "dsh-button",
+      "dsh-dialog",
+      "dsh-icon",
+      "dsh-menu",
+      "dsh-switch",
+      "dsh-tabs",
+      "dsh-toast",
+      "error-center",
+      "feedback-dialog",
+      "goal-bar",
+      "markdown-view",
+      "message-actions",
+      "model-picker",
+      "question-sheet",
+      "reasoning-row",
+      "right-panel",
+      "tool-card",
+      "trajectory-view",
+      "up-drawer"
+    ],
+    "vocab": [
+      "approval-sheet",
+      "chat-bubble",
+      "command-menu",
+      "composer-bar",
+      "dsh-button",
+      "dsh-dialog",
+      "dsh-icon",
+      "dsh-menu",
+      "dsh-switch",
+      "dsh-tabs",
+      "dsh-toast",
+      "error-center",
+      "feedback-dialog",
+      "goal-bar",
+      "markdown-view",
+      "message-actions",
+      "model-picker",
+      "question-sheet",
+      "reasoning-row",
+      "right-panel",
+      "tool-card",
+      "trajectory-view",
+      "up-drawer"
+    ]
+  }
+}

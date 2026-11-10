@@ -1,0 +1,99 @@
+PASS [A] A1 entries==154
+PASS [A] A2 projected==137
+PASS [A] A3 derived==17
+PASS [A] A4 invariant==16
+PASS [A] A5 invariant/derived 不可写
+PASS [A] A6 键唯一
+PASS [A] A7 每键 source 可锚
+PASS [A] A8 149 旧键 light/dark 与基线逐键一致
+PASS [A] A9 T-O-8 新键值正确
+PASS [A] A10 族计数自洽
+PASS [B] B1 15 键且唯一
+PASS [B] B2 emits 合法 dashed-ident 且唯一
+PASS [B] B3 dotted key sanitize
+PASS [B] B4 默认值全为 var(--dsw-*) 引用
+PASS [B] B5 points 真实存在且含声明 var
+PASS [D] D1 tones 模块 Node 可 import
+PASS [D] D2 resolveTone 五 Set 闭集语义不变
+PASS [D] D3 dsh-icon.ts 仅保留 import 引用
+PASS [C] C1 五产物齐备
+PASS [C] C2 skin.gen page = projected + surfaces + component vars / @media 55
+PASS [C] C3 skin.gen 无 less 语法
+PASS [C] C4 vocab 137 token + 15 surface
+PASS [C] C6 dsh-default ↔ vocab 字段级跨产物对账（非 validate 自证）
+PASS [C] C5 dsh-default 118 可写键 ×2 模式
+PASS [E] E1 resolveMode 分支矩阵
+PASS [E] E2 init 从 storage 恢复 pref
+PASS [E] E3 setPref 三档 + eff=req
+PASS [E] E4 resolved 全键 = 134+15
+PASS [F] F1 compose 串序 skin 段 + metrics 段
+PASS [F] F2 compose 命名空间不交/无重复
+PASS [G] G1 正例 dsh-default
+PASS [G] G2 缺 $schema
+PASS [G] G3 非法 slug（大写/前导 -/超长）
+PASS [G] G4 ModeBlock 0 块
+PASS [G] G5 非 string 值
+PASS [G] G6 未知键
+PASS [G] G7 invariant 写
+PASS [G] G8 derived 写
+PASS [G] G9 dsh- 前缀盗用
+PASS [G] G10 data: 注入
+PASS [G] G11 裸 base64 负载
+PASS [G] G12 CSS 规则串注入
+PASS [G] G13 url 非法端点
+PASS [G] G14
+PASS [G] G14-src
+PASS [G] G15 fonts capability
+PASS [G] G16 sounds capability
+PASS [G] G17 lockMode capability
+PASS [G] G18 dotted emits 非法（词表侧）
+PASS [G] G19 合法 surface 值（var 引用）
+PASS [G] G22 伪 dsh-default 非空 fonts/sounds/lockMode 仍拒绝（E4）
+PASS [G] G23 跨族重复/错误族归属拒绝
+PASS [G] G24
+PASS [G] G21 url 仅限 surfaces/assets/fonts（palette 注入拒绝）
+PASS [G] G20 url https 合法
+PASS [H-P4] H1 theme.ts 调用表达式 0
+PASS [H-P4] H2 services/theme import 白名单（仅 import 行允许，当前应为 0）
+PASS [H-P4] H3 三页 appStyle 均由 composeAppStyle 产
+PASS [I] I1 light palette 11 字段值 = P0 基线
+PASS [I] I2 dark palette 11 字段值 = P0 基线
+PASS [I] I3 Menlo 三处取 --ds-font-family-code 值
+PASS [I] I4 源码无 palette 硬编码色表
+PASS [J] J1 旧悬空/旧名 key 零残留
+PASS [J] J2 2 新键去兜底直吃
+PASS [J] J3 derived 17 键四域零消费
+PASS [J] J4 15 键 points 全部改指 surface emits
+PASS [J] J5 非登记点保持 alias（防越界）
+PASS [H-P5] H4 .theme-dark 注释剥离后全零
+PASS [H-P5] H5 theme-{{ 空格变体零残留
+PASS [H-P5] H6 TS 拼接 theme-${ / theme- + 零残留
+PASS [H-P5] H7 services/theme AST import 全零（含 import type）
+PASS [H-P5] H8 build-theme / 旧键 / dotted emits 零残留
+PASS [H-P5] H9 theme.ts/build-theme.mjs 物理删除
+PASS [K] K1 两 fixture 过 validate
+PASS [K] K2 forest-light applySkin 写键生效/未写键 defaults/键集闭集
+PASS [K] K3 light-only 切 dark 回落 defaults[dark]（D12(a)）
+PASS [K] K4 ink-night 双块覆写
+PASS [K] K5 非法皮肤 applySkin 拒绝（fail-closed）
+PASS [K] K7 skin 覆写 bg 时 setBackgroundColor 跟随 resolved bg
+PASS [K] K6 null 重置默认 + 伪 dsh-default 不得免检
+PASS [M] MS02-T01
+PASS [M] MS02-T02
+PASS [M] MS02-T03
+PASS [N] MS02-T04
+PASS [N] MS02-T05
+PASS [N] MS02-T06
+PASS [N] MS02-T09
+PASS [N] MS02-T10
+PASS [N] MS02-T07
+PASS [N] MS02-T11
+PASS [N] MS02-T12
+PASS [N] MS02-T08
+PASS [N] MS02-T13
+PASS [N] MS02-T14
+PASS [N] MS02-T21
+PASS [N] MS02-T22
+PASS [N] MS02-T15
+
+97/97 PASS

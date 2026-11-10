@@ -1,0 +1,1750 @@
+{
+  "ok": true,
+  "phase": "p6",
+  "at": "2026-11-10T06:50:06.703Z",
+  "checks": {
+    "tokenCount": 132,
+    "newKeys": [
+      "--dsw-alias-bg-mask-3",
+      "--dsw-alias-markdown-code-text",
+      "--dsw-alias-markdown-tertiary",
+      "--dsw-alias-markdown-table-row-alt",
+      "--dsw-blur-surface"
+    ],
+    "consumptionPoints": 1662
+  },
+  "errors": [],
+  "diffs": [],
+  "intendedDeltas": [
+    {
+      "key": "pages/workspace/workspace.less#.mask|background#0",
+      "file": "pages/workspace/workspace.less",
+      "line": 50,
+      "mode": "dark",
+      "from": "rgba(0,0,0,0.48)",
+      "to": "rgba(0,0,0,0.56)",
+      "reason": "T-O-8:--dsw-alias-bg-mask-3",
+      "expected": "rgba(0,0,0,0.56)"
+    },
+    {
+      "key": "pages/workspace/workspace.less#.tag-warn|color#0",
+      "file": "pages/workspace/workspace.less",
+      "line": 328,
+      "mode": "light",
+      "from": "#d97f00",
+      "to": "#f59e0b",
+      "reason": "T-O-8:--dsw-alias-warning-primary",
+      "expected": "#f59e0b"
+    },
+    {
+      "key": "pages/workspace/workspace.less#.tag-warn|color#0",
+      "file": "pages/workspace/workspace.less",
+      "line": 328,
+      "mode": "dark",
+      "from": "#d97f00",
+      "to": "#f59e0b",
+      "reason": "T-O-8:--dsw-alias-warning-primary",
+      "expected": "#f59e0b"
+    },
+    {
+      "key": "pages/workspace/workspace.less#.tag-ok|color#0",
+      "file": "pages/workspace/workspace.less",
+      "line": 332,
+      "mode": "light",
+      "from": "#1a9e6b",
+      "to": "#22c55e",
+      "reason": "T-O-8:--dsw-alias-positive-primary",
+      "expected": "#22c55e"
+    },
+    {
+      "key": "pages/workspace/workspace.less#.tag-ok|color#0",
+      "file": "pages/workspace/workspace.less",
+      "line": 332,
+      "mode": "dark",
+      "from": "#1a9e6b",
+      "to": "#22c55e",
+      "reason": "T-O-8:--dsw-alias-positive-primary",
+      "expected": "#22c55e"
+    },
+    {
+      "key": "components/dsh-toast/dsh-toast.less#.toast|box-shadow#0",
+      "file": "components/dsh-toast/dsh-toast.less",
+      "line": 22,
+      "mode": "light",
+      "from": "__UNRESOLVED__(--dsw-shadow-lv3)",
+      "to": "0 8px 32px rgba(15,17,21,0.16),0 1px 2px rgba(15,17,21,0.08)",
+      "reason": "T-O-8:--dsw-shadow-lv3",
+      "expected": "0 8px 32px rgba(15,17,21,0.16),0 1px 2px rgba(15,17,21,0.08)"
+    },
+    {
+      "key": "components/dsh-toast/dsh-toast.less#.toast|box-shadow#0",
+      "file": "components/dsh-toast/dsh-toast.less",
+      "line": 22,
+      "mode": "dark",
+      "from": "__UNRESOLVED__(--dsw-shadow-lv3)",
+      "to": "0 8px 32px rgba(0,0,0,0.48),0 1px 2px rgba(0,0,0,0.3)",
+      "reason": "T-O-8:--dsw-shadow-lv3",
+      "expected": "0 8px 32px rgba(0,0,0,0.48),0 1px 2px rgba(0,0,0,0.3)"
+    },
+    {
+      "key": "components/markdown-view/markdown-view.less#.code-text|color#0",
+      "file": "components/markdown-view/markdown-view.less",
+      "line": 73,
+      "mode": "dark",
+      "from": "#f9fafb",
+      "to": "#e6e6e6",
+      "reason": "T-O-8:--dsw-alias-markdown-code-text",
+      "expected": "#e6e6e6"
+    },
+    {
+      "key": "components/right-panel/right-panel.less#.fm-badge-cloud|color#0",
+      "file": "components/right-panel/right-panel.less",
+      "line": 212,
+      "mode": "light",
+      "from": "__UNRESOLVED__(--dsw-alias-positive-primary)",
+      "to": "#22c55e",
+      "reason": "T-O-8:--dsw-alias-positive-primary",
+      "expected": "#22c55e"
+    },
+    {
+      "key": "components/right-panel/right-panel.less#.fm-badge-cloud|color#0",
+      "file": "components/right-panel/right-panel.less",
+      "line": 212,
+      "mode": "dark",
+      "from": "__UNRESOLVED__(--dsw-alias-positive-primary)",
+      "to": "#22c55e",
+      "reason": "T-O-8:--dsw-alias-positive-primary",
+      "expected": "#22c55e"
+    },
+    {
+      "key": "components/right-panel/right-panel.less#.fm-badge-pending|color#0",
+      "file": "components/right-panel/right-panel.less",
+      "line": 216,
+      "mode": "light",
+      "from": "__UNRESOLVED__(--dsw-alias-warning-primary)",
+      "to": "#f59e0b",
+      "reason": "T-O-8:--dsw-alias-warning-primary",
+      "expected": "#f59e0b"
+    },
+    {
+      "key": "components/right-panel/right-panel.less#.fm-badge-pending|color#0",
+      "file": "components/right-panel/right-panel.less",
+      "line": 216,
+      "mode": "dark",
+      "from": "__UNRESOLVED__(--dsw-alias-warning-primary)",
+      "to": "#f59e0b",
+      "reason": "T-O-8:--dsw-alias-warning-primary",
+      "expected": "#f59e0b"
+    }
+  ],
+  "intendedAdditions": [
+    {
+      "file": "pages/workspace/workspace.less",
+      "line": 313,
+      "selector": ".row-tag",
+      "prop": "line-height",
+      "value": "16px",
+      "reason": "T07-tokenization"
+    },
+    {
+      "file": "pages/workspace/workspace.less",
+      "line": 341,
+      "selector": ".row-runtime",
+      "prop": "line-height",
+      "value": "16px",
+      "reason": "T07-tokenization"
+    },
+    {
+      "file": "pages/workspace/workspace.less",
+      "line": 761,
+      "selector": ".stats-dock",
+      "prop": "line-height",
+      "value": "20px",
+      "reason": "T07-tokenization"
+    },
+    {
+      "file": "pages/workspace/workspace.less",
+      "line": 777,
+      "selector": ".stats-pill",
+      "prop": "gap",
+      "value": "4px",
+      "reason": "T07-tokenization"
+    },
+    {
+      "file": "pages/workspace/workspace.less",
+      "line": 779,
+      "selector": ".stats-pill",
+      "prop": "padding",
+      "value": "1px 6px",
+      "reason": "T07-tokenization"
+    },
+    {
+      "file": "pages/workspace/workspace.less",
+      "line": 793,
+      "selector": ".stats-context",
+      "prop": "gap",
+      "value": "4px",
+      "reason": "T07-tokenization"
+    },
+    {
+      "file": "pages/workspace/workspace.less",
+      "line": 801,
+      "selector": ".stats-ring",
+      "prop": "border-radius",
+      "value": "50%",
+      "reason": "T07-tokenization"
+    },
+    {
+      "file": "pages/workspace/workspace.less",
+      "line": 807,
+      "selector": ".stats-ring-hole",
+      "prop": "border-radius",
+      "value": "50%",
+      "reason": "T07-tokenization"
+    },
+    {
+      "file": "pages/workspace/workspace.less",
+      "line": 1190,
+      "selector": ".engine-option-text",
+      "prop": "gap",
+      "value": "2px",
+      "reason": "T07-tokenization"
+    },
+    {
+      "file": "pages/workspace/workspace.less",
+      "line": 1202,
+      "selector": ".engine-option-label",
+      "prop": "font-weight",
+      "value": "500",
+      "reason": "T07-tokenization"
+    },
+    {
+      "file": "components/approval-sheet/approval-sheet.less",
+      "line": 7,
+      "selector": ".approval-card",
+      "prop": "max-width",
+      "value": "760px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/approval-sheet/approval-sheet.less",
+      "line": 28,
+      "selector": ".approval-dot",
+      "prop": "width",
+      "value": "6px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/approval-sheet/approval-sheet.less",
+      "line": 29,
+      "selector": ".approval-dot",
+      "prop": "height",
+      "value": "6px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/approval-sheet/approval-sheet.less",
+      "line": 47,
+      "selector": ".approval-body",
+      "prop": "max-height",
+      "value": "336px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/approval-sheet/approval-sheet.less",
+      "line": 85,
+      "selector": ".approval-action",
+      "prop": "min-width",
+      "value": "88px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/approval-sheet/approval-sheet.less",
+      "line": 86,
+      "selector": ".approval-action",
+      "prop": "height",
+      "value": "32px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/chat-bubble/chat-bubble.less",
+      "line": 74,
+      "selector": ".assistant .assistant-ma",
+      "prop": "margin-top",
+      "value": "20px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/chat-bubble/chat-bubble.less",
+      "line": 79,
+      "selector": ".thinking",
+      "prop": "margin-top",
+      "value": "8px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/chat-bubble/chat-bubble.less",
+      "line": 96,
+      "selector": ".file-card",
+      "prop": "width",
+      "value": "240px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/chat-bubble/chat-bubble.less",
+      "line": 97,
+      "selector": ".file-card",
+      "prop": "max-width",
+      "value": "100%",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/chat-bubble/chat-bubble.less",
+      "line": 98,
+      "selector": ".file-card",
+      "prop": "min-height",
+      "value": "64px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/chat-bubble/chat-bubble.less",
+      "line": 111,
+      "selector": ".file-icon",
+      "prop": "width",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/chat-bubble/chat-bubble.less",
+      "line": 112,
+      "selector": ".file-icon",
+      "prop": "height",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/chat-bubble/chat-bubble.less",
+      "line": 152,
+      "selector": ".image",
+      "prop": "width",
+      "value": "160px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/chat-bubble/chat-bubble.less",
+      "line": 153,
+      "selector": ".image",
+      "prop": "height",
+      "value": "160px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/chat-bubble/chat-bubble.less",
+      "line": 172,
+      "selector": ".diff-head",
+      "prop": "margin-bottom",
+      "value": "6px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/chat-bubble/chat-bubble.less",
+      "line": 198,
+      "selector": ".diff-line",
+      "prop": "min-height",
+      "value": "18px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/chat-bubble/chat-bubble.less",
+      "line": 235,
+      "selector": ".turn-notice-dot",
+      "prop": "width",
+      "value": "10px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/chat-bubble/chat-bubble.less",
+      "line": 236,
+      "selector": ".turn-notice-dot",
+      "prop": "height",
+      "value": "10px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/chat-bubble/chat-bubble.less",
+      "line": 237,
+      "selector": ".turn-notice-dot",
+      "prop": "margin-top",
+      "value": "5px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/chat-bubble/chat-bubble.less",
+      "line": 272,
+      "selector": ".notice",
+      "prop": "max-width",
+      "value": "82%",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/command-menu/command-menu.less",
+      "line": 9,
+      "selector": ".cm-mask",
+      "prop": "background",
+      "value": "transparent",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/command-menu/command-menu.less",
+      "line": 28,
+      "selector": ".cm-menu",
+      "prop": "backdrop-filter",
+      "value": "blur(20px)",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/command-menu/command-menu.less",
+      "line": 29,
+      "selector": ".cm-menu",
+      "prop": "-webkit-backdrop-filter",
+      "value": "blur(20px)",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/command-menu/command-menu.less",
+      "line": 64,
+      "selector": ".cm-section",
+      "prop": "min-height",
+      "value": "23px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/command-menu/command-menu.less",
+      "line": 73,
+      "selector": ".cm-section:not(:first-child)",
+      "prop": "margin-top",
+      "value": "3px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/command-menu/command-menu.less",
+      "line": 81,
+      "selector": ".cm-item",
+      "prop": "min-height",
+      "value": "34px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/command-menu/command-menu.less",
+      "line": 101,
+      "selector": ".cm-icon",
+      "prop": "width",
+      "value": "14px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/command-menu/command-menu.less",
+      "line": 102,
+      "selector": ".cm-icon",
+      "prop": "height",
+      "value": "14px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/command-menu/command-menu.less",
+      "line": 110,
+      "selector": ".cm-name",
+      "prop": "max-width",
+      "value": "40%",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/command-menu/command-menu.less",
+      "line": 118,
+      "selector": ".cm-alias",
+      "prop": "max-width",
+      "value": "20%",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/composer-bar/composer-bar.less",
+      "line": 10,
+      "selector": ".composer-card",
+      "prop": "padding-top",
+      "value": "8px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/composer-bar/composer-bar.less",
+      "line": 32,
+      "selector": ".composer-attachment-image",
+      "prop": "width",
+      "value": "56px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/composer-bar/composer-bar.less",
+      "line": 33,
+      "selector": ".composer-attachment-image",
+      "prop": "height",
+      "value": "56px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/composer-bar/composer-bar.less",
+      "line": 39,
+      "selector": ".composer-attachment-remove",
+      "prop": "top",
+      "value": "-6px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/composer-bar/composer-bar.less",
+      "line": 40,
+      "selector": ".composer-attachment-remove",
+      "prop": "right",
+      "value": "-6px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/composer-bar/composer-bar.less",
+      "line": 41,
+      "selector": ".composer-attachment-remove",
+      "prop": "width",
+      "value": "18px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/composer-bar/composer-bar.less",
+      "line": 42,
+      "selector": ".composer-attachment-remove",
+      "prop": "height",
+      "value": "18px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/composer-bar/composer-bar.less",
+      "line": 53,
+      "selector": ".composer-input",
+      "prop": "min-height",
+      "value": "36px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/composer-bar/composer-bar.less",
+      "line": 54,
+      "selector": ".composer-input",
+      "prop": "max-height",
+      "value": "240px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/composer-bar/composer-bar.less",
+      "line": 64,
+      "selector": ".composer-hero .composer-input",
+      "prop": "min-height",
+      "value": "52px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/composer-bar/composer-bar.less",
+      "line": 87,
+      "selector": ".composer-add",
+      "prop": "width",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/composer-bar/composer-bar.less",
+      "line": 88,
+      "selector": ".composer-add",
+      "prop": "height",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/composer-bar/composer-bar.less",
+      "line": 110,
+      "selector": ".composer-chip",
+      "prop": "max-width",
+      "value": "220px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/composer-bar/composer-bar.less",
+      "line": 111,
+      "selector": ".composer-chip",
+      "prop": "height",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/composer-bar/composer-bar.less",
+      "line": 150,
+      "selector": ".composer-model",
+      "prop": "max-width",
+      "value": "220px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/composer-bar/composer-bar.less",
+      "line": 151,
+      "selector": ".composer-model",
+      "prop": "height",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/composer-bar/composer-bar.less",
+      "line": 184,
+      "selector": ".composer-send",
+      "prop": "width",
+      "value": "34px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/composer-bar/composer-bar.less",
+      "line": 185,
+      "selector": ".composer-send",
+      "prop": "height",
+      "value": "34px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/composer-bar/composer-bar.less",
+      "line": 201,
+      "selector": ".composer-spinner",
+      "prop": "width",
+      "value": "14px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/composer-bar/composer-bar.less",
+      "line": 202,
+      "selector": ".composer-spinner",
+      "prop": "height",
+      "value": "14px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-button/dsh-button.less",
+      "line": 20,
+      "selector": ".dbtn-md",
+      "prop": "height",
+      "value": "36px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-button/dsh-button.less",
+      "line": 29,
+      "selector": ".dbtn-sm",
+      "prop": "height",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-button/dsh-button.less",
+      "line": 50,
+      "selector": ".dbtn-ghost",
+      "prop": "background",
+      "value": "transparent",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-button/dsh-button.less",
+      "line": 59,
+      "selector": ".dbtn-icon",
+      "prop": "width",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-button/dsh-button.less",
+      "line": 60,
+      "selector": ".dbtn-icon",
+      "prop": "height",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-button/dsh-button.less",
+      "line": 65,
+      "selector": ".dbtn-icon",
+      "prop": "background",
+      "value": "transparent",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-dialog/dsh-dialog.less",
+      "line": 34,
+      "selector": ".dialog-card",
+      "prop": "max-height",
+      "value": "100%",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-dialog/dsh-dialog.less",
+      "line": 103,
+      "selector": ".dialog-title .dsh-icon",
+      "prop": "margin-top",
+      "value": "3px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-dialog/dsh-dialog.less",
+      "line": 111,
+      "selector": ".dialog-close",
+      "prop": "width",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-dialog/dsh-dialog.less",
+      "line": 112,
+      "selector": ".dialog-close",
+      "prop": "height",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-dialog/dsh-dialog.less",
+      "line": 139,
+      "selector": ".dialog-input",
+      "prop": "height",
+      "value": "36px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-dialog/dsh-dialog.less",
+      "line": 153,
+      "selector": ".dialog-textarea",
+      "prop": "min-height",
+      "value": "72px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-dialog/dsh-dialog.less",
+      "line": 154,
+      "selector": ".dialog-textarea",
+      "prop": "max-height",
+      "value": "140px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-dialog/dsh-dialog.less",
+      "line": 176,
+      "selector": ".dialog-button",
+      "prop": "min-width",
+      "value": "64px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-dialog/dsh-dialog.less",
+      "line": 177,
+      "selector": ".dialog-button",
+      "prop": "height",
+      "value": "36px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-menu/dsh-menu.less",
+      "line": 18,
+      "selector": ".menu-surface",
+      "prop": "backdrop-filter",
+      "value": "blur(20px)",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-menu/dsh-menu.less",
+      "line": 19,
+      "selector": ".menu-surface",
+      "prop": "-webkit-backdrop-filter",
+      "value": "blur(20px)",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-menu/dsh-menu.less",
+      "line": 56,
+      "selector": ".menu-scroll",
+      "prop": "max-height",
+      "value": "320px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-menu/dsh-menu.less",
+      "line": 63,
+      "selector": ".menu-item",
+      "prop": "min-height",
+      "value": "34px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-menu/dsh-menu.less",
+      "line": 88,
+      "selector": ".menu-copy",
+      "prop": "gap",
+      "value": "1px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-menu/dsh-menu.less",
+      "line": 94,
+      "selector": ".menu-line",
+      "prop": "gap",
+      "value": "5px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-switch/dsh-switch.less",
+      "line": 9,
+      "selector": ".switch",
+      "prop": "width",
+      "value": "36px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-switch/dsh-switch.less",
+      "line": 10,
+      "selector": ".switch",
+      "prop": "height",
+      "value": "20px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-switch/dsh-switch.less",
+      "line": 27,
+      "selector": ".switch-thumb",
+      "prop": "width",
+      "value": "16px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-switch/dsh-switch.less",
+      "line": 28,
+      "selector": ".switch-thumb",
+      "prop": "height",
+      "value": "16px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-tabs/dsh-tabs.less",
+      "line": 24,
+      "selector": ".dtabs-underline-normal",
+      "prop": "height",
+      "value": "32px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-tabs/dsh-tabs.less",
+      "line": 30,
+      "selector": ".dtabs-underline-normal .dtab",
+      "prop": "height",
+      "value": "32px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-tabs/dsh-tabs.less",
+      "line": 43,
+      "selector": ".dtabs-underline-normal .dtab::after",
+      "prop": "bottom",
+      "value": "-1px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-tabs/dsh-tabs.less",
+      "line": 45,
+      "selector": ".dtabs-underline-normal .dtab::after",
+      "prop": "height",
+      "value": "2px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-tabs/dsh-tabs.less",
+      "line": 64,
+      "selector": ".dtabs-underline-compact",
+      "prop": "height",
+      "value": "34px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-tabs/dsh-tabs.less",
+      "line": 71,
+      "selector": ".dtabs-underline-compact .dtab",
+      "prop": "margin-right",
+      "value": "1px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-tabs/dsh-tabs.less",
+      "line": 76,
+      "selector": ".dtabs-underline-compact .dtab",
+      "prop": "height",
+      "value": "34px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-tabs/dsh-tabs.less",
+      "line": 96,
+      "selector": ".dtabs-underline-compact .dtab-on::after",
+      "prop": "right",
+      "value": "9px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-tabs/dsh-tabs.less",
+      "line": 98,
+      "selector": ".dtabs-underline-compact .dtab-on::after",
+      "prop": "left",
+      "value": "9px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-tabs/dsh-tabs.less",
+      "line": 99,
+      "selector": ".dtabs-underline-compact .dtab-on::after",
+      "prop": "height",
+      "value": "2px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-tabs/dsh-tabs.less",
+      "line": 107,
+      "selector": ".dtabs-underline-flush",
+      "prop": "height",
+      "value": "36px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-tabs/dsh-tabs.less",
+      "line": 114,
+      "selector": ".dtabs-underline-flush .dtab",
+      "prop": "height",
+      "value": "36px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-tabs/dsh-tabs.less",
+      "line": 135,
+      "selector": ".dtabs-underline-flush .dtab-on::after",
+      "prop": "bottom",
+      "value": "-0.5px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-tabs/dsh-tabs.less",
+      "line": 137,
+      "selector": ".dtabs-underline-flush .dtab-on::after",
+      "prop": "height",
+      "value": "2px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-tabs/dsh-tabs.less",
+      "line": 145,
+      "selector": ".dtabs-pill .dtab",
+      "prop": "height",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-tabs/dsh-tabs.less",
+      "line": 146,
+      "selector": ".dtabs-pill .dtab",
+      "prop": "min-width",
+      "value": "64px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-tabs/dsh-tabs.less",
+      "line": 147,
+      "selector": ".dtabs-pill .dtab",
+      "prop": "max-width",
+      "value": "140px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/dsh-toast/dsh-toast.less",
+      "line": 8,
+      "selector": ".toast",
+      "prop": "left",
+      "value": "50%",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/error-center/error-center.less",
+      "line": 11,
+      "selector": ".ec-toast-stack",
+      "prop": "left",
+      "value": "50%",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/error-center/error-center.less",
+      "line": 27,
+      "selector": ".ec-toast",
+      "prop": "min-width",
+      "value": "220px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/error-center/error-center.less",
+      "line": 49,
+      "selector": ".ec-toast-icon",
+      "prop": "margin-top",
+      "value": "1px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/error-center/error-center.less",
+      "line": 57,
+      "selector": ".ec-toast-body",
+      "prop": "gap",
+      "value": "2px",
+      "reason": "T07-tokenization"
+    },
+    {
+      "file": "components/error-center/error-center.less",
+      "line": 106,
+      "selector": ".ec-toast-close",
+      "prop": "width",
+      "value": "20px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/error-center/error-center.less",
+      "line": 107,
+      "selector": ".ec-toast-close",
+      "prop": "height",
+      "value": "20px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/error-center/error-center.less",
+      "line": 148,
+      "selector": ".ec-modal-card",
+      "prop": "max-height",
+      "value": "100%",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/error-center/error-center.less",
+      "line": 206,
+      "selector": ".ec-modal-close",
+      "prop": "width",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/error-center/error-center.less",
+      "line": 207,
+      "selector": ".ec-modal-close",
+      "prop": "height",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/error-center/error-center.less",
+      "line": 218,
+      "selector": ".ec-modal-msg",
+      "prop": "max-height",
+      "value": "160px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/error-center/error-center.less",
+      "line": 246,
+      "selector": ".ec-modal-diag",
+      "prop": "max-height",
+      "value": "240px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/error-center/error-center.less",
+      "line": 262,
+      "selector": ".ec-diag-k",
+      "prop": "width",
+      "value": "76px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/feedback-dialog/feedback-dialog.less",
+      "line": 33,
+      "selector": ".feedback-card",
+      "prop": "max-height",
+      "value": "100%",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/feedback-dialog/feedback-dialog.less",
+      "line": 34,
+      "selector": ".feedback-card",
+      "prop": "padding-bottom",
+      "value": "24px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/feedback-dialog/feedback-dialog.less",
+      "line": 102,
+      "selector": ".feedback-close",
+      "prop": "width",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/feedback-dialog/feedback-dialog.less",
+      "line": 103,
+      "selector": ".feedback-close",
+      "prop": "height",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/feedback-dialog/feedback-dialog.less",
+      "line": 116,
+      "selector": ".feedback-categories",
+      "prop": "margin-top",
+      "value": "24px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/feedback-dialog/feedback-dialog.less",
+      "line": 123,
+      "selector": ".feedback-chip",
+      "prop": "height",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/feedback-dialog/feedback-dialog.less",
+      "line": 127,
+      "selector": ".feedback-chip",
+      "prop": "background",
+      "value": "transparent",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/feedback-dialog/feedback-dialog.less",
+      "line": 147,
+      "selector": ".feedback-detail",
+      "prop": "min-height",
+      "value": "116px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/feedback-dialog/feedback-dialog.less",
+      "line": 148,
+      "selector": ".feedback-detail",
+      "prop": "max-height",
+      "value": "280px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/feedback-dialog/feedback-dialog.less",
+      "line": 174,
+      "selector": ".feedback-submit",
+      "prop": "height",
+      "value": "44px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/goal-bar/goal-bar.less",
+      "line": 16,
+      "selector": ".goal-bar",
+      "prop": "height",
+      "value": "36px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/goal-bar/goal-bar.less",
+      "line": 59,
+      "selector": ".goal-icon",
+      "prop": "width",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/goal-bar/goal-bar.less",
+      "line": 60,
+      "selector": ".goal-icon",
+      "prop": "height",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/goal-bar/goal-bar.less",
+      "line": 74,
+      "selector": ".goal-edit-bar",
+      "prop": "min-height",
+      "value": "36px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/goal-bar/goal-bar.less",
+      "line": 83,
+      "selector": ".goal-input-area",
+      "prop": "min-height",
+      "value": "20px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/goal-bar/goal-bar.less",
+      "line": 84,
+      "selector": ".goal-input-area",
+      "prop": "max-height",
+      "value": "96px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/markdown-view/markdown-view.less",
+      "line": 135,
+      "selector": ".md-td-h",
+      "prop": "font-weight",
+      "value": "600",
+      "reason": "T07-tokenization"
+    },
+    {
+      "file": "components/message-actions/message-actions.less",
+      "line": 9,
+      "selector": ".actions",
+      "prop": "height",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/message-actions/message-actions.less",
+      "line": 30,
+      "selector": ".action",
+      "prop": "width",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/message-actions/message-actions.less",
+      "line": 31,
+      "selector": ".action",
+      "prop": "height",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/model-picker/model-picker.less",
+      "line": 14,
+      "selector": ".picker-menu",
+      "prop": "width",
+      "value": "260px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/model-picker/model-picker.less",
+      "line": 15,
+      "selector": ".picker-menu",
+      "prop": "max-height",
+      "value": "360px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/model-picker/model-picker.less",
+      "line": 20,
+      "selector": ".picker-menu",
+      "prop": "backdrop-filter",
+      "value": "blur(20px)",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/model-picker/model-picker.less",
+      "line": 21,
+      "selector": ".picker-menu",
+      "prop": "-webkit-backdrop-filter",
+      "value": "blur(20px)",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/model-picker/model-picker.less",
+      "line": 65,
+      "selector": ".picker-option",
+      "prop": "min-height",
+      "value": "34px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/question-sheet/question-sheet.less",
+      "line": 9,
+      "selector": ".question-card",
+      "prop": "max-width",
+      "value": "760px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/question-sheet/question-sheet.less",
+      "line": 10,
+      "selector": ".question-card",
+      "prop": "max-height",
+      "value": "60vh",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/question-sheet/question-sheet.less",
+      "line": 38,
+      "selector": ".question-close",
+      "prop": "width",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/question-sheet/question-sheet.less",
+      "line": 39,
+      "selector": ".question-close",
+      "prop": "height",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/question-sheet/question-sheet.less",
+      "line": 62,
+      "selector": ".custom",
+      "prop": "min-height",
+      "value": "40px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/question-sheet/question-sheet.less",
+      "line": 80,
+      "selector": ".option-number",
+      "prop": "width",
+      "value": "20px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/question-sheet/question-sheet.less",
+      "line": 81,
+      "selector": ".option-number",
+      "prop": "height",
+      "value": "20px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/question-sheet/question-sheet.less",
+      "line": 82,
+      "selector": ".option-number",
+      "prop": "margin-top",
+      "value": "2px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/question-sheet/question-sheet.less",
+      "line": 96,
+      "selector": ".option-box",
+      "prop": "width",
+      "value": "14px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/question-sheet/question-sheet.less",
+      "line": 97,
+      "selector": ".option-box",
+      "prop": "height",
+      "value": "14px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/question-sheet/question-sheet.less",
+      "line": 147,
+      "selector": ".custom-input",
+      "prop": "min-height",
+      "value": "24px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/question-sheet/question-sheet.less",
+      "line": 148,
+      "selector": ".custom-input",
+      "prop": "max-height",
+      "value": "96px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/question-sheet/question-sheet.less",
+      "line": 176,
+      "selector": ".pager-button",
+      "prop": "width",
+      "value": "24px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/question-sheet/question-sheet.less",
+      "line": 177,
+      "selector": ".pager-button",
+      "prop": "height",
+      "value": "24px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/question-sheet/question-sheet.less",
+      "line": 218,
+      "selector": ".question-action",
+      "prop": "min-width",
+      "value": "64px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/question-sheet/question-sheet.less",
+      "line": 219,
+      "selector": ".question-action",
+      "prop": "height",
+      "value": "32px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/reasoning-row/reasoning-row.less",
+      "line": 3,
+      "selector": ":host",
+      "prop": "margin-bottom",
+      "value": "16px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/reasoning-row/reasoning-row.less",
+      "line": 14,
+      "selector": ".reasoning-head",
+      "prop": "height",
+      "value": "24px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/reasoning-row/reasoning-row.less",
+      "line": 29,
+      "selector": ".reasoning-leading",
+      "prop": "width",
+      "value": "16px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/reasoning-row/reasoning-row.less",
+      "line": 30,
+      "selector": ".reasoning-leading",
+      "prop": "height",
+      "value": "16px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/reasoning-row/reasoning-row.less",
+      "line": 41,
+      "selector": ".reasoning-sep",
+      "prop": "width",
+      "value": "2px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/reasoning-row/reasoning-row.less",
+      "line": 42,
+      "selector": ".reasoning-sep",
+      "prop": "height",
+      "value": "2px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/reasoning-row/reasoning-row.less",
+      "line": 47,
+      "selector": ".reasoning-sep",
+      "prop": "color",
+      "value": "transparent",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/reasoning-row/reasoning-row.less",
+      "line": 85,
+      "selector": ".reasoning-shimmer",
+      "prop": "-webkit-text-fill-color",
+      "value": "transparent",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/right-panel/right-panel.less",
+      "line": 29,
+      "selector": ".right-panel-docked",
+      "prop": "width",
+      "value": "380px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/right-panel/right-panel.less",
+      "line": 42,
+      "selector": ".rp-strip",
+      "prop": "height",
+      "value": "38px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/right-panel/right-panel.less",
+      "line": 55,
+      "selector": ".rp-close",
+      "prop": "width",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/right-panel/right-panel.less",
+      "line": 56,
+      "selector": ".rp-close",
+      "prop": "height",
+      "value": "28px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/right-panel/right-panel.less",
+      "line": 78,
+      "selector": ".rp-head",
+      "prop": "height",
+      "value": "36px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/right-panel/right-panel.less",
+      "line": 113,
+      "selector": ".rp-nav",
+      "prop": "min-height",
+      "value": "52px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/right-panel/right-panel.less",
+      "line": 120,
+      "selector": ".rp-back",
+      "prop": "width",
+      "value": "32px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/right-panel/right-panel.less",
+      "line": 121,
+      "selector": ".rp-back",
+      "prop": "height",
+      "value": "32px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/right-panel/right-panel.less",
+      "line": 139,
+      "selector": ".rp-nav-main",
+      "prop": "gap",
+      "value": "2px",
+      "reason": "T07-tokenization"
+    },
+    {
+      "file": "components/right-panel/right-panel.less",
+      "line": 166,
+      "selector": ".fm-row",
+      "prop": "min-height",
+      "value": "52px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/right-panel/right-panel.less",
+      "line": 186,
+      "selector": ".fm-main",
+      "prop": "gap",
+      "value": "2px",
+      "reason": "T07-tokenization"
+    },
+    {
+      "file": "components/right-panel/right-panel.less",
+      "line": 229,
+      "selector": ".fm-menu",
+      "prop": "width",
+      "value": "32px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/right-panel/right-panel.less",
+      "line": 230,
+      "selector": ".fm-menu",
+      "prop": "height",
+      "value": "32px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/right-panel/right-panel.less",
+      "line": 275,
+      "selector": ".term-muted",
+      "prop": "margin-top",
+      "value": "8px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/right-panel/right-panel.less",
+      "line": 284,
+      "selector": ".browser-bar",
+      "prop": "height",
+      "value": "40px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/right-panel/right-panel.less",
+      "line": 294,
+      "selector": ".browser-input",
+      "prop": "height",
+      "value": "40px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/right-panel/right-panel.less",
+      "line": 319,
+      "selector": ".rp-empty-copy",
+      "prop": "max-width",
+      "value": "260px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/right-panel/right-panel.less",
+      "line": 358,
+      "selector": ".todo-dot",
+      "prop": "width",
+      "value": "6px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/right-panel/right-panel.less",
+      "line": 359,
+      "selector": ".todo-dot",
+      "prop": "height",
+      "value": "6px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/right-panel/right-panel.less",
+      "line": 360,
+      "selector": ".todo-dot",
+      "prop": "margin-top",
+      "value": "7px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/right-panel/right-panel.less",
+      "line": 409,
+      "selector": ".fmd-row",
+      "prop": "min-height",
+      "value": "20px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/right-panel/right-panel.less",
+      "line": 439,
+      "selector": ".fmd-act",
+      "prop": "min-height",
+      "value": "40px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/tool-card/tool-card.less",
+      "line": 15,
+      "selector": ".tool-head",
+      "prop": "height",
+      "value": "24px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/tool-card/tool-card.less",
+      "line": 35,
+      "selector": ".tool-shimmer",
+      "prop": "left",
+      "value": "22px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/tool-card/tool-card.less",
+      "line": 49,
+      "selector": ".tool-shimmer",
+      "prop": "-webkit-text-fill-color",
+      "value": "transparent",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/tool-card/tool-card.less",
+      "line": 71,
+      "selector": ".tool-leading",
+      "prop": "width",
+      "value": "16px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/tool-card/tool-card.less",
+      "line": 72,
+      "selector": ".tool-leading",
+      "prop": "height",
+      "value": "16px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/tool-card/tool-card.less",
+      "line": 86,
+      "selector": ".tool-sep",
+      "prop": "width",
+      "value": "2px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/tool-card/tool-card.less",
+      "line": 87,
+      "selector": ".tool-sep",
+      "prop": "height",
+      "value": "2px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/tool-card/tool-card.less",
+      "line": 160,
+      "selector": ".tool-io-scroll",
+      "prop": "max-height",
+      "value": "150px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/tool-card/tool-card.less",
+      "line": 178,
+      "selector": ".tool-io-divider",
+      "prop": "height",
+      "value": "0.5px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/up-drawer/up-drawer.less",
+      "line": 32,
+      "selector": ".upd-sheet",
+      "prop": "height",
+      "value": "33.333vh",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/up-drawer/up-drawer.less",
+      "line": 49,
+      "selector": ".upd-close",
+      "prop": "top",
+      "value": "-44px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/up-drawer/up-drawer.less",
+      "line": 56,
+      "selector": ".upd-close",
+      "prop": "width",
+      "value": "30px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/up-drawer/up-drawer.less",
+      "line": 57,
+      "selector": ".upd-close",
+      "prop": "height",
+      "value": "30px",
+      "reason": "MS02-equal-literal"
+    },
+    {
+      "file": "components/up-drawer/up-drawer.less",
+      "line": 73,
+      "selector": ".upd-head",
+      "prop": "gap",
+      "value": "2px",
+      "reason": "T07-tokenization"
+    }
+  ]
+}

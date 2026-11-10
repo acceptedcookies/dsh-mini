@@ -109,3 +109,5 @@ node scripts/skin-equiv-check.mjs --self-test
 - 短验：`node test/spike/mini-skin/node-checks.mjs` 的 `MS02-T01`…`MS02-T22`。
 - 波次 receipt：`test/spike/mini-skin/receipts/ms02-w1.json` … `ms02-w6.json`（被 git 跟踪；不放 `evidence/`）。
 - 真机 `@media` 不在本阶段判绿。交接字段名是 `ms01T17Media`，值只许 `NOT_RUN`。`MS02-T17` 是 W3 拼接，不是真机项。
+- 收口五命令 stdout：`test/spike/mini-skin/receipts/p6/`。closure：`docs/closure/mini-skin/MS02-closure.md`。
+- 交接三件：矩阵 `component-matrix.json`、`G14`/`G14-src` 退役、`receipts/ms02-w1.json` … `ms02-w6.json`。
