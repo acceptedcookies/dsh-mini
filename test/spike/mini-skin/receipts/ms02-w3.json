@@ -1,0 +1,33 @@
+{
+  "id": "ms02-w3",
+  "lane": "mini-skin",
+  "verdict": "PASS",
+  "reason": "three float surfaces join componentVars with surfaceStyle; page geometry untouched; blur(20px) still literal",
+  "envClass": "host-node",
+  "grade": "H1",
+  "at": "2026-11-10T06:41:30.597Z",
+  "headSha": "14e34cb160ff79ed5082cf37c6df796545cac936",
+  "dirtyWorktree": true,
+  "device": null,
+  "counts": {
+    "nodeChecks": "95/95"
+  },
+  "timing": null,
+  "plants": [
+    {
+      "id": "page-shellVars-absent",
+      "fired": true,
+      "restored": true
+    }
+  ],
+  "budget": null,
+  "remoteOps": [],
+  "detail": {
+    "argv": [
+      "node test/spike/mini-skin/node-checks.mjs"
+    ],
+    "stdoutSha256": {
+      "nodeChecks": "08f444afc9254ace09c51fc5851c16b8dd01fa2f96fe5c2387df1580f3528454"
+    }
+  }
+}

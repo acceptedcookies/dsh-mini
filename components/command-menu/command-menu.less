@@ -6,7 +6,7 @@
   position: fixed;
   inset: 0;
   z-index: 1250;
-  background: transparent;
+  background: var(--dsw-command-menu-background);
 }
 
 .cm-layer {
@@ -61,7 +61,7 @@
 }
 
 .cm-section {
-  min-height: 23px;
+  min-height: var(--dsw-command-menu-min-height);
   padding: 5px var(--dsw-space-8) var(--dsw-space-2);
   color: var(--dsw-alias-label-tertiary);
   font-size: var(--dsw-text-micro);
@@ -70,7 +70,7 @@
 }
 
 .cm-section:not(:first-child) {
-  margin-top: 3px;
+  margin-top: var(--dsw-command-menu-margin-top);
 }
 
 .cm-item {
@@ -78,7 +78,7 @@
   align-items: center;
   gap: var(--dsw-space-6);
   width: 100%;
-  min-height: 34px;
+  min-height: var(--dsw-command-menu-min-height-2);
   padding: var(--dsw-space-6) var(--dsw-space-8);
   border-radius: var(--dsw-radius-md);
   color: var(--dsw-alias-label-primary);
@@ -98,8 +98,8 @@
 .cm-icon {
   display: inline-flex;
   flex: none;
-  width: 14px;
-  height: 14px;
+  width: var(--dsw-command-menu-width);
+  height: var(--dsw-command-menu-height);
   align-items: center;
   justify-content: center;
   color: var(--dsw-alias-label-secondary);
@@ -107,7 +107,7 @@
 
 .cm-name {
   flex: none;
-  max-width: 40%;
+  max-width: var(--dsw-command-menu-max-width);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -115,7 +115,7 @@
 
 .cm-alias {
   flex: none;
-  max-width: 20%;
+  max-width: var(--dsw-command-menu-max-width-2);
   overflow: hidden;
   color: var(--dsw-alias-label-tertiary);
   font-size: var(--dsw-text-caption);

@@ -1,6 +1,6 @@
 <view wx:if="{{render}}" class="cm-mask {{closing ? 'cm-closing' : ''}}" catchtouchmove="noop" data-anchor="cm.mask" data-anchor-exempt="gesture-shield" bindtap="close"></view>
 <view wx:if="{{render}}" class="cm-layer">
-  <view class="cm-menu {{closing ? 'cm-closing' : ''}}" style="{{surfaceStyle}}" data-anchor-exempt="gesture-shield" catchtap="noop">
+  <view class="layout-{{layout}} cm-menu {{closing ? 'cm-closing' : ''}}" style="{{shellVars}}" data-anchor-exempt="gesture-shield" catchtap="noop">
     <scroll-view class="cm-viewport" style="height: {{viewportHeight}}px;" scroll-y enhanced show-scrollbar="{{false}}">
       <block wx:for="{{groups}}" wx:for-item="group" wx:key="key">
         <view wx:if="{{group.title}}" class="cm-section">{{group.title}}</view>

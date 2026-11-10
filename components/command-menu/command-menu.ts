@@ -1,4 +1,5 @@
 import { filterCommands, type CommandDefinition } from '../../services/commands'
+import { engine } from '../../services/skin/engine'
 
 interface MenuRow extends CommandDefinition {
   alias: string
@@ -37,6 +38,8 @@ Component({
   },
 
   data: {
+    layout: '',
+    shellVars: '',
     groups: [] as MenuGroup[],
     count: 0,
     viewportHeight: 0,
@@ -46,6 +49,9 @@ Component({
   },
 
   observers: {
+    surfaceStyle() {
+      this.syncShell()
+    },
     visible(visible: boolean) {
       const timer = this.data.exitTimer as ReturnType<typeof setTimeout> | 0
       if (timer !== 0) {
@@ -73,15 +79,29 @@ Component({
 
   lifetimes: {
     attached() {
+      ;(this as unknown as { _unwatchSkin?: () => void })._unwatchSkin = engine.watchMode(() => {
+        this.syncShell()
+      })
+      this.syncShell()
       this.rebuild(this.data.query as string)
     },
     detached() {
+      const unwatch = (this as unknown as { _unwatchSkin?: () => void })._unwatchSkin
+      if (typeof unwatch === 'function') unwatch()
       const timer = this.data.exitTimer as ReturnType<typeof setTimeout> | 0
       if (timer !== 0) clearTimeout(timer)
     },
   },
 
   methods: {
+    syncShell() {
+      const vars = engine.componentVars('command-menu')
+      const layout = engine.componentLayout('command-menu')
+      const surface = String(this.data.surfaceStyle ?? '')
+      const shellVars = [vars, surface].filter((part) => part.length > 0).join('; ')
+      if (shellVars === this.data.shellVars && layout === this.data.layout) return
+      this.setData({ shellVars, layout })
+    },
     rebuild(query: string) {
       const groups = buildGroups(query)
       const count = groups.reduce((sum, group) => sum + group.rows.length, 0)

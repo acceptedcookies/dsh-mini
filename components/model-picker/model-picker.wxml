@@ -1,5 +1,5 @@
 <view wx:if="{{render}}" class="picker-layer" data-anchor="picker.mask" data-anchor-exempt="gesture-shield" catchtap="close" catchtouchmove="noop">
-  <view class="picker-menu {{closing ? 'picker-closing' : ''}}" style="{{surfaceStyle}}" data-anchor-exempt="gesture-shield" catchtap="noop">
+  <view class="layout-{{layout}} picker-menu {{closing ? 'picker-closing' : ''}}" style="{{shellVars}}" data-anchor-exempt="gesture-shield" catchtap="noop">
     <view class="picker-group">{{providerLabel}}</view>
     <scroll-view class="picker-list" scroll-y enhanced show-scrollbar="{{false}}">
       <view
