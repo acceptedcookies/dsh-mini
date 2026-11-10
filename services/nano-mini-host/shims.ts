@@ -22,7 +22,35 @@ declare const globalThis: {
   btoa?: (s: string) => string
   TextEncoder?: unknown
   TextDecoder?: unknown
+  AbortController?: unknown
+  AbortSignal?: unknown
 } & Record<string, unknown>
+
+
+/** JSC 无 AbortController；upstream dispatch 只用 signal 的 aborted/add/remove 三面。 */
+class MiniAbortSignal {
+  aborted = false
+  private readonly listeners = new Set<() => void>()
+  addEventListener(type: string, fn: () => void): void {
+    if (type === 'abort') this.listeners.add(fn)
+  }
+  removeEventListener(type: string, fn: () => void): void {
+    if (type === 'abort') this.listeners.delete(fn)
+  }
+  emitAbort(): void {
+    this.aborted = true
+    for (const fn of [...this.listeners]) {
+      try { fn() } catch { /* 监听器抛错不阻断其它 */ }
+    }
+  }
+}
+
+class MiniAbortController {
+  readonly signal = new MiniAbortSignal()
+  abort(): void {
+    this.signal.emitAbort()
+  }
+}
 
 let installed = false
 
@@ -77,6 +105,8 @@ export function installKernelShims(): boolean {
 
   if (globalThis.TextEncoder === undefined) globalThis.TextEncoder = TextEncoderImpl
   if (globalThis.TextDecoder === undefined) globalThis.TextDecoder = TextDecoderImpl
+  if (globalThis.AbortController === undefined) (globalThis as Record<string, unknown>).AbortController = MiniAbortController
+  if (globalThis.AbortSignal === undefined) (globalThis as Record<string, unknown>).AbortSignal = MiniAbortSignal
 
   return true
 }

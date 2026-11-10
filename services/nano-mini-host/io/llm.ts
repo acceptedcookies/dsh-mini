@@ -18,7 +18,7 @@ import { loadKernel } from '../kernel-loader'
 import { egressDecision } from '../../config'
 import type { AssembledContext } from '../../context/assemble'
 
-async function wxRequestJson(url: string, headers: Record<string, string>, data: unknown): Promise<{ status: number; body: unknown }> {
+async function wxRequestJson(url: string, headers: Record<string, string>, data: unknown, opts: { allowPrivate?: boolean } = {}): Promise<{ status: number; body: unknown }> {
   // 容器车道：container://{service} → callContainer 内网直连（route.ts 判定）。
   // 传输层失败（env 错配/服务不可达）时回退公网 proxy_url；业务错误以 status 透传不回退。
   if (isContainerUrl(url)) {
@@ -33,8 +33,10 @@ async function wxRequestJson(url: string, headers: Record<string, string>, data:
       url = pub + parseContainerUrl(url).path
     }
   }
-  const gate = egressDecision(url)
-  if (!gate.ok) return Promise.reject(Object.assign(new Error(gate.reason), { code: gate.code }))
+  if (opts.allowPrivate !== true) {
+    const gate = egressDecision(url)
+    if (!gate.ok) return Promise.reject(Object.assign(new Error(gate.reason), { code: gate.code }))
+  }
   return new Promise((resolve, reject) => {
     wx.request({
       url,
@@ -70,12 +72,14 @@ function bearer(headers: Record<string, string>): string {
 }
 
 export function createIoLlm(deps: IoLlmDeps = {}): (context: AssembledContext) => AsyncIterable<LlmChunk> {
-  const request = deps.request ?? wxRequestJson
   return async function* (context: AssembledContext): AsyncIterable<LlmChunk> {
     const cfg = loadDevConfig()
     const route = currentRoute()
     // 引擎裁决先于路由：戳记会话走自己的车道，不随全局旋钮漂移。
     const engine = deps.engine ?? routeDefaultEngine()
+    // magpie = 纯本地车道（127.0.0.1），不套公网 egress 名单。
+    const request = deps.request ?? ((url: string, headers: Record<string, string>, data: unknown) =>
+      wxRequestJson(url, headers, data, { allowPrivate: engine === 'magpie' }))
     const enrollment = readEnrollment()
     // 生效模型=设置页选择（白名单内归一化），enrollment.model 仅登记信息（resolveSource 同合同）；
     // 此前顺序颠倒导致设置页选模型静默失效（审查 B8）。cfg 缺席（生产云车道）时：
@@ -128,7 +132,6 @@ export function createIoLlm(deps: IoLlmDeps = {}): (context: AssembledContext) =
 
     const kernel = loadKernel() as {
       measureWireRequest?: (request: unknown) => unknown
-      preflightWireRequest?: (request: unknown) => { ok: boolean; reason?: string; whole_cap?: number }
       dispatchSingleWire?: (input: unknown) => Promise<{
         kind: string
         reason?: string
@@ -137,7 +140,6 @@ export function createIoLlm(deps: IoLlmDeps = {}): (context: AssembledContext) =
       }>
     } | undefined
     if (typeof kernel?.measureWireRequest !== 'function'
-      || typeof kernel.preflightWireRequest !== 'function'
       || typeof kernel.dispatchSingleWire !== 'function') {
       yield { kind: 'error', message: 'kernel wire surface unavailable' }
       return
@@ -147,12 +149,9 @@ export function createIoLlm(deps: IoLlmDeps = {}): (context: AssembledContext) =
       tools: context.tools,
       base_url: baseUrl,
     }
+    // 业主 2026-11-10 指令：无预算、上不封顶。request-bounds 只做观测，
+    // preflightWireRequest 的 P-STEP 默认向量（8192/256）不再阻断出站。
     kernel.measureWireRequest(wireRequest)
-    const bounds = kernel.preflightWireRequest(wireRequest)
-    if (!bounds.ok || typeof bounds.whole_cap !== 'number') {
-      yield { kind: 'error', message: bounds.reason ?? 'request-bounds:rejected' }
-      return
-    }
     const outcome = await kernel.dispatchSingleWire({
       kind: 'http-responses',
       providerKey: 'deepseek',
@@ -180,8 +179,9 @@ export function createIoLlm(deps: IoLlmDeps = {}): (context: AssembledContext) =
           }
         },
       },
-      bodyCap: bounds.whole_cap,
-      requestCap: bounds.whole_cap,
+      // 业主无预算口径：不做 body/request 截断。
+      bodyCap: Number.MAX_SAFE_INTEGER,
+      requestCap: Number.MAX_SAFE_INTEGER,
       deadlines: { totalMs: 60000, wireMs: 60000, resultMs: 60000 },
     })
     if (outcome.kind !== 'terminal-known') {

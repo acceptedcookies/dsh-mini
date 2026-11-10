@@ -52,6 +52,12 @@ function parseTarget(target: string): { protocol: string; host: string; port: nu
   return { protocol, host: host.toLowerCase(), port }
 }
 
+export function isLoopbackTarget(target: string): boolean {
+  const parsed = parseTarget(target)
+  if (parsed === null) return false
+  return parsed.host === 'localhost' || parsed.host === '::1' || parsed.host.startsWith('127.')
+}
+
 export function egressDecision(target: string): { ok: true } | { ok: false; code: 'egress-denied'; reason: string } {
   if (target.startsWith('container://')) return { ok: true }
   const parsed = parseTarget(target)
