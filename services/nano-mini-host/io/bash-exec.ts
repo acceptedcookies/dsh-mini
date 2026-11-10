@@ -135,16 +135,58 @@ function workspaceFor(sessionId: string) {
       }
     },
     async listDir(path: string) {
-      const listed = vfs.list(path, opts)
-      return listed.entries.map((entry) => ({ path: entry.path, size: entry.size_bytes ?? 0 }))
+      try {
+        const listed = vfs.list(path, opts)
+        return listed.entries.map((entry) => ({ path: entry.path, size: entry.size_bytes ?? 0 }))
+      } catch (e) {
+        // 空工作区：绑定根尚未落任何行，ls 如实返回空列表而不是 path-not-found。
+        if (e instanceof VfsError && e.code === 'path-not-found') return []
+        throw e
+      }
     },
     async deleteFile(path: string) {
       return vfs.remove(path, opts)
+    },
+    async listWorkspaceRows(target: string) {
+      try {
+        const listed = vfs.list(target, opts)
+        return {
+          rows: listed.entries.map((entry, index) => ({
+            entry_kind: entry.kind === 'dir' ? 'directory' as const : 'file' as const,
+            name: entry.name,
+            virtual_path: entry.path,
+            size_bytes: entry.size_bytes,
+            mime: null,
+            content_hash: null,
+            row_id: `${entry.path}#${index}`,
+            depth: 1,
+          })),
+          next_cursor: null,
+          admission_mode: 'fallback' as const,
+          depth_truncated: false,
+        }
+      } catch (e) {
+        if (e instanceof VfsError && e.code === 'path-not-found') {
+          return { rows: [], next_cursor: null, admission_mode: 'fallback' as const, depth_truncated: false }
+        }
+        throw e
+      }
     },
     async statFile(path: string) {
       const stat = vfs.stat(path, opts)
       if (!stat.exists) return null
       return { size: stat.size_bytes ?? 0, mtime: stat.updated_ms ?? null }
+    },
+    /** upstream 的 ls/cat/find 都先问 workspace 分类，缺它一律 workspace-path-decision-required。 */
+    async classifyWorkspacePath(path: string) {
+      if (path === `/data/${sessionId}`) return { kind: 'workspace-root' as const, path }
+      const stat = vfs.stat(path, opts)
+      if (!stat.exists) return { kind: 'missing' as const, path }
+      return {
+        kind: stat.kind === 'dir' ? 'directory' as const : 'file' as const,
+        path,
+        location: { normalized_path: path, persist_scope: 'session' as const, durable_uuid: '' },
+      }
     },
     async mkdir(path: string) {
       const resolved = vfs.stat(path, opts)
