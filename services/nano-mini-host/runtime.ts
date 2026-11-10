@@ -415,7 +415,7 @@ export class KernelMiniRuntime {
         return
       }
       const r = await runPump(
-        { kernel: bundle.kernel, io, owner: 'local', holder: 'mp-foreground' },
+        { kernel: bundle, io, owner: 'local', holder: 'mp-foreground' },
         sessionId,
         { input, cancelRequested: () => this.cancelled.has(sessionId) },
       )

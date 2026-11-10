@@ -55,7 +55,7 @@ async function doCatchUp(): Promise<string[]> {
   if (remoteDurableActive() && hasFreshTicket()) lanes.push(ioStateFor())
   const ran: Awaited<ReturnType<typeof sweepTick>> = []
   for (const st of lanes) {
-    const ctx: PumpCtx = { kernel: bundle.kernel, io: { ...ioFor(''), state: st }, owner: 'local', holder: HOLDER }
+    const ctx: PumpCtx = { kernel: bundle, io: { ...ioFor(''), state: st }, owner: 'local', holder: HOLDER }
     ran.push(...await sweepTick(ctx, { batchLimit: 10 }, ioFor))
   }
   // fenced/claim-denied/step-exhausted 算 ran 但恢复未成——pending 不得误清（审查 B5）；

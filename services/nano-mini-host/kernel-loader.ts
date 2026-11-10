@@ -1,7 +1,6 @@
 /**
- * kernel-loader —— 懒载 subpkg/kernel/kernel.js 双命名空间产物。
- * mp 侧 require 分包文件；加载失败（缺产物/JSC 不兼容）→ isUsable()=false
- * 由 bindRuntime 探测回退 fx/localRuntime（P2-06）。
+ * kernel-loader —— 懒载 subpkg/kernel/kernel.js 平铺导出。
+ * 旧 {kernel, executor} 形状没有消费符号，kernelUsable()===false，不当半套 kernel。
  */
 
 import { installKernelShims } from './shims'
@@ -10,10 +9,17 @@ import type { KernelModule } from './types'
 
 declare const require: (path: string) => unknown
 
-interface KernelBundle {
-  kernel: KernelModule
-  executor?: unknown
-}
+/** 平铺产物。消费子集在 KernelModule；没有 kernel/executor 命名空间字段。 */
+export type KernelBundle = KernelModule
+
+const HOST_CONSUMED = [
+  'createInitialSessionState',
+  'createKernelSnapshot',
+  'applyAction',
+  'scheduleNextStep',
+  'buildCheckpointFragment',
+  'restoreFromFragment',
+] as const
 
 let cached: KernelBundle | undefined
 let tried = false
@@ -80,12 +86,19 @@ export async function loadKernelAsync(timeoutMs = 25000): Promise<KernelBundle |
 
 export function kernelUsable(): boolean {
   const b = loadKernel()
-  const k = b?.kernel
-  // 探测全决策环所需导出面（非只验两函数——残缺 bundle 不得误判 usable）
-  return k !== undefined
-    && ['createInitialSessionState', 'createKernelSnapshot', 'applyAction',
-      'scheduleNextStep', 'buildCheckpointFragment', 'restoreFromFragment']
-      .every((fn) => typeof (k as unknown as Record<string, unknown>)[fn] === 'function')
+  if (b === undefined) return false
+  let listed: string[] = []
+  try {
+    const manifest = require('../../subpkg/kernel/manifest.json') as { exports?: unknown }
+    listed = Array.isArray(manifest.exports) ? manifest.exports.filter((n): n is string => typeof n === 'string') : []
+  } catch {
+    return false
+  }
+  if (listed.length === 0) return false
+  if (!HOST_CONSUMED.every((name) => listed.includes(name))) return false
+  const flat = b as unknown as Record<string, unknown>
+  // 旧双命名空间把符号藏在 .kernel 下，根上没有这些函数。
+  return HOST_CONSUMED.every((fn) => typeof flat[fn] === 'function')
 }
 
 /** 测试用：重置缓存（换产物后重测）。 */
