@@ -22,10 +22,18 @@ async function journey(mode, llm) {
     await app.call('setData', { input: fixture.prompt })
     shots.push(await capture(app, evidence, '02-typed', { route: 'pages/workspace/workspace', includes: [fixture.prompt] }))
     await app.call('send')
-    await app.call('setData', { input: fixture.cancel })
-    const running = await app.data()
-    if (running.state?.current?.status === 'running') await app.call('stop')
-    const data = await app.data()
+    const deadline = Date.now() + 20000
+    let data = await app.data()
+    while (Date.now() < deadline) {
+      data = await app.data()
+      const status = data.state?.current?.status
+      const text = currentText(data)
+      if (status === 'error' || text.includes(fixture.reply) || text.includes('停止') || text.includes('已请求停止')) break
+      if (status === 'running') break
+      await new Promise((r) => setTimeout(r, 300))
+    }
+    if (data.state?.current?.status === 'running') await app.call('stop')
+    data = await app.data()
     shots.push(await capture(app, evidence, '03-settled', { route: 'pages/workspace/workspace' }))
     const text = currentText(data)
     evidence.check('chat:user-visible', text.includes(fixture.prompt), text.slice(0, 180))
