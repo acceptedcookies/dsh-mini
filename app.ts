@@ -9,6 +9,7 @@ import { vfsSyncFor } from './services/state/provider'
 import { engineForSession } from './services/session-engine'
 import { hasFreshTicket, onTicketMinted } from './services/fx/ticket'
 import { installKernelShims } from './services/nano-mini-host/shims'
+import { ensureRandomPool } from './services/crypto/random'
 
 declare const __wxConfig: { envVersion?: string } | undefined
 const DEV_BUILD = typeof __wxConfig !== 'undefined' && __wxConfig.envVersion === 'develop'
@@ -96,6 +97,8 @@ App<IAppOption>({
     // kernel 分包 boot 组件在分包上下文 require kernel.js，早于任何主包消费点；
     // TextEncoder 等 shim 必须先装好，否则 require 直接 ReferenceError。
     installKernelShims()
+    // wx.getRandomValues 是 Promise 形态：launch 先取真实字节进池，同步缝后续消费。
+    void ensureRandomPool().catch(() => { /* 取不到时由消费点抛 random-source-unavailable */ })
     engine.init()
     this.globalData.theme = engine.eff
     engine.watchMode((theme) => {

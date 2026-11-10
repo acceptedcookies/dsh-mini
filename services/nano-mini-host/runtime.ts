@@ -19,6 +19,7 @@ import { markdownToHtml, plainText } from '../markdown'
 import { reportSilent } from '../error-report'
 import { storage } from '../storage'
 import { randomId } from '../../utils/uuid'
+import { ensureRandomPool } from '../crypto/random'
 import { askHostQuestion, setApprovalEmitter, setQuestionEmitter, settleHostApproval, settleHostQuestion } from './io/approval-gate'
 import { setArtifactPublisher, setAskUser } from '../context/intent-fulfill'
 import { ioStateFor, ensureDurableTicket, vfsRemoteFor } from '../state/provider'
@@ -243,6 +244,8 @@ export class KernelMiniRuntime {
 
   async prompt(id: string, text: string, images: ImageRef[] = []): Promise<{ messageId: string }> {
     const s = this.require(id)
+    // 真随机源可能是 Promise 形态的 wx.getRandomValues——开轮前先把真实字节取进池。
+    await ensureRandomPool()
     if (this.running.has(id)) throw new Error('当前会话仍在运行')
     // 防御性清陈旧 cancel 标记（idle 期误触 cancel 不得吃掉下一轮）。
     this.cancelled.delete(id)
