@@ -883,6 +883,68 @@ check('MS02-T07', () => {
   }
 })
 
+const MS02_BASE = '3dfda292892cf047d84dc49b6def2dd2c34304a9'
+check('MS02-T11', () => {
+  const bare = loadEngine()
+  eq(bare.componentVars('up-drawer'), '', '未 apply 时 vars 必须是空串')
+  const vocab = requireTs(resolve(ROOT, 'services/skin/vocab.ts')).VOCAB
+  const previous = vocab.components
+  vocab.components = {
+    'up-drawer': {
+      contractVersion: '1.0.0',
+      layout: ['dock-bottom'],
+      vars: {
+        '--dsw-upd-height': { kind: 'length', units: ['vh'], default: '33.333vh' },
+        '--dsw-upd-close-size': { kind: 'length', units: ['px'], default: '30px' },
+      },
+    },
+  }
+  try {
+    const e = loadEngine()
+    eq(e.componentVars('up-drawer'), '', '无覆写时不把 default 打进 inline')
+    eq(e.componentLayout('up-drawer'), 'dock-bottom', '无覆写取 layout[0]')
+    e.applySkin({
+      $schema: 'dsh-mini.skin.v1', slug: 'probe-skin', name: 'Probe',
+      components: { 'up-drawer': { vars: { '--dsw-upd-height': '40vh' } } },
+      light: { palette: { '--dsw-alias-bg-base': '#ffffff' } },
+    })
+    const vars = e.componentVars('up-drawer')
+    assert(vars.includes('--dsw-upd-height: 40vh'), `覆写未出现: ${vars}`)
+    assert(!vars.includes('--dsw-upd-close-size'), `兄弟键漏进 inline: ${vars}`)
+    vocab.components['up-drawer'].layout[0] = 'dock-side'
+    e.applySkin(null)
+    eq(e.componentLayout('up-drawer'), 'dock-side', 'layout[0] 改了必须跟着变')
+    let calls = 0
+    const unwatch = e.watchMode(() => { calls += 1 })
+    e.applySkin(null)
+    eq(calls, 1, '订阅后 applySkin 应回调')
+    unwatch()
+    e.applySkin(null)
+    eq(calls, 1, '退订后 applySkin 不得再回调')
+  } finally {
+    vocab.components = previous
+  }
+})
+check('MS02-T12', () => {
+  const e = loadEngine()
+  const style = e.composeAppStyle([])
+  const vocab = requireTs(resolve(ROOT, 'services/skin/vocab.ts')).VOCAB
+  for (const contract of Object.values(vocab.components)) {
+    for (const key of Object.keys(contract?.vars ?? {})) assert(!style.includes(key), `composeAppStyle 掺了 ${key}`)
+  }
+  const storage = readFileSync(resolve(ROOT, 'services/storage.ts'), 'utf8').split('\n').slice(2, 12).join('\n')
+  const keys = [...storage.matchAll(/'dsh:[^']+'/g)].map((m) => m[0])
+  eq(JSON.stringify(keys), JSON.stringify([
+    "'dsh:theme:v2'", "'dsh:last-session:v2'", "'dsh:sessions:v2'", "'dsh:model:v2'",
+    "'dsh:byok-enrollment:v1'", "'dsh:permission:v1'", "'dsh:plan-mode:v1'", "'dsh:goal:v1'",
+    "'dsh:feedback:v1'", "'dsh:feedback-ratings:v1'",
+  ]), 'storage 键集合变了')
+  const diff = execFileSync('git', ['diff', MS02_BASE, '--', 'services/storage.ts'], { cwd: ROOT, encoding: 'utf8' })
+  eq(diff, '', 'storage.ts 相对 BASE 必须为空')
+  const engineSrc = readFileSync(resolve(ROOT, 'services/skin/engine.ts'), 'utf8')
+  assert(!engineSrc.includes('快径'), 'engine 仍写着快径')
+})
+
 // ── 输出 ─────────────────────────────────────────────────────────────────
 const json = process.argv.includes('--json')
 const failed = results.filter((r) => !r.ok)

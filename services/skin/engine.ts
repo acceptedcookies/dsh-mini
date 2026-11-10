@@ -6,7 +6,7 @@
  *  - resolved[eff] 单一状态（tokens/eff getter）
  *  - appStyle 唯一生产者（composeAppStyle = skin 段 + metrics 段）
  *  - chrome 唯一应用点（applyChrome → setNavigationBarColor + setBackgroundColor）
- *  - 皮肤入口闸（applySkin：dsh-default 快径；其余 validate 先决）
+ *  - 皮肤入口闸（applySkin：非 null 一律 validate，含 dsh-default；null 才是重置）
  */
 import { VOCAB, type VocabToken } from './vocab'
 import { validate, type SkinJson, type ValidationError, type VocabLike } from './validate'
@@ -199,7 +199,7 @@ export class SkinValidationError extends Error {
   }
 }
 
-/** 皮肤入口：dsh-default 快径；其余必须先过 validate（fail-closed）。 */
+/** 皮肤入口：非 null skin（含 dsh-default）一律 validate；null 重置内存皮肤。 */
 export function applySkin(skin: SkinJson | null): { ok: true; eff: SkinMode } {
   if (skin === null) {
     state.skin = null
@@ -225,6 +225,48 @@ export function setPref(pref: ThemePref): SkinMode {
   return state.eff
 }
 
+function skinComponent(name: string): Record<string, unknown> | null {
+  if (state.skin === null || !isRecord(state.skin.components)) return null
+  const record = state.skin.components[name]
+  return isRecord(record) ? record : null
+}
+
+function contractOf(name: string): Record<string, unknown> | null {
+  const raw = (VOCAB.components as Record<string, unknown>)[name]
+  return isRecord(raw) ? raw : null
+}
+
+/** 只产出皮肤覆写。未覆写的键不出现，回落 gen 里的 default。 */
+export function componentVars(name: string): string {
+  const record = skinComponent(name)
+  if (record === null || !isRecord(record.vars)) return ''
+  const parts: string[] = []
+  for (const [key, value] of Object.entries(record.vars)) {
+    if (typeof value === 'string') parts.push(`${key}: ${value}`)
+  }
+  return parts.join('; ')
+}
+
+/** 有覆写用覆写；否则合同 layout[0]；再没有则空串。 */
+export function componentLayout(name: string): string {
+  const record = skinComponent(name)
+  if (record !== null && typeof record.layout === 'string') return record.layout
+  const layout = contractOf(name)?.layout
+  if (Array.isArray(layout) && typeof layout[0] === 'string') return layout[0]
+  return ''
+}
+
+/** 只返回皮肤覆写的 option。合同默认不进这里。 */
+export function componentOptions(name: string): Record<string, string | boolean> {
+  const record = skinComponent(name)
+  const out: Record<string, string | boolean> = {}
+  if (record === null || !isRecord(record.options)) return out
+  for (const [key, value] of Object.entries(record.options)) {
+    if (typeof value === 'string' || typeof value === 'boolean') out[key] = value
+  }
+  return out
+}
+
 export function buildMetricsVars(metrics: WindowMetrics): string[] {
   return [
     `--app-status-bar: ${metrics.statusBarHeight}px`,
@@ -243,6 +285,9 @@ export const engine = {
   applySkin,
   setPref,
   buildMetricsVars,
+  componentVars,
+  componentLayout,
+  componentOptions,
   get tokens(): Readonly<TokenMap> { return state.tokens },
   get eff(): SkinMode { return state.eff },
   get skin(): SkinJson | null { return state.skin },
