@@ -5,12 +5,24 @@
  * 退出: 0 = 全 PASS；1 = 有 FAIL；2 = 运行错误
  */
 import { execFileSync } from 'node:child_process'
-import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync, rmSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync, rmSync, unlinkSync } from 'node:fs'
 import { dirname, resolve, relative } from 'node:path'
 import ts from 'typescript'
 import { scanLessDecls } from './classify-literals.mjs'
+import { acquireGate, startupHeal } from '../../../scripts/gate-lock.mjs'
+
+// 门互斥（MS03 准入补强）：本套件的 plant 原地写 tracked 文件 + 建探针目录，
+// 并发运行实测打出 96/97 假红并脏工作树。先取锁再自愈上次被 SIGKILL 打断的 plant。
+acquireGate()
+startupHeal()
 
 const ROOT = new URL('../../../', import.meta.url).pathname
+// 探针目录随进程唯一化；plant 标记供 startupHeal 崩溃恢复。
+const PROBE_NAME = `ms02-probe-${process.pid}`
+const PROBE_DIR = resolve(ROOT, 'components', PROBE_NAME)
+const PLANT_DIR = resolve(ROOT, '.anote', 'plant')
+function plantStart(fileKey) { mkdirSync(PLANT_DIR, { recursive: true }); writeFileSync(resolve(PLANT_DIR, `${fileKey}.planting`), `${process.pid}\n`) }
+function plantEnd(fileKey) { try { unlinkSync(resolve(PLANT_DIR, `${fileKey}.planting`)) } catch { /* noop */ } }
 const results = []
 let currentSection = ''
 function section(name) { currentSection = name }
@@ -802,7 +814,7 @@ check('MS02-T04', () => {
   eq(tsc, '', 'tsc 应无输出')
 })
 check('MS02-T05', () => {
-  const dir = resolve(ROOT, 'components/ms02-probe')
+  const dir = PROBE_DIR
   const file = resolve(dir, 'ms02-probe.contract.ts')
   mkdirSync(dir, { recursive: true })
   writeFileSync(file, 'export default { contractVersion: "1.0.0" }\n')
@@ -892,7 +904,7 @@ check('MS02-T09', () => {
   assert(!versionField.errors.some((e) => e.rule === 'contractVersion' || e.rule.includes('contractVersion')), '不得产生 contractVersion rule')
 })
 check('MS02-T10', () => {
-  const dir = resolve(ROOT, 'components/ms02-probe')
+  const dir = PROBE_DIR
   const file = resolve(dir, 'ms02-probe.contract.ts')
   mkdirSync(dir, { recursive: true })
   try {
@@ -914,6 +926,7 @@ check('MS02-T07', () => {
   const file = resolve(ROOT, 'assets/skins/dsh-default.json')
   const original = readFileSync(file, 'utf8')
   try {
+    plantStart('dsh-default.json')
     const planted = JSON.parse(original)
     planted.components = { planted: { layout: 'nope' } }
     writeFileSync(file, JSON.stringify(planted, null, 2) + '\n')
@@ -923,14 +936,15 @@ check('MS02-T07', () => {
     assert(report.crossCheck.errors.some((e) => e.includes('dsh-default.components')), `errors 未点名 dsh-default.components: ${JSON.stringify(report.crossCheck.errors)}`)
   } finally {
     writeFileSync(file, original)
+    plantEnd('dsh-default.json')
   }
-  const dir = resolve(ROOT, 'components/ms02-probe')
+  const dir = PROBE_DIR
   mkdirSync(dir, { recursive: true })
   try {
     writeFileSync(resolve(dir, 'ms02-probe.contract.ts'), "export const CONTRACT = { contractVersion: '1.0.0', vars: { '--dsw-ms02-probe': { kind: 'length', units: ['px'], default: '9px' } } }\n")
     const seg1 = runNode(['scripts/build-skin.mjs', '--check'])
     const seg1Report = JSON.parse(seg1.stdout)
-    assert(seg1Report.crossCheck.errors.some((e) => e.includes('components.ms02-probe')), `段 1 未点名 components.ms02-probe: ${JSON.stringify(seg1Report.crossCheck.errors)}`)
+    assert(seg1Report.crossCheck.errors.some((e) => e.includes(`components.${PROBE_NAME}`)), `段 1 未点名 components.${PROBE_NAME}: ${JSON.stringify(seg1Report.crossCheck.errors)}`)
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
@@ -939,12 +953,14 @@ check('MS02-T07', () => {
   try {
     const needle = '  --dsw-upd-height: 33.333vh;'
     assert(genOriginal.includes(needle), 'gen 里没有 up-drawer height 默认')
+    plantStart('skin.gen.wxss')
     writeFileSync(genFile, genOriginal.replace(needle, '  --dsw-upd-height: 99vh;'))
     const seg3 = runNode(['scripts/build-skin.mjs', '--check'])
     const seg3Report = JSON.parse(seg3.stdout)
     assert(seg3Report.crossCheck.errors.some((e) => e.includes('--dsw-upd-height') && e.includes('gen 默认不等')), `段 3 未点名 gen 默认不等: ${JSON.stringify(seg3Report.crossCheck.errors)}`)
   } finally {
     writeFileSync(genFile, genOriginal)
+    plantEnd('skin.gen.wxss')
   }
 })
 
@@ -1016,7 +1032,7 @@ check('MS02-T08', () => {
   eq(report.contractNames.disk.length, 23, 'disk')
   eq(JSON.stringify(report.contractNames.disk), JSON.stringify(report.contractNames.matrix), 'disk != matrix')
   eq(JSON.stringify(report.contractNames.matrix), JSON.stringify(report.contractNames.vocab), 'matrix != vocab')
-  const dir = resolve(ROOT, 'components/ms02-probe')
+  const dir = PROBE_DIR
   mkdirSync(dir, { recursive: true })
   try {
     writeFileSync(resolve(dir, 'ms02-probe.contract.ts'), "export const CONTRACT = { contractVersion: '1.0.0' }\n")
@@ -1024,15 +1040,16 @@ check('MS02-T08', () => {
     eq(extra.status, 1, '多一份合同必须 exit 1')
     assert(extra.stderr.includes('contract 三元等号失败'), `多文件 plant 不是三元失败: ${extra.stderr.slice(0, 400)}`)
     const extraReport = JSON.parse(extra.stdout)
-    assert(extraReport.contractNames.disk.includes('ms02-probe'), `disk 未看到探针: ${JSON.stringify(extraReport.contractNames.disk)}`)
-    assert(!extraReport.contractNames.matrix.includes('ms02-probe'), 'matrix 被写成了 disk')
-    assert(!extraReport.contractNames.vocab.includes('ms02-probe'), 'vocab 被写成了 disk')
+    assert(extraReport.contractNames.disk.includes(PROBE_NAME), `disk 未看到探针: ${JSON.stringify(extraReport.contractNames.disk)}`)
+    assert(!extraReport.contractNames.matrix.includes(PROBE_NAME), 'matrix 被写成了 disk')
+    assert(!extraReport.contractNames.vocab.includes(PROBE_NAME), 'vocab 被写成了 disk')
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
   const matrixPath = resolve(ROOT, 'test/spike/mini-skin/component-matrix.json')
   const original = readFileSync(matrixPath, 'utf8')
   try {
+    plantStart('component-matrix.json')
     const planted = JSON.parse(original)
     planted.rows['ms02-missing'] = { verdict: 'empty', contractFile: '', verdictReason: 'plant' }
     writeFileSync(matrixPath, JSON.stringify(planted))
@@ -1045,6 +1062,7 @@ check('MS02-T08', () => {
     assert(!missingReport.contractNames.vocab.includes('ms02-missing'), 'vocab 被写成了 matrix')
   } finally {
     writeFileSync(matrixPath, original)
+    plantEnd('component-matrix.json')
   }
 })
 check('MS02-T13', () => {
@@ -1141,6 +1159,38 @@ check('MS02-T14', () => {
   const timer = detachedCalls.find((call) => call.expression.getText(sf) === 'clearTimeout')
   assert(unwatch !== undefined && timer !== undefined, 'detached 没有退订调用或 clearTimeout 调用')
   assert(unwatch.getStart(sf) < timer.getStart(sf), '退订调用必须先于清 timer')
+})
+check('MS02-T17', () => {
+  // W3 单点拼接习语（原 T17 仅人工核对，S1 补强为套件 check）：
+  // dsh-menu / model-picker / command-menu 的 syncShell 必须走
+  //   [vars, surface].filter(...).join('; ')  —— vars 在左、surface 在右、'; ' 分隔。
+  // 文本 includes 可被注释骗过，这里只认 AST 上的调用链。
+  const components = ['dsh-menu', 'model-picker', 'command-menu']
+  for (const name of components) {
+    const src = readFileSync(resolve(ROOT, `components/${name}/${name}.ts`), 'utf8')
+    const sf = ts.createSourceFile(`${name}.ts`, src, ts.ScriptTarget.Latest, true)
+    const found = []
+    function visit(node) {
+      if (ts.isCallExpression(node)) found.push(node)
+      ts.forEachChild(node, visit)
+    }
+    visit(sf)
+    const join = found.find((call) => {
+      const ex = call.expression
+      if (!ts.isPropertyAccessExpression(ex) || ex.name.getText(sf) !== 'join') return false
+      const lit = call.arguments[0]
+      if (!lit || lit.getText(sf) !== "'; '") return false
+      const inner = ex.expression
+      if (!ts.isCallExpression(inner)) return false
+      const fe = inner.expression
+      if (!ts.isPropertyAccessExpression(fe) || fe.name.getText(sf) !== 'filter') return false
+      const arr = fe.expression
+      if (!ts.isArrayLiteralExpression(arr) || arr.elements.length !== 2) return false
+      const names = arr.elements.map((el) => el.getText(sf))
+      return names[0] === 'vars' && names[1] === 'surface'
+    })
+    assert(join !== undefined, `${name} 缺 [vars, surface].filter(...).join('; ') 拼接`)
+  }
 })
 check('MS02-T21', () => {
   const files = [

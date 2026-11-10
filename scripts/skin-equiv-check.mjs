@@ -19,8 +19,11 @@ import { join, relative } from 'node:path'
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import ts from 'typescript'
+import { acquireGate } from './gate-lock.mjs'
 
 const ROOT = new URL('..', import.meta.url).pathname
+// 门互斥：读 skin.gen.wxss/tracked less，须与 node-checks 的 plant 窗口串行。
+acquireGate()
 const BASELINE_FILE = join(ROOT, '.anote/ms01-baseline/resolved-values.json')
 const PIN_FILE = join(ROOT, '.anote/ms01-baseline/baseline.pin.json')
 

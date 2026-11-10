@@ -9,8 +9,11 @@
 //   node scripts/token-audit.mjs --diff out.json       与基线对比
 import { readdirSync, readFileSync, writeFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { acquireGate } from './gate-lock.mjs'
 
 const ROOT = new URL('..', import.meta.url).pathname
+// 门互斥：统一与其他门串行（node-checks 的 plant 窗口会临时改写 tracked less）。
+acquireGate()
 const SCAN_DIRS = ['components', 'pages']
 const EXTRA_FILES = ['app.less']
 

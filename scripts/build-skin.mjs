@@ -17,9 +17,12 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSy
 import { dirname, join, relative, resolve } from 'node:path'
 import { createHash } from 'node:crypto'
 import ts from 'typescript'
+import { acquireGate, releaseGate } from './gate-lock.mjs'
 
 const ROOT = new URL('..', import.meta.url).pathname
 const CHECK = process.argv.includes('--check')
+// 门互斥：node-checks 的 plant 会原地写 tracked 文件，并发跑会把 --check 打成假红。
+acquireGate()
 
 // ── 迷你 TS loader ───────────────────────────────────────────────────────
 function requireTs(file) {
@@ -310,7 +313,8 @@ function syncAppLessGen(write) {
 
 // ── 执行 ─────────────────────────────────────────────────────────────────
 let failed = false
-const report = { mode: CHECK ? 'check' : 'build', products: [], genLine, contentHash }
+// problems 顶层回显（S3）：让「缺 CONTRACT / 三元失败」与 crossCheck 错在一份 JSON 里可分辨。
+const report = { mode: CHECK ? 'check' : 'build', products: [], genLine, contentHash, problems, versionProblems }
 for (const p of products) {
   const abs = join(ROOT, p.file)
   const exists = existsSync(abs)
@@ -424,7 +428,6 @@ if (!namesEqual || diskNames.length !== 23) {
   failed = true
 }
 if (versionProblems.length > 0) {
-  report.versionProblems = versionProblems
   console.error('FATAL: contractVersion 格式失配：\n - ' + versionProblems.join('\n - '))
   failed = true
 }
