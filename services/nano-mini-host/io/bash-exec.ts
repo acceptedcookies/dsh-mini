@@ -5,6 +5,8 @@
 
 import { vfs } from '../../vfs/vfs'
 import { VfsError } from '../../vfs/paths'
+import { decide } from '../../permissions'
+import { egressDecision } from '../../config'
 import type { ToolCallResult } from '../types'
 
 export interface ContractRow {
@@ -180,7 +182,17 @@ export function bindBashSession(kernel: BashKernel, sessionId: string): SessionE
     kernel.createTextProcessingHandlers(),
     kernel.createUtilHandlers(),
     kernel.createTeeHandlers(),
-    kernel.createNetworkHandlers({}),
+    kernel.createNetworkHandlers({
+      fetchImpl: async (url: string, init?: unknown) => {
+        const decision = egressDecision(url)
+        if (!decision.ok) {
+          const error = new Error(decision.reason) as Error & { code: string }
+          error.code = decision.code
+          throw error
+        }
+        return fetch(url, init as RequestInit)
+      },
+    }),
     kernel.createExecHandlers(),
     kernel.createVcsHandlers(),
     kernel.createTextOutputHandlers(),
@@ -199,12 +211,19 @@ export function bindBashSession(kernel: BashKernel, sessionId: string): SessionE
     new kernel.CapabilityPolicyGate(registry),
     {
       timeoutMs: 30000,
-      // ask 在 P6 换成 permissions.decide。此缝只让静态 allow 的 fs 能力落到 vfs。
       permissionAuthorizer: {
         async authorize(ctx) {
-          if (ctx.plan.capabilityName === 'ts-exec') {
-            return { verdict: 'deny', handlerCount: 1, reason: 'rejected-honest' }
-          }
+          const row = kernel.BASH_TOOL_CONTRACT_SOURCE.find((item) => item.canonical_id === ctx.plan.capabilityName) as {
+            effect_class?: string
+            approval_policy?: { mode?: 'allow' | 'ask' | 'deny' }
+          } | undefined
+          const verdict = decide('workspace-write', {
+            name: ctx.plan.capabilityName,
+            effect: row?.effect_class,
+            approval: row?.approval_policy?.mode,
+          })
+          if (verdict === 'deny') return { verdict: 'deny', handlerCount: 1, reason: 'denied' }
+          if (verdict === 'ask') return { verdict: 'deny', handlerCount: 1, reason: 'approval-pending' }
           return { verdict: 'allow', handlerCount: 1 }
         },
       },
@@ -229,6 +248,9 @@ export async function runCanonicalTool(kernel: BashKernel, sessionId: string, na
     return out.result
   } catch (e) {
     if (e instanceof VfsError) return errorResult(e.code, e.message)
+    if (e instanceof Error && (e as Error & { code?: string }).code === 'egress-denied') {
+      return errorResult('egress-denied', e.message)
+    }
     const message = e instanceof Error ? e.message : String(e)
     return errorResult('tool-call-failed', message)
   }

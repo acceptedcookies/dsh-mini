@@ -11,6 +11,45 @@ export const NANO_WS_BASE_URL = 'wss://nano-agent-orchestrator-core-preview.haim
 /** FRD1 durable 生产入口（S3-first 单合同；票据=真云 unlock 同 secret 签发）。 */
 export const DSH_MINI_BASE_URL = 'https://dsh-mini.saobao.com'
 
+/** 工具公网出栈的唯一名单。container:// 不走这里。 */
+export const EGRESS_ALLOWLIST = {
+  allowed_domains: [
+    'nano-agent-orchestrator-core-preview.haimang.workers.dev',
+    'dsh-mini.saobao.com',
+  ],
+  allowed_ports: [443] as const,
+  allow_private_ip: false,
+}
+
+export function egressDecision(target: string): { ok: true } | { ok: false; code: 'egress-denied'; reason: string } {
+  if (target.startsWith('container://')) return { ok: true }
+  let url: URL
+  try {
+    url = new URL(target)
+  } catch {
+    return { ok: false, code: 'egress-denied', reason: `egress-denied host=invalid` }
+  }
+  const host = url.hostname.replace(/^\[|\]$/g, '')
+  const port = url.port === '' ? (url.protocol === 'https:' ? 443 : url.protocol === 'http:' ? 80 : 0) : Number(url.port)
+  const privateIp = host === 'localhost'
+    || host === '::1'
+    || host.startsWith('127.')
+    || host.startsWith('10.')
+    || host.startsWith('192.168.')
+    || host.startsWith('169.254.')
+    || host.startsWith('fe80:')
+    || /^172\.(1[6-9]|2\d|3[0-1])\./.test(host)
+  if (!EGRESS_ALLOWLIST.allow_private_ip && privateIp) {
+    return { ok: false, code: 'egress-denied', reason: `egress-denied host=${host}` }
+  }
+  if (!(EGRESS_ALLOWLIST.allowed_ports as readonly number[]).includes(port)) {
+    return { ok: false, code: 'egress-denied', reason: `egress-denied host=${host}` }
+  }
+  const allowed = EGRESS_ALLOWLIST.allowed_domains.some((domain) => host === domain || host.endsWith(`.${domain}`))
+  if (!allowed) return { ok: false, code: 'egress-denied', reason: `egress-denied host=${host}` }
+  return { ok: true }
+}
+
 export interface ModelOption {
   id: string
   label: string
