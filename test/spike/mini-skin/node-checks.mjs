@@ -748,7 +748,7 @@ check('MS02-T04', () => {
       if (entry.isDirectory()) {
         if (entry.name === 'node_modules') continue
         walk(abs)
-      } else if (/\.(ts|mjs|js)$/.test(entry.name) && readFileSync(abs, 'utf8').includes('ComponentManifest')) {
+      } else if (/\.(ts|mjs|js)$/.test(entry.name) && /\bComponentManifest\b/.test(readFileSync(abs, 'utf8'))) {
         hits.push(relative(ROOT, abs))
       }
     }
@@ -793,6 +793,79 @@ check('MS02-T06', () => {
     }
   }
   if (checked === 0) assert(!css.includes('/* component-defaults */'), '0 份合约却插入了 component-defaults')
+})
+function probeVocab() {
+  const { vocab } = loadValidate()
+  return {
+    ...vocab,
+    components: {
+      'up-drawer': {
+        contractVersion: '1.0.0',
+        layout: ['dock-bottom'],
+        vars: {
+          '--dsw-upd-height': { kind: 'length', units: ['vh'], default: '33.333vh' },
+          '--dsw-upd-close-top': { kind: 'length', units: ['px'], default: '-44px' },
+        },
+        options: {},
+        assets: { hero: 'image' },
+      },
+    },
+  }
+}
+function rulesOf(skin, vocab) {
+  const { validate } = loadValidate()
+  return validate(skin, vocab ?? probeVocab())
+}
+check('MS02-T09', () => {
+  const okEmpty = rulesOf(baseSkin({ components: {} }))
+  assert(okEmpty.ok, `components {} 被拒 ${JSON.stringify(okEmpty.errors)}`)
+  const okManifest = rulesOf(baseSkin({ components: { 'up-drawer': {} } }))
+  assert(okManifest.ok, `已注册 {} 被拒 ${JSON.stringify(okManifest.errors)}`)
+  const okVar = rulesOf(baseSkin({ components: { 'up-drawer': { vars: { '--dsw-upd-height': '40vh' } } } }))
+  assert(okVar.ok, `40vh 被拒 ${JSON.stringify(okVar.errors)}`)
+  const cases = [
+    [baseSkin({ components: { 'nope': {} } }), 'L4.components.unknown'],
+    [baseSkin({ components: { 'up-drawer': { vars: { '--dsw-nope': '1px' } } } }), 'L4.components.unknown-var'],
+    [baseSkin({ components: { 'up-drawer': { vars: { '--dsw-upd-height': '20px' } } } }), 'L4.components.vars.unit'],
+    [baseSkin({ components: { 'up-drawer': { layout: 'side-sheet' } } }), 'L4.components.layout.enum'],
+    [baseSkin({ components: { 'up-drawer': { layout: 'dock-bottom extra' } } }), 'L4.components.layout.space'],
+    [baseSkin({ components: { 'up-drawer': { layout: 'dock-bottom;' } } }), 'L4.components.layout.injection'],
+    [baseSkin({ components: { 'up-drawer': { vars: { '--dsw-upd-height': '33.333vh; color:red' } } } }), 'L4.components.value.css-injection'],
+    [baseSkin({ components: { 'up-drawer': { vars: { '--dsw-upd-height': 'data:text/plain,hi' } } } }), 'L4.components.value.data'],
+    [baseSkin({ components: { 'up-drawer': { vars: { '--dsw-upd-height': 'expression(alert(1))' } } } }), 'L4.components.value.expression'],
+    [baseSkin({ components: { 'up-drawer': { assets: { hero: 'http://evil.example/a.png' } } } }), 'L3.url.endpoint'],
+  ]
+  for (const [skin, rule] of cases) {
+    const result = rulesOf(skin)
+    assert(result.errors.some((e) => e.rule === rule), `${rule} 未命中 ${JSON.stringify(result.errors)}`)
+  }
+  const space = rulesOf(baseSkin({ components: { 'up-drawer': { layout: 'dock-bottom extra' } } }))
+  assert(!space.errors.some((e) => e.rule === 'L4.components.layout.enum'), '带空格的 layout 误用了越枚举')
+  const injected = rulesOf(baseSkin({ components: { 'up-drawer': { layout: 'dock-bottom;' } } }))
+  assert(!injected.errors.some((e) => e.rule === 'L4.components.layout.enum'), '带分号的 layout 误用了越枚举')
+  const evil = rulesOf(baseSkin({ components: { 'up-drawer': { assets: { hero: 'https://evil.example/a.png' } } } }))
+  assert(!evil.errors.some((e) => /host/i.test(e.rule)), `出现了 host rule: ${JSON.stringify(evil.errors)}`)
+  const versionField = rulesOf(baseSkin({ components: { 'up-drawer': { contractVersion: '9.9.9' } } }))
+  assert(!versionField.errors.some((e) => e.rule === 'contractVersion' || e.rule.includes('contractVersion')), '不得产生 contractVersion rule')
+})
+check('MS02-T10', () => {
+  const dir = resolve(ROOT, 'components/ms02-probe')
+  const file = resolve(dir, 'ms02-probe.contract.ts')
+  mkdirSync(dir, { recursive: true })
+  try {
+    for (const version of ['1.0', 'v1.0.0', '']) {
+      writeFileSync(file, `export const CONTRACT = { contractVersion: ${JSON.stringify(version)} }\n`)
+      const run = runNode(['scripts/build-skin.mjs', '--check'])
+      const combined = `${run.stdout}\n${run.stderr}`
+      eq(run.status, 1, `坏版本 ${version} 必须 exit 1`)
+      assert(combined.includes('格式失配'), `坏版本 ${version} 文案不含格式失配: ${combined.slice(0, 500)}`)
+      const report = JSON.parse(run.stdout)
+      const blob = JSON.stringify(report.validate?.errors ?? [])
+      assert(!blob.includes('contractVersion'), `validate errors 含 contractVersion: ${blob}`)
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
 })
 check('MS02-T07', () => {
   const file = resolve(ROOT, 'assets/skins/dsh-default.json')

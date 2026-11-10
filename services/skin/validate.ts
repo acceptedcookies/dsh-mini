@@ -176,6 +176,106 @@ function push(errors: ValidationError[], path: string, rule: string, message: st
   errors.push({ path, rule, message })
 }
 
+const COMPONENT_FIELDS = new Set(['layout', 'vars', 'options', 'assets'])
+const LENGTH_VALUE_RE = /^(-?(?:\d+|\d*\.\d+))(px|%|vh|vw)$/
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return isObject(value) ? value : null
+}
+
+function checkComponentValue(path: string, domain: Record<string, unknown>, value: string, errors: ValidationError[]): void {
+  if (hasDataPayload(value)) {
+    push(errors, path, 'L4.components.value.data', '禁止 data:/base64 负载')
+    return
+  }
+  if (/expression\s*\(/i.test(value)) {
+    push(errors, path, 'L4.components.value.expression', '禁止 expression()')
+    return
+  }
+  if (hasCssInjection(value)) {
+    push(errors, path, 'L4.components.value.css-injection', '禁止 CSS 注入')
+    return
+  }
+  if (domain.kind === 'length') {
+    if (/\b(?:min|max|calc|clamp)\s*\(/i.test(value)) {
+      push(errors, path, 'L4.components.vars.compound', 'length 不接受 min/max/calc/clamp')
+      return
+    }
+    const match = LENGTH_VALUE_RE.exec(value)
+    const units = Array.isArray(domain.units) ? domain.units : []
+    if (match === null || !units.includes(match[2])) {
+      push(errors, path, 'L4.components.vars.unit', `长度单位不在合同 units 内: ${value}`)
+      return
+    }
+    const n = Number(match[1])
+    if (typeof domain.min === 'number' && n < domain.min) push(errors, path, 'L4.components.vars.range', `低于 min: ${value}`)
+    if (typeof domain.max === 'number' && n > domain.max) push(errors, path, 'L4.components.vars.range', `高于 max: ${value}`)
+    return
+  }
+  if (domain.kind === 'color') {
+    if (!isColor(value) && value !== 'transparent' && value !== 'currentColor') {
+      push(errors, path, 'L4.components.vars.color', `非法颜色: ${value}`)
+    }
+    return
+  }
+  if (domain.kind === 'enum') {
+    const values = Array.isArray(domain.values) ? domain.values : []
+    if (!values.includes(value)) push(errors, path, 'L4.components.vars.enum', `枚举值不在合同内: ${value}`)
+    return
+  }
+  push(errors, path, 'L4.components.vars.kind', `未知值域 kind: ${String(domain.kind)}`)
+}
+
+function checkComponentManifest(path: string, manifest: Record<string, unknown>, contract: Record<string, unknown>, errors: ValidationError[]): void {
+  for (const key of Object.keys(manifest)) {
+    if (!COMPONENT_FIELDS.has(key)) push(errors, `${path}.${key}`, 'L4.components.unknown-key', '不允许的组件字段')
+  }
+  if (manifest.layout !== undefined) {
+    const layout = manifest.layout
+    const allowed = Array.isArray(contract.layout) ? contract.layout : []
+    if (typeof layout !== 'string') push(errors, `${path}.layout`, 'L4.components.layout.type', 'layout 必须是一个枚举字符串')
+    else if (layout.includes(';') || /[{}]/.test(layout)) push(errors, `${path}.layout`, 'L4.components.layout.injection', 'layout 不能带注入字符')
+    else if (/\s/.test(layout)) push(errors, `${path}.layout`, 'L4.components.layout.space', 'layout 必须是单个 token')
+    else if (!allowed.includes(layout)) push(errors, `${path}.layout`, 'L4.components.layout.enum', `layout 不在合同枚举内: ${layout}`)
+  }
+  if (manifest.vars !== undefined) {
+    if (!isObject(manifest.vars)) push(errors, `${path}.vars`, 'L4.components.vars.type', 'vars 必须是对象')
+    else {
+      const domains = asRecord(contract.vars) ?? {}
+      for (const [key, value] of Object.entries(manifest.vars)) {
+        const itemPath = `${path}.vars.${key}`
+        if (typeof value !== 'string') { push(errors, itemPath, 'L4.components.vars.type', 'var 覆写必须是字符串'); continue }
+        const domain = asRecord(domains[key])
+        if (domain === null) { push(errors, itemPath, 'L4.components.unknown-var', `未知组件变量: ${key}`); continue }
+        checkComponentValue(itemPath, domain, value, errors)
+      }
+    }
+  }
+  if (manifest.options !== undefined) {
+    if (!isObject(manifest.options)) push(errors, `${path}.options`, 'L4.components.options.type', 'options 必须是对象')
+    else {
+      const allowed = asRecord(contract.options) ?? {}
+      for (const [key, value] of Object.entries(manifest.options)) {
+        const list = allowed[key]
+        if (!Array.isArray(list)) push(errors, `${path}.options.${key}`, 'L4.components.options.unknown', `未知 option: ${key}`)
+        else if (!list.includes(value)) push(errors, `${path}.options.${key}`, 'L4.components.options.value', `option 值不在合同内: ${String(value)}`)
+      }
+    }
+  }
+  if (manifest.assets !== undefined) {
+    if (!isObject(manifest.assets)) push(errors, `${path}.assets`, 'L4.components.assets.type', 'assets 必须是对象')
+    else {
+      const allowed = asRecord(contract.assets) ?? {}
+      for (const [key, value] of Object.entries(manifest.assets)) {
+        const itemPath = `${path}.assets.${key}`
+        if (allowed[key] === undefined) { push(errors, itemPath, 'L4.components.assets.unknown', `未知 asset: ${key}`); continue }
+        if (typeof value !== 'string') { push(errors, itemPath, 'L4.components.assets.type', 'asset 必须是 URL 字符串'); continue }
+        checkUrlEndpoints(itemPath, /url\(/i.test(value) ? value : `url(${value})`, errors)
+      }
+    }
+  }
+}
+
 export function validate(skinJson: unknown, vocab: VocabLike): ValidateResult {
   const errors: ValidationError[] = []
   if (!isObject(skinJson)) {
@@ -270,14 +370,13 @@ export function validate(skinJson: unknown, vocab: VocabLike): ValidateResult {
       for (const [name, manifest] of Object.entries(skin.components)) {
         const path = `$.components.${name}`
         if (Object.keys(registry).length === 0) {
-          push(errors, path, 'L4.components.empty-registry', `MS01 components registry 为空，拒绝组件名: ${name}`)
+          push(errors, path, 'L4.components.empty-registry', `components registry 为空，拒绝组件名: ${name}`)
           continue
         }
-        if (registry[name] === undefined) { push(errors, path, 'L4.components.unknown', `未注册组件: ${name}`); continue }
+        const contract = asRecord(registry[name])
+        if (contract === null) { push(errors, path, 'L4.components.unknown', `未注册组件: ${name}`); continue }
         if (!isObject(manifest)) { push(errors, path, 'L4.components.manifest', 'manifest 必须是对象'); continue }
-        for (const sub of ['layout', 'vars', 'options', 'assets']) {
-          if (manifest[sub] !== undefined && !isObject(manifest[sub])) push(errors, `${path}.${sub}`, 'L4.components.subdomain', `${sub} 必须是对象`)
-        }
+        checkComponentManifest(path, manifest, contract, errors)
       }
     }
   }
