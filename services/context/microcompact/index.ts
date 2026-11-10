@@ -3,7 +3,7 @@
  * 不写 episodes。缺 durable ordinal 时调用方不要传 currentTurnIndex。
  */
 
-import { decideToolResultFold, estimateTokens, MICRO_INLINE_MAX_TOKENS, MICRO_STALE_NUM, stringifyContent } from './decide'
+import { decideToolResultFold, estimateTokens, MICRO_STALE_NUM, stringifyContent } from './decide'
 import { isAlreadyHeadlined, toolResultHeadline, toolResultPlaceholder } from './headline'
 
 export { decideToolResultFold, estimateTokens, MICRO_INLINE_MAX_TOKENS, MICRO_STALE_NUM, stringifyContent } from './decide'

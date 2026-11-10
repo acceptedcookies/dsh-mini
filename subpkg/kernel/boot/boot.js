@@ -5,10 +5,12 @@
 Component({
   attached() {
     if (globalThis.__dshKernelBundle !== undefined) return
+    require('./text-codec.js').installTextCodec()
     let attempts = 0
     const tryLoad = () => {
       try {
         globalThis.__dshKernelBundle = require('../kernel.js')
+        globalThis.__dshKernelManifest = require('../manifest.json')
       } catch (e) {
         attempts += 1
         if (attempts >= 12) {

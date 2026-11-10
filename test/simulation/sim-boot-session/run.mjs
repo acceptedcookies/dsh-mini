@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { openApp } from '../lib/devtools.mjs'
-import { bootWorkspace, currentText, typeAndSend } from '../lib/app.mjs'
+import { bootWorkspace, currentText, newSession, typeAndSend } from '../lib/app.mjs'
 import { openEvidence } from '../lib/evidence.mjs'
 import { modeOf, runModes } from '../lib/run.mjs'
 import { TEST_OID } from '../lib/env.mjs'
@@ -67,7 +67,7 @@ await runModes({
       const before = await app.data()
       const sid = before.state?.current?.sessionId
       if (!sid) throw new Error('真机没有当前会话')
-      await app.call('newSession')
+      await newSession(app)
       const after = await app.data()
       const created = after.state?.current?.sessionId
       evidence.check('phone:new-session', typeof created === 'string' && created !== sid, `${sid} -> ${created}`)

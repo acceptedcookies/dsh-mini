@@ -1,5 +1,6 @@
 Page({
   onReady() {
+    require('../boot/text-codec.js').installTextCodec()
     // 主包 require 分包文件被模块隔离禁止——本页存在的唯一目的就是
     // 在分包上下文 require kernel.js 并挂到 globalThis 供主包读取。
     // 真机/remote-debug 懒推分包：页可跑时 kernel.js 可能尚未流到，
@@ -8,6 +9,7 @@ Page({
     const tryLoad = () => {
       try {
         globalThis.__dshKernelBundle = require('../kernel.js')
+        globalThis.__dshKernelManifest = require('../manifest.json')
         wx.navigateBack()
       } catch (e) {
         attempts += 1

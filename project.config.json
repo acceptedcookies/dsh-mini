@@ -55,10 +55,6 @@
         "type": "file"
       },
       {
-        "value": "subpkg/kernel/manifest.json",
-        "type": "file"
-      },
-      {
         "value": "project.private.config.json",
         "type": "file"
       },

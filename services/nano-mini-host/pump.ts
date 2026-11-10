@@ -405,7 +405,7 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
     if (d.kind === 'compact') {
       // T-O-12 正路：kernel 发 compact 决策（signals.compactRequired）→ 宿主压实 →
       // compact_done 置换 messages → 新 episode checkpoint → 循环继续。
-      const c = await runCompaction(ctx, sessionId, turn, ep)
+      const c = await runCompaction(ctx, sessionId, turn, ep, null)
       if (c === null) {
         // 对手 compaction in-flight——不落盘动作、不推进步；如实 suspended 等下轮。
         const wr = await saveSnap(ctx, sessionId, snap, etag, ep)

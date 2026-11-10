@@ -2,6 +2,7 @@
  * 直搬 headline 前缀。正文来自 nacp-core system-text：
  * compaction.headline / compaction.cleared。不改这两个字节。
  */
+import { encodeUtf8 } from '../../fx/utf8'
 
 export const MICRO_HEADLINE_MARKER_PREFIX = '[micro tool-result headline:'
 const TOOL_RESULT_PLACEHOLDER_PREFIX = '[Old tool result content cleared; tool_call_id='
@@ -17,7 +18,7 @@ function lineCount(text: string): number {
 
 export function toolResultHeadline(input: { readonly toolName: string; readonly content: string; readonly status: string }): string {
   const lines = lineCount(input.content)
-  const bytes = new TextEncoder().encode(input.content).byteLength
+  const bytes = encodeUtf8(input.content).byteLength
   return `${MICRO_HEADLINE_MARKER_PREFIX} tool=${input.toolName} status=${input.status} lines=${lines} bytes=${bytes}]`
 }
 

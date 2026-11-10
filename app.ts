@@ -8,6 +8,7 @@ import { nanoMiniCatchUp, nanoMiniStartTick, nanoMiniStopTick } from './services
 import { vfsSyncFor } from './services/state/provider'
 import { engineForSession } from './services/session-engine'
 import { hasFreshTicket, onTicketMinted } from './services/fx/ticket'
+import { installKernelShims } from './services/nano-mini-host/shims'
 
 declare const __wxConfig: { envVersion?: string } | undefined
 const DEV_BUILD = typeof __wxConfig !== 'undefined' && __wxConfig.envVersion === 'develop'
@@ -92,6 +93,9 @@ App<IAppOption>({
     __skinEngine: DEV_BUILD ? (engine as unknown) : undefined,
   },
   onLaunch() {
+    // kernel 分包 boot 组件在分包上下文 require kernel.js，早于任何主包消费点；
+    // TextEncoder 等 shim 必须先装好，否则 require 直接 ReferenceError。
+    installKernelShims()
     engine.init()
     this.globalData.theme = engine.eff
     engine.watchMode((theme) => {

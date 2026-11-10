@@ -478,7 +478,7 @@ export class NanoRuntime {
       this.projectRemote(id, frame.payload)
       return
     }
-    if (typeof frame.kind === 'string') this.projectRemote(id, frame)
+    if (typeof frame.kind === 'string') this.projectRemote(id, frame as unknown as Record<string, unknown>)
   }
 
   /** 业务帧先进 adapter。未知 kind 可见为 system.notify，不吞掉。不写 episodes。 */

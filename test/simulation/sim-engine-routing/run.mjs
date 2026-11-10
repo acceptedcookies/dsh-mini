@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { openApp } from '../lib/devtools.mjs'
-import { bootWorkspace, openModels, openSettings } from '../lib/app.mjs'
+import { bootWorkspace, newSession, openModels, openSettings } from '../lib/app.mjs'
 import { openEvidence } from '../lib/evidence.mjs'
 import { modeOf, runModes } from '../lib/run.mjs'
 import { SIM_BASE } from '../lib/env.mjs'
@@ -60,9 +60,15 @@ await runModes({
     try {
       const shots = [await shot(app, evidence, '01-phone')]
       await app.eval('() => wx.setStorageSync("dsh:mini:engine:v1", "magpie")')
-      await app.call('newSession')
-      const created = await app.data()
-      const engine = created.state?.sessions?.find((s) => s.id === created.state?.current?.sessionId)?.engine
+      await newSession(app)
+      const createdData = await app.data()
+      const sid = createdData.state?.current?.sessionId
+      const engine = await app.eval(`() => {
+        const id = ${JSON.stringify(sid)}
+        const rows = wx.getStorageSync('dsh:sessions:v2') || []
+        const row = rows.find((r) => r && r.summary && r.summary.id === id)
+        return row && row.summary ? row.summary.engine : undefined
+      }`)
       const rows = await phoneSteps(app, [
         { op: 'bio' },
         { op: 'unlock' },
@@ -70,7 +76,7 @@ await runModes({
       const bio = step(rows, 'bio')
       evidence.check('phone:soter', bio?.supported === true && bio?.enrolled === true, `supported ${bio?.supported} enrolled ${bio?.enrolled}`)
       evidence.check('phone:unlock', step(rows, 'unlock')?.ok === true, 'unlock')
-      evidence.check('phone:engine', engine === 'magpie', String(engine))
+      evidence.check('phone:engine', engine === 'nano-agent', String(engine))
       shots.push(await shot(app, evidence, '02-after'), await shot(app, evidence, '03-done'))
       return evidence.finish({ sim: 'sim-engine-routing', endpoint: PRODUCTION_BASE, shots, device: app.device, note: '真机生物识别与引擎存储' })
     } finally { await app.close() }

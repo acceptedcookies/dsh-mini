@@ -28,6 +28,23 @@ export async function openModels(app, evidence) {
   return capture(app, evidence, '05-models', { route: 'pages/models/models' })
 }
 
+/** 真机 Page.callMethod 对页面方法不可靠（this.newSession is not a function）——
+ *  走真实 UI 锚点，并等 current.sessionId 真的换代。 */
+export async function newSession(app, timeoutMs = 8000) {
+  const before = await app.data()
+  const prev = before.state?.current?.sessionId
+  await app.tap('[data-anchor="workspace.newSession"]')
+  const deadline = Date.now() + timeoutMs
+  let last = before
+  while (Date.now() < deadline) {
+    last = await app.data()
+    const id = last.state?.current?.sessionId
+    if (typeof id === 'string' && id.length > 0 && id !== prev) return last
+    await new Promise((r) => setTimeout(r, 250))
+  }
+  return last
+}
+
 export function currentText(data) {
   const items = data?.state?.current?.items ?? []
   return items.map((item) => item.text ?? item.kind ?? '').join('\n')

@@ -64,7 +64,7 @@ const DEMO_TOOLS = [
 
 function advertisedFxTools() {
   const kernel = loadKernel()
-  const canonical = isBashKernel(kernel) ? canonicalAcpTools(kernel.BASH_TOOL_CONTRACT_SOURCE) : []
+  const canonical = isBashKernel(kernel) ? (canonicalAcpTools(kernel.BASH_TOOL_CONTRACT_SOURCE) as Array<{ name: string; description: string; inputSchema: Record<string, unknown> }>) : []
   return [...DEMO_TOOLS, ...canonical]
 }
 
@@ -721,31 +721,6 @@ export class FxLocalRuntime {
       try { listener(event) } catch (e) { console.warn('[fx-runtime] listener 抛错:', e instanceof Error ? e.message : e) }
     }
   }
-}
-
-function stringifyResult(output: unknown): string {
-  if (typeof output === 'string') return output
-  try {
-    return JSON.stringify(output)
-  } catch {
-    return String(output)
-  }
-}
-
-/** tool_call_update.content = [{type:'content', content:{type:'text',text}}] → 纯文本 */
-function extractToolOutput(update: AcpUpdate): string | undefined {
-  if (update.rawOutput !== undefined) return stringifyResult(update.rawOutput)
-  if (Array.isArray(update.content)) {
-    const parts = update.content
-      .map((c) => (c as { content?: { text?: string } })?.content?.text)
-      .filter((t): t is string => typeof t === 'string')
-    if (parts.length > 0) return parts.join('')
-  }
-  return undefined
-}
-
-function truncate(s: string, max = 500): string {
-  return s.length > max ? s.slice(0, max) + '…' : s
 }
 
 export const fxRuntime = new FxLocalRuntime()

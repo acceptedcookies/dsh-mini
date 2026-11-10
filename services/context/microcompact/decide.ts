@@ -3,13 +3,14 @@
  * MICRO_STALE_NUM = 3，MICRO_INLINE_MAX_TOKENS = 40000 / 4。
  * estimateTokens 仍是 ceil(utf8Bytes / 4)，与 nacp-core estimateUtf8Tokens 同式。
  */
+import { encodeUtf8 } from '../../fx/utf8'
 
 export const TOOL_RESULT_INLINE_MAX_BYTES = 40_000
 export const MICRO_STALE_NUM = 3
 export const MICRO_INLINE_MAX_TOKENS = TOOL_RESULT_INLINE_MAX_BYTES / 4
 
 function utf8ByteLength(text: string): number {
-  return new TextEncoder().encode(text).byteLength
+  return encodeUtf8(text).byteLength
 }
 
 export function estimateTokens(value: unknown): number {

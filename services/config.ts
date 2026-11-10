@@ -21,16 +21,43 @@ export const EGRESS_ALLOWLIST = {
   allow_private_ip: false,
 }
 
+/** 手写解析：小程序 JSC 不保证有 URL 构造器。 */
+function parseTarget(target: string): { protocol: string; host: string; port: number } | null {
+  const match = /^([a-z][a-z0-9+.-]*):\/\/([^/?#]+)/i.exec(target)
+  if (match === null) return null
+  const protocol = match[1].toLowerCase()
+  let authority = match[2]
+  const at = authority.lastIndexOf('@')
+  if (at >= 0) authority = authority.slice(at + 1)
+  let host = ''
+  let portText = ''
+  if (authority.startsWith('[')) {
+    const end = authority.indexOf(']')
+    if (end < 0) return null
+    host = authority.slice(1, end)
+    const rest = authority.slice(end + 1)
+    if (rest.startsWith(':')) portText = rest.slice(1)
+  } else {
+    const idx = authority.lastIndexOf(':')
+    if (idx >= 0 && authority.indexOf(':') === idx) {
+      host = authority.slice(0, idx)
+      portText = authority.slice(idx + 1)
+    } else {
+      host = authority
+    }
+  }
+  const defaultPort = protocol === 'https' ? 443 : protocol === 'http' ? 80 : 0
+  const port = portText === '' ? defaultPort : Number(portText)
+  if (!Number.isFinite(port)) return null
+  return { protocol, host: host.toLowerCase(), port }
+}
+
 export function egressDecision(target: string): { ok: true } | { ok: false; code: 'egress-denied'; reason: string } {
   if (target.startsWith('container://')) return { ok: true }
-  let url: URL
-  try {
-    url = new URL(target)
-  } catch {
-    return { ok: false, code: 'egress-denied', reason: `egress-denied host=invalid` }
-  }
-  const host = url.hostname.replace(/^\[|\]$/g, '')
-  const port = url.port === '' ? (url.protocol === 'https:' ? 443 : url.protocol === 'http:' ? 80 : 0) : Number(url.port)
+  const parsed = parseTarget(target)
+  if (parsed === null) return { ok: false, code: 'egress-denied', reason: 'egress-denied host=invalid' }
+  const { protocol, host, port } = parsed
+  if (protocol !== 'https') return { ok: false, code: 'egress-denied', reason: `egress-denied host=${host}` }
   const privateIp = host === 'localhost'
     || host === '::1'
     || host.startsWith('127.')
