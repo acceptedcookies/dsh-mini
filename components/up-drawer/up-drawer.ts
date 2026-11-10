@@ -11,6 +11,8 @@
  *     与 Android 手势条不重叠。
  * 事件：close（遮罩/关闭钮同发）。
  */
+import { engine } from '../../services/skin/engine'
+
 const EXIT_MS = 160
 
 Component({
@@ -26,6 +28,8 @@ Component({
     render: false,
     closing: false,
     exitTimer: 0 as ReturnType<typeof setTimeout> | 0,
+    layout: 'dock-bottom',
+    shellVars: '',
   },
 
   observers: {
@@ -49,13 +53,27 @@ Component({
   },
 
   lifetimes: {
+    attached() {
+      ;(this as unknown as { _unwatchSkin?: () => void })._unwatchSkin = engine.watchMode(() => {
+        this.syncShell()
+      })
+      this.syncShell()
+    },
     detached() {
+      const unwatch = (this as unknown as { _unwatchSkin?: () => void })._unwatchSkin
+      if (typeof unwatch === 'function') unwatch()
       const timer = this.data.exitTimer as ReturnType<typeof setTimeout> | 0
       if (timer !== 0) clearTimeout(timer)
     },
   },
 
   methods: {
+    syncShell() {
+      const shellVars = engine.componentVars('up-drawer')
+      const layout = engine.componentLayout('up-drawer')
+      if (shellVars === this.data.shellVars && layout === this.data.layout) return
+      this.setData({ shellVars, layout })
+    },
     onMask() {
       this.triggerEvent('close')
     },

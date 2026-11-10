@@ -369,10 +369,6 @@ export function validate(skinJson: unknown, vocab: VocabLike): ValidateResult {
       const registry = vocab.components ?? {}
       for (const [name, manifest] of Object.entries(skin.components)) {
         const path = `$.components.${name}`
-        if (Object.keys(registry).length === 0) {
-          push(errors, path, 'L4.components.empty-registry', `components registry 为空，拒绝组件名: ${name}`)
-          continue
-        }
         const contract = asRecord(registry[name])
         if (contract === null) { push(errors, path, 'L4.components.unknown', `未注册组件: ${name}`); continue }
         if (!isObject(manifest)) { push(errors, path, 'L4.components.manifest', 'manifest 必须是对象'); continue }

@@ -1,0 +1,19 @@
+{
+  "$schema": "dsh-mini.skin.v1",
+  "slug": "probe-skin",
+  "name": "Probe",
+  "components": {
+    "up-drawer": {
+      "layout": "side-sheet",
+      "vars": {
+        "--dsw-upd-height": "20px",
+        "--dsw-not-a-key": "1px"
+      }
+    }
+  },
+  "light": {
+    "palette": {
+      "--dsw-alias-bg-base": "#ffffff"
+    }
+  }
+}

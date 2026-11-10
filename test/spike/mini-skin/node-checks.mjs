@@ -8,6 +8,7 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync, rmSync } from 'node:fs'
 import { dirname, resolve, relative } from 'node:path'
 import ts from 'typescript'
+import { scanLessDecls } from './classify-literals.mjs'
 
 const ROOT = new URL('../../../', import.meta.url).pathname
 const results = []
@@ -327,7 +328,11 @@ check('G10 data: 注入', () => expectRule(baseSkin({ light: { palette: { '--dsw
 check('G11 裸 base64 负载', () => expectRule(baseSkin({ light: { palette: { '--dsw-alias-bg-base': 'A'.repeat(48) } } }), 'L3.value.data-uri'))
 check('G12 CSS 规则串注入', () => expectRule(baseSkin({ light: { palette: { '--dsw-alias-bg-base': '#fff; } .x { color: red' } } }), 'L3.value.css-injection'))
 check('G13 url 非法端点', () => expectRule(baseSkin({ light: { surfaces: { 'chat-interface': 'url(http://evil.example/x.png)' } } }), 'L3.url.endpoint'))
-check('G14 components 空 registry 引用', () => expectRule(baseSkin({ components: { 'dsh-button': {} } }), 'L4.components.empty-registry'))
+check('G14', () => expectRule(baseSkin({ components: { 'not-a-component': {} } }), 'L4.components.unknown'))
+check('G14-src', () => {
+  const src = readFileSync(resolve(ROOT, 'services/skin/validate.ts'), 'utf8')
+  eq((src.match(/L4\.components\.empty-registry/g) ?? []).length, 0, 'empty-registry 仍在源码里')
+})
 check('G15 fonts capability', () => expectRule(baseSkin({ fonts: [{ family: 'X', src: 'https://x/y.woff' }] }), 'L6.capability.unsupported'))
 check('G16 sounds capability', () => expectRule(baseSkin({ sounds: { 'ui.tap': 'https://x/y.mp3' } }), 'L6.capability.unsupported'))
 check('G17 lockMode capability', () => expectRule(baseSkin({ meta: { lockMode: 'lock' } }), 'L6.capability.unsupported'))
@@ -944,6 +949,105 @@ check('MS02-T12', () => {
   const engineSrc = readFileSync(resolve(ROOT, 'services/skin/engine.ts'), 'utf8')
   assert(!engineSrc.includes('快径'), 'engine 仍写着快径')
 })
+check('MS02-T08', () => {
+  const ok = runNode(['scripts/build-skin.mjs', '--check'])
+  eq(ok.status, 0, `三元等号未成立: ${ok.stderr.slice(0, 500)}`)
+  const report = JSON.parse(ok.stdout)
+  eq(report.contractNames.disk.length, 23, 'disk')
+  eq(JSON.stringify(report.contractNames.disk), JSON.stringify(report.contractNames.matrix), 'disk != matrix')
+  eq(JSON.stringify(report.contractNames.matrix), JSON.stringify(report.contractNames.vocab), 'matrix != vocab')
+  const dir = resolve(ROOT, 'components/ms02-probe')
+  mkdirSync(dir, { recursive: true })
+  try {
+    writeFileSync(resolve(dir, 'ms02-probe.contract.ts'), "export const CONTRACT = { contractVersion: '1.0.0' }\n")
+    const extra = runNode(['scripts/build-skin.mjs', '--check'])
+    eq(extra.status, 1, '多一份合同必须 exit 1')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+  const matrixPath = resolve(ROOT, 'test/spike/mini-skin/component-matrix.json')
+  const original = readFileSync(matrixPath, 'utf8')
+  try {
+    const planted = JSON.parse(original)
+    planted.rows['ms02-missing'] = { verdict: 'empty', contractFile: '', verdictReason: 'plant' }
+    writeFileSync(matrixPath, JSON.stringify(planted))
+    const missing = runNode(['scripts/build-skin.mjs', '--check'])
+    eq(missing.status, 1, '矩阵指向不存在的文件必须 exit 1')
+  } finally {
+    writeFileSync(matrixPath, original)
+  }
+})
+check('MS02-T13', () => {
+  const ledger = JSON.parse(readFileSync(resolve(ROOT, 'test/spike/mini-skin/component-literal-ledger.json'), 'utf8'))
+  const matrix = JSON.parse(readFileSync(resolve(ROOT, 'test/spike/mini-skin/component-matrix.json'), 'utf8'))
+  const contract = requireTs(resolve(ROOT, 'components/up-drawer/up-drawer.contract.ts')).CONTRACT
+  eq(contract.vars['--dsw-upd-height'].default, '33.333vh', 'height')
+  eq(contract.vars['--dsw-upd-close-top'].default, '-44px', 'top')
+  eq(contract.vars['--dsw-upd-close-size'].default, '30px', 'size')
+  const shown = execFileSync('git', ['show', `${MS02_BASE}:components/up-drawer/up-drawer.less`], { cwd: ROOT, encoding: 'utf8' }).split('\n')
+  assert(shown[31].includes('33.333vh') && shown[48].includes('-44px') && shown[55].includes('30px') && shown[56].includes('30px'), 'git show 原行不等')
+  const fallbacks = [
+    ['components/up-drawer/up-drawer.less', 'var(--dsw-space-12, 12px)', 1],
+    ['components/up-drawer/up-drawer.less', 'var(--dsw-radius-circle, 50%)', 1],
+    ['components/up-drawer/up-drawer.less', 'var(--dsw-space-24, 24px)', 1],
+    ['components/right-panel/right-panel.less', 'var(--app-nav-height, 0px)', 1],
+    ['components/dsh-toast/dsh-toast.less', 'var(--app-nav-height, 0px)', 1],
+    ['components/error-center/error-center.less', 'var(--app-nav-height, 0px)', 2],
+    ['components/dsh-dialog/dsh-dialog.less', 'var(--app-nav-height, 0px)', 1],
+    ['components/feedback-dialog/feedback-dialog.less', 'var(--app-nav-height, 0px)', 1],
+    ['pages/workspace/workspace.less', 'var(--app-nav-height, 64px)', 2],
+    ['pages/settings/settings.less', 'var(--app-status-bar, 0px)', 3],
+  ]
+  let fallbackCount = 0
+  for (const [file, needle, count] of fallbacks) {
+    const n = readFileSync(resolve(ROOT, file), 'utf8').split(needle).length - 1
+    eq(n, count, `${file} ${needle}`)
+    fallbackCount += count
+  }
+  eq(fallbackCount, 14, '14 处 fallback')
+  const byPos = new Map()
+  for (const row of Object.values(matrix.rows)) {
+    for (const lit of row.skinDomainLiterals) byPos.set(`${lit.file}:${lit.line}:${lit.prop}`, lit)
+  }
+  const scanned = new Map()
+  for (const decl of ledger.declarations) {
+    if (!scanned.has(decl.file)) scanned.set(decl.file, scanLessDecls(resolve(ROOT, decl.file), ROOT))
+    const current = scanned.get(decl.file).find((d) => d.line === decl.line && d.prop === decl.prop)
+    assert(current !== undefined, `扫描丢了 ${decl.file}:${decl.line} ${decl.prop}`)
+    if (current.value === decl.value) continue
+    const lit = byPos.get(`${decl.file}:${decl.line}:${decl.prop}`)
+    assert(lit !== undefined, `未进合同的声明被改了 ${decl.file}:${decl.line} ${decl.prop}`)
+    eq(current.value, `var(${lit.token})`, `改写不是无兜底 var ${decl.file}:${decl.line}`)
+  }
+})
+check('MS02-T14', () => {
+  const wxml = readFileSync(resolve(ROOT, 'components/up-drawer/up-drawer.wxml'), 'utf8')
+  const tags = wxml.split('<view').slice(1).map((part) => part.slice(0, part.indexOf('>')))
+  const mask = tags.find((tag) => tag.includes('upd-mask'))
+  const sheet = tags.find((tag) => tag.includes('upd-sheet'))
+  assert(mask !== undefined && !mask.includes('shellVars'), 'mask 被绑了 shellVars')
+  assert(sheet !== undefined && sheet.includes('shellVars') && sheet.includes('layout-{{layout}}'), 'sheet 未接线')
+  const sf = ts.createSourceFile('up-drawer.ts', readFileSync(resolve(ROOT, 'components/up-drawer/up-drawer.ts'), 'utf8'), ts.ScriptTarget.Latest, true)
+  let attached = null
+  let detached = null
+  function visit(node) {
+    if (ts.isMethodDeclaration(node) && node.name.getText(sf) === 'attached') attached = node
+    if (ts.isMethodDeclaration(node) && node.name.getText(sf) === 'detached') detached = node
+    ts.forEachChild(node, visit)
+  }
+  visit(sf)
+  assert(attached !== null && attached.getText(sf).includes('.watchMode('), 'attached 没有订阅')
+  assert(detached !== null, '缺 detached')
+  const detachedText = detached.getText(sf)
+  assert(detachedText.includes('_unwatchSkin'), 'detached 没有退订')
+  assert(detachedText.indexOf('_unwatchSkin') < detachedText.indexOf('clearTimeout'), '退订必须先于清 timer')
+})
+check('MS02-T15', () => {
+  const src = readFileSync(resolve(ROOT, 'test/spike/mini-skin/node-checks.mjs'), 'utf8')
+  assert(src.includes("check('G14'"), '缺 G14 注册')
+  assert(src.includes("check('G14-src'"), '缺 G14-src 注册')
+  assert(src.includes('REQUIRED_IDS'), '缺 REQUIRED_IDS')
+})
 
 // ── 输出 ─────────────────────────────────────────────────────────────────
 const json = process.argv.includes('--json')
@@ -953,5 +1057,11 @@ if (json) {
 } else {
   for (const r of results) console.log(`${r.ok ? 'PASS' : 'FAIL'} [${r.section}] ${r.id}${r.ok ? '' : ' :: ' + r.error}`)
   console.log(`\n${results.length - failed.length}/${results.length} PASS`)
+}
+const REQUIRED_IDS = ['G14', 'G14-src']
+const missingIds = REQUIRED_IDS.filter((id) => !results.some((r) => r.id === id))
+if (missingIds.length > 0) {
+  console.error(`MISSING required check id: ${missingIds.join(',')}`)
+  process.exit(1)
 }
 process.exit(failed.length === 0 ? 0 : 1)

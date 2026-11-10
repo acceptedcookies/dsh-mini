@@ -1,0 +1,54 @@
+{
+  "id": "ms02-w1",
+  "lane": "mini-skin",
+  "verdict": "PASS",
+  "reason": "23 contracts + up-drawer shell; node-checks 95/95; equiv 0 errors",
+  "envClass": "host-node",
+  "grade": "H1",
+  "at": "2026-11-10T06:37:11.817Z",
+  "headSha": "00a2cc3088c2acc1fe10a44af44967eff550c009",
+  "dirtyWorktree": true,
+  "device": null,
+  "counts": {
+    "nodeChecks": "95/95"
+  },
+  "timing": null,
+  "plants": [
+    {
+      "id": "missing-CONTRACT",
+      "fired": true,
+      "restored": true
+    },
+    {
+      "id": "extra-contract-file",
+      "fired": true,
+      "restored": true
+    },
+    {
+      "id": "matrix-missing-file",
+      "fired": true,
+      "restored": true
+    },
+    {
+      "id": "bad-contractVersion",
+      "fired": true,
+      "restored": true
+    }
+  ],
+  "budget": null,
+  "remoteOps": [],
+  "detail": {
+    "argv": [
+      "node_modules/.bin/tsc --noEmit --pretty false",
+      "node scripts/build-skin.mjs --check",
+      "node test/spike/mini-skin/node-checks.mjs",
+      "node scripts/token-audit.mjs",
+      "node scripts/skin-equiv-check.mjs --check --phase p6"
+    ],
+    "stdoutSha256": {
+      "nodeChecks": "08f444afc9254ace09c51fc5851c16b8dd01fa2f96fe5c2387df1580f3528454",
+      "equiv": "973e852ec4a3cacc452e5340d106a40fbe6139d7a8b531c69b7a67793b8fd71f"
+    },
+    "note": "headSha is the parent of the W1 commit; dirtyWorktree true because the receipt is written before that commit."
+  }
+}

@@ -83,7 +83,7 @@
         "--dsw-approval-sheet-height-2"
       ],
       "verdict": "vars+options",
-      "contractFile": "",
+      "contractFile": "components/approval-sheet/approval-sheet.contract.ts",
       "verdictReason": "--dsw-approval-sheet-max-width=760px @components/approval-sheet/approval-sheet.less:7; --dsw-approval-sheet-width=6px @components/approval-sheet/approval-sheet.less:28; --dsw-approval-sheet-height=6px @components/approval-sheet/approval-sheet.less:29; --dsw-approval-sheet-max-height=336px @components/approval-sheet/approval-sheet.less:47; --dsw-approval-sheet-min-width=88px @components/approval-sheet/approval-sheet.less:85; --dsw-approval-sheet-height-2=32px @components/approval-sheet/approval-sheet.less:86"
     },
     "chat-bubble": {
@@ -275,7 +275,7 @@
         "--dsw-chat-bubble-max-width-2"
       ],
       "verdict": "vars+options",
-      "contractFile": "",
+      "contractFile": "components/chat-bubble/chat-bubble.contract.ts",
       "verdictReason": "--dsw-chat-bubble-margin-top=20px @components/chat-bubble/chat-bubble.less:74; --dsw-chat-bubble-margin-top-2=8px @components/chat-bubble/chat-bubble.less:79; --dsw-chat-bubble-width=240px @components/chat-bubble/chat-bubble.less:96; --dsw-chat-bubble-max-width=100% @components/chat-bubble/chat-bubble.less:97; --dsw-chat-bubble-min-height=64px @components/chat-bubble/chat-bubble.less:98; --dsw-chat-bubble-width-2=28px @components/chat-bubble/chat-bubble.less:111; --dsw-chat-bubble-height=28px @components/chat-bubble/chat-bubble.less:112; --dsw-chat-bubble-width-3=160px @components/chat-bubble/chat-bubble.less:152; --dsw-chat-bubble-height-2=160px @components/chat-bubble/chat-bubble.less:153; --dsw-chat-bubble-margin-bottom=6px @components/chat-bubble/chat-bubble.less:172; --dsw-chat-bubble-min-height-2=18px @components/chat-bubble/chat-bubble.less:198; --dsw-chat-bubble-width-4=10px @components/chat-bubble/chat-bubble.less:235; --dsw-chat-bubble-height-3=10px @components/chat-bubble/chat-bubble.less:236; --dsw-chat-bubble-margin-top-3=5px @components/chat-bubble/chat-bubble.less:237; --dsw-chat-bubble-max-width-2=82% @components/chat-bubble/chat-bubble.less:272"
     },
     "command-menu": {
@@ -381,7 +381,7 @@
         "--dsw-command-menu-max-width-2"
       ],
       "verdict": "vars+options",
-      "contractFile": "",
+      "contractFile": "components/command-menu/command-menu.contract.ts",
       "verdictReason": "--dsw-command-menu-background=transparent @components/command-menu/command-menu.less:9; --dsw-command-menu-min-height=23px @components/command-menu/command-menu.less:64; --dsw-command-menu-margin-top=3px @components/command-menu/command-menu.less:73; --dsw-command-menu-min-height-2=34px @components/command-menu/command-menu.less:81; --dsw-command-menu-width=14px @components/command-menu/command-menu.less:101; --dsw-command-menu-height=14px @components/command-menu/command-menu.less:102; --dsw-command-menu-max-width=40% @components/command-menu/command-menu.less:110; --dsw-command-menu-max-width-2=20% @components/command-menu/command-menu.less:118"
     },
     "composer-bar": {
@@ -633,7 +633,7 @@
         "--dsw-composer-bar-height-7"
       ],
       "verdict": "vars+options",
-      "contractFile": "",
+      "contractFile": "components/composer-bar/composer-bar.contract.ts",
       "verdictReason": "--dsw-composer-bar-padding-top=8px @components/composer-bar/composer-bar.less:10; --dsw-composer-bar-width=56px @components/composer-bar/composer-bar.less:32; --dsw-composer-bar-height=56px @components/composer-bar/composer-bar.less:33; --dsw-composer-bar-top=-6px @components/composer-bar/composer-bar.less:39; --dsw-composer-bar-right=-6px @components/composer-bar/composer-bar.less:40; --dsw-composer-bar-width-2=18px @components/composer-bar/composer-bar.less:41; --dsw-composer-bar-height-2=18px @components/composer-bar/composer-bar.less:42; --dsw-composer-bar-min-height=36px @components/composer-bar/composer-bar.less:53; --dsw-composer-bar-max-height=240px @components/composer-bar/composer-bar.less:54; --dsw-composer-bar-min-height-2=52px @components/composer-bar/composer-bar.less:64; --dsw-composer-bar-width-3=28px @components/composer-bar/composer-bar.less:87; --dsw-composer-bar-height-3=28px @components/composer-bar/composer-bar.less:88; --dsw-composer-bar-max-width=220px @components/composer-bar/composer-bar.less:110; --dsw-composer-bar-height-4=28px @components/composer-bar/composer-bar.less:111; --dsw-composer-bar-max-width-2=220px @components/composer-bar/composer-bar.less:150; --dsw-composer-bar-height-5=28px @components/composer-bar/composer-bar.less:151; --dsw-composer-bar-width-4=34px @components/composer-bar/composer-bar.less:184; --dsw-composer-bar-height-6=34px @components/composer-bar/composer-bar.less:185; --dsw-composer-bar-width-5=14px @components/composer-bar/composer-bar.less:201; --dsw-composer-bar-height-7=14px @components/composer-bar/composer-bar.less:202"
     },
     "dsh-button": {
@@ -713,7 +713,7 @@
         "--dsw-dsh-button-background-2"
       ],
       "verdict": "vars+options",
-      "contractFile": "",
+      "contractFile": "components/dsh-button/dsh-button.contract.ts",
       "verdictReason": "--dsw-dsh-button-height=36px @components/dsh-button/dsh-button.less:20; --dsw-dsh-button-height-2=28px @components/dsh-button/dsh-button.less:29; --dsw-dsh-button-background=transparent @components/dsh-button/dsh-button.less:50; --dsw-dsh-button-width=28px @components/dsh-button/dsh-button.less:59; --dsw-dsh-button-height-3=28px @components/dsh-button/dsh-button.less:60; --dsw-dsh-button-background-2=transparent @components/dsh-button/dsh-button.less:65"
     },
     "dsh-dialog": {
@@ -833,7 +833,7 @@
         "--dsw-dsh-dialog-height-3"
       ],
       "verdict": "vars+options",
-      "contractFile": "",
+      "contractFile": "components/dsh-dialog/dsh-dialog.contract.ts",
       "verdictReason": "--dsw-dsh-dialog-max-height=100% @components/dsh-dialog/dsh-dialog.less:34; --dsw-dsh-dialog-margin-top=3px @components/dsh-dialog/dsh-dialog.less:103; --dsw-dsh-dialog-width=28px @components/dsh-dialog/dsh-dialog.less:111; --dsw-dsh-dialog-height=28px @components/dsh-dialog/dsh-dialog.less:112; --dsw-dsh-dialog-height-2=36px @components/dsh-dialog/dsh-dialog.less:139; --dsw-dsh-dialog-min-height=72px @components/dsh-dialog/dsh-dialog.less:153; --dsw-dsh-dialog-max-height-2=140px @components/dsh-dialog/dsh-dialog.less:154; --dsw-dsh-dialog-min-width=64px @components/dsh-dialog/dsh-dialog.less:176; --dsw-dsh-dialog-height-3=36px @components/dsh-dialog/dsh-dialog.less:177"
     },
     "dsh-icon": {
@@ -843,7 +843,7 @@
       "zSlotBreakpoint": "none",
       "consumedVars": [],
       "verdict": "empty-asset",
-      "contractFile": "",
+      "contractFile": "components/dsh-icon/dsh-icon.contract.ts",
       "verdictReason": "T-O-2 ④ empty-asset。证据 @components/dsh-icon/dsh-icon.ts:21 与 @components/dsh-icon/dsh-icon.less:1。路径与纯布局不进合约，less 不改。未升格子串 `flex: none`。"
     },
     "dsh-menu": {
@@ -903,7 +903,7 @@
         "--dsw-dsh-menu-gap-2"
       ],
       "verdict": "vars+options",
-      "contractFile": "",
+      "contractFile": "components/dsh-menu/dsh-menu.contract.ts",
       "verdictReason": "--dsw-dsh-menu-max-height=320px @components/dsh-menu/dsh-menu.less:56; --dsw-dsh-menu-min-height=34px @components/dsh-menu/dsh-menu.less:63; --dsw-dsh-menu-gap=1px @components/dsh-menu/dsh-menu.less:88; --dsw-dsh-menu-gap-2=5px @components/dsh-menu/dsh-menu.less:94"
     },
     "dsh-switch": {
@@ -963,7 +963,7 @@
         "--dsw-dsh-switch-height-2"
       ],
       "verdict": "vars+options",
-      "contractFile": "",
+      "contractFile": "components/dsh-switch/dsh-switch.contract.ts",
       "verdictReason": "--dsw-dsh-switch-width=36px @components/dsh-switch/dsh-switch.less:9; --dsw-dsh-switch-height=20px @components/dsh-switch/dsh-switch.less:10; --dsw-dsh-switch-width-2=16px @components/dsh-switch/dsh-switch.less:27; --dsw-dsh-switch-height-2=16px @components/dsh-switch/dsh-switch.less:28"
     },
     "dsh-tabs": {
@@ -1179,7 +1179,7 @@
         "--dsw-dsh-tabs-max-width"
       ],
       "verdict": "vars+options",
-      "contractFile": "",
+      "contractFile": "components/dsh-tabs/dsh-tabs.contract.ts",
       "verdictReason": "--dsw-dsh-tabs-height=32px @components/dsh-tabs/dsh-tabs.less:24; --dsw-dsh-tabs-height-2=32px @components/dsh-tabs/dsh-tabs.less:30; --dsw-dsh-tabs-bottom=-1px @components/dsh-tabs/dsh-tabs.less:43; --dsw-dsh-tabs-height-3=2px @components/dsh-tabs/dsh-tabs.less:45; --dsw-dsh-tabs-height-4=34px @components/dsh-tabs/dsh-tabs.less:64; --dsw-dsh-tabs-margin-right=1px @components/dsh-tabs/dsh-tabs.less:71; --dsw-dsh-tabs-height-5=34px @components/dsh-tabs/dsh-tabs.less:76; --dsw-dsh-tabs-right=9px @components/dsh-tabs/dsh-tabs.less:96; --dsw-dsh-tabs-left=9px @components/dsh-tabs/dsh-tabs.less:98; --dsw-dsh-tabs-height-6=2px @components/dsh-tabs/dsh-tabs.less:99; --dsw-dsh-tabs-height-7=36px @components/dsh-tabs/dsh-tabs.less:107; --dsw-dsh-tabs-height-8=36px @components/dsh-tabs/dsh-tabs.less:114; --dsw-dsh-tabs-bottom-2=-0.5px @components/dsh-tabs/dsh-tabs.less:135; --dsw-dsh-tabs-height-9=2px @components/dsh-tabs/dsh-tabs.less:137; --dsw-dsh-tabs-height-10=28px @components/dsh-tabs/dsh-tabs.less:145; --dsw-dsh-tabs-min-width=64px @components/dsh-tabs/dsh-tabs.less:146; --dsw-dsh-tabs-max-width=140px @components/dsh-tabs/dsh-tabs.less:147"
     },
     "dsh-toast": {
@@ -1203,7 +1203,7 @@
         "--dsw-dsh-toast-left"
       ],
       "verdict": "vars+options",
-      "contractFile": "",
+      "contractFile": "components/dsh-toast/dsh-toast.contract.ts",
       "verdictReason": "--dsw-dsh-toast-left=50% @components/dsh-toast/dsh-toast.less:8"
     },
     "error-center": {
@@ -1347,7 +1347,7 @@
         "--dsw-error-center-width-3"
       ],
       "verdict": "vars+options",
-      "contractFile": "",
+      "contractFile": "components/error-center/error-center.contract.ts",
       "verdictReason": "--dsw-error-center-left=50% @components/error-center/error-center.less:11; --dsw-error-center-min-width=220px @components/error-center/error-center.less:27; --dsw-error-center-margin-top=1px @components/error-center/error-center.less:49; --dsw-error-center-width=20px @components/error-center/error-center.less:106; --dsw-error-center-height=20px @components/error-center/error-center.less:107; --dsw-error-center-max-height=100% @components/error-center/error-center.less:148; --dsw-error-center-width-2=28px @components/error-center/error-center.less:206; --dsw-error-center-height-2=28px @components/error-center/error-center.less:207; --dsw-error-center-max-height-2=160px @components/error-center/error-center.less:218; --dsw-error-center-max-height-3=240px @components/error-center/error-center.less:246; --dsw-error-center-width-3=76px @components/error-center/error-center.less:262"
     },
     "feedback-dialog": {
@@ -1477,7 +1477,7 @@
         "--dsw-feedback-dialog-height-3"
       ],
       "verdict": "vars+options",
-      "contractFile": "",
+      "contractFile": "components/feedback-dialog/feedback-dialog.contract.ts",
       "verdictReason": "--dsw-feedback-dialog-max-height=100% @components/feedback-dialog/feedback-dialog.less:33; --dsw-feedback-dialog-padding-bottom=24px @components/feedback-dialog/feedback-dialog.less:34; --dsw-feedback-dialog-width=28px @components/feedback-dialog/feedback-dialog.less:102; --dsw-feedback-dialog-height=28px @components/feedback-dialog/feedback-dialog.less:103; --dsw-feedback-dialog-margin-top=24px @components/feedback-dialog/feedback-dialog.less:116; --dsw-feedback-dialog-height-2=28px @components/feedback-dialog/feedback-dialog.less:123; --dsw-feedback-dialog-background=transparent @components/feedback-dialog/feedback-dialog.less:127; --dsw-feedback-dialog-min-height=116px @components/feedback-dialog/feedback-dialog.less:147; --dsw-feedback-dialog-max-height-2=280px @components/feedback-dialog/feedback-dialog.less:148; --dsw-feedback-dialog-height-3=44px @components/feedback-dialog/feedback-dialog.less:174"
     },
     "goal-bar": {
@@ -1561,7 +1561,7 @@
         "--dsw-goal-bar-max-height"
       ],
       "verdict": "vars+options",
-      "contractFile": "",
+      "contractFile": "components/goal-bar/goal-bar.contract.ts",
       "verdictReason": "--dsw-goal-bar-height=36px @components/goal-bar/goal-bar.less:16; --dsw-goal-bar-width=28px @components/goal-bar/goal-bar.less:59; --dsw-goal-bar-height-2=28px @components/goal-bar/goal-bar.less:60; --dsw-goal-bar-min-height=36px @components/goal-bar/goal-bar.less:74; --dsw-goal-bar-min-height-2=20px @components/goal-bar/goal-bar.less:83; --dsw-goal-bar-max-height=96px @components/goal-bar/goal-bar.less:84"
     },
     "markdown-view": {
@@ -1571,7 +1571,7 @@
       "zSlotBreakpoint": "none",
       "consumedVars": [],
       "verdict": "empty-service",
-      "contractFile": "",
+      "contractFile": "components/markdown-view/markdown-view.contract.ts",
       "verdictReason": "T-O-2 ④ empty-service。证据 @components/markdown-view/markdown-view.ts:6 与 @services/markdown.ts:27。palette 留在 service，less 不改。未升格子串 `width: 24px`。"
     },
     "message-actions": {
@@ -1619,7 +1619,7 @@
         "--dsw-message-actions-height-2"
       ],
       "verdict": "vars+options",
-      "contractFile": "",
+      "contractFile": "components/message-actions/message-actions.contract.ts",
       "verdictReason": "--dsw-message-actions-height=28px @components/message-actions/message-actions.less:9; --dsw-message-actions-width=28px @components/message-actions/message-actions.less:30; --dsw-message-actions-height-2=28px @components/message-actions/message-actions.less:31"
     },
     "model-picker": {
@@ -1667,7 +1667,7 @@
         "--dsw-model-picker-min-height"
       ],
       "verdict": "vars+options",
-      "contractFile": "",
+      "contractFile": "components/model-picker/model-picker.contract.ts",
       "verdictReason": "--dsw-model-picker-width=260px @components/model-picker/model-picker.less:14; --dsw-model-picker-max-height=360px @components/model-picker/model-picker.less:15; --dsw-model-picker-min-height=34px @components/model-picker/model-picker.less:65"
     },
     "question-sheet": {
@@ -1871,7 +1871,7 @@
         "--dsw-question-sheet-height-5"
       ],
       "verdict": "vars+options",
-      "contractFile": "",
+      "contractFile": "components/question-sheet/question-sheet.contract.ts",
       "verdictReason": "--dsw-question-sheet-max-width=760px @components/question-sheet/question-sheet.less:9; --dsw-question-sheet-max-height=60vh @components/question-sheet/question-sheet.less:10; --dsw-question-sheet-width=28px @components/question-sheet/question-sheet.less:38; --dsw-question-sheet-height=28px @components/question-sheet/question-sheet.less:39; --dsw-question-sheet-min-height=40px @components/question-sheet/question-sheet.less:62; --dsw-question-sheet-width-2=20px @components/question-sheet/question-sheet.less:80; --dsw-question-sheet-height-2=20px @components/question-sheet/question-sheet.less:81; --dsw-question-sheet-margin-top=2px @components/question-sheet/question-sheet.less:82; --dsw-question-sheet-width-3=14px @components/question-sheet/question-sheet.less:96; --dsw-question-sheet-height-3=14px @components/question-sheet/question-sheet.less:97; --dsw-question-sheet-min-height-2=24px @components/question-sheet/question-sheet.less:147; --dsw-question-sheet-max-height-2=96px @components/question-sheet/question-sheet.less:148; --dsw-question-sheet-width-4=24px @components/question-sheet/question-sheet.less:176; --dsw-question-sheet-height-4=24px @components/question-sheet/question-sheet.less:177; --dsw-question-sheet-min-width=64px @components/question-sheet/question-sheet.less:218; --dsw-question-sheet-height-5=32px @components/question-sheet/question-sheet.less:219"
     },
     "reasoning-row": {
@@ -1975,7 +1975,7 @@
         "--dsw-reasoning-row--webkit-text-fill-color"
       ],
       "verdict": "vars+options",
-      "contractFile": "",
+      "contractFile": "components/reasoning-row/reasoning-row.contract.ts",
       "verdictReason": "--dsw-reasoning-row-margin-bottom=16px @components/reasoning-row/reasoning-row.less:3; --dsw-reasoning-row-height=24px @components/reasoning-row/reasoning-row.less:14; --dsw-reasoning-row-width=16px @components/reasoning-row/reasoning-row.less:29; --dsw-reasoning-row-height-2=16px @components/reasoning-row/reasoning-row.less:30; --dsw-reasoning-row-width-2=2px @components/reasoning-row/reasoning-row.less:41; --dsw-reasoning-row-height-3=2px @components/reasoning-row/reasoning-row.less:42; --dsw-reasoning-row-color=transparent @components/reasoning-row/reasoning-row.less:47; --dsw-reasoning-row--webkit-text-fill-color=transparent @components/reasoning-row/reasoning-row.less:85"
     },
     "right-panel": {
@@ -2227,7 +2227,7 @@
         "--dsw-right-panel-min-height-4"
       ],
       "verdict": "vars+options",
-      "contractFile": "",
+      "contractFile": "components/right-panel/right-panel.contract.ts",
       "verdictReason": "--dsw-right-panel-width=380px @components/right-panel/right-panel.less:29; --dsw-right-panel-height=38px @components/right-panel/right-panel.less:42; --dsw-right-panel-width-2=28px @components/right-panel/right-panel.less:55; --dsw-right-panel-height-2=28px @components/right-panel/right-panel.less:56; --dsw-right-panel-height-3=36px @components/right-panel/right-panel.less:78; --dsw-right-panel-min-height=52px @components/right-panel/right-panel.less:113; --dsw-right-panel-width-3=32px @components/right-panel/right-panel.less:120; --dsw-right-panel-height-4=32px @components/right-panel/right-panel.less:121; --dsw-right-panel-min-height-2=52px @components/right-panel/right-panel.less:166; --dsw-right-panel-width-4=32px @components/right-panel/right-panel.less:229; --dsw-right-panel-height-5=32px @components/right-panel/right-panel.less:230; --dsw-right-panel-margin-top=8px @components/right-panel/right-panel.less:275; --dsw-right-panel-height-6=40px @components/right-panel/right-panel.less:284; --dsw-right-panel-height-7=40px @components/right-panel/right-panel.less:294; --dsw-right-panel-max-width=260px @components/right-panel/right-panel.less:319; --dsw-right-panel-width-5=6px @components/right-panel/right-panel.less:358; --dsw-right-panel-height-8=6px @components/right-panel/right-panel.less:359; --dsw-right-panel-margin-top-2=7px @components/right-panel/right-panel.less:360; --dsw-right-panel-min-height-3=20px @components/right-panel/right-panel.less:409; --dsw-right-panel-min-height-4=40px @components/right-panel/right-panel.less:439"
     },
     "tool-card": {
@@ -2345,7 +2345,7 @@
         "--dsw-tool-card-height-4"
       ],
       "verdict": "vars+options",
-      "contractFile": "",
+      "contractFile": "components/tool-card/tool-card.contract.ts",
       "verdictReason": "--dsw-tool-card-height=24px @components/tool-card/tool-card.less:15; --dsw-tool-card-left=22px @components/tool-card/tool-card.less:35; --dsw-tool-card--webkit-text-fill-color=transparent @components/tool-card/tool-card.less:49; --dsw-tool-card-width=16px @components/tool-card/tool-card.less:71; --dsw-tool-card-height-2=16px @components/tool-card/tool-card.less:72; --dsw-tool-card-width-2=2px @components/tool-card/tool-card.less:86; --dsw-tool-card-height-3=2px @components/tool-card/tool-card.less:87; --dsw-tool-card-max-height=150px @components/tool-card/tool-card.less:160; --dsw-tool-card-height-4=0.5px @components/tool-card/tool-card.less:178"
     },
     "trajectory-view": {
@@ -2355,7 +2355,7 @@
       "zSlotBreakpoint": "z-index @media",
       "consumedVars": [],
       "verdict": "empty-invariant",
-      "contractFile": "",
+      "contractFile": "components/trajectory-view/trajectory-view.contract.ts",
       "verdictReason": "T-O-2 ④ empty-invariant。证据 @components/trajectory-view/trajectory-view.less:213 与 @components/trajectory-view/trajectory-view.less:220。不造 --dsw-traj- 键，less 相对 BASE 不改。未升格子串 `height: 50px`。"
     },
     "up-drawer": {
@@ -2414,7 +2414,7 @@
         "--dsw-upd-close-size"
       ],
       "verdict": "full",
-      "contractFile": "",
+      "contractFile": "components/up-drawer/up-drawer.contract.ts",
       "verdictReason": "--dsw-upd-height=33.333vh @components/up-drawer/up-drawer.less:32; --dsw-upd-close-top=-44px @components/up-drawer/up-drawer.less:49; --dsw-upd-close-size=30px @components/up-drawer/up-drawer.less:56; --dsw-upd-close-size=30px @components/up-drawer/up-drawer.less:57；P4-01 只收这三键。排除且仍留在 less 的子串: 50% | 560px | 0.5px | var(--dsw-space- | z-index | @media"
     }
   }

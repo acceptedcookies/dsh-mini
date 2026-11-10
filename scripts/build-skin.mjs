@@ -408,6 +408,22 @@ function VOCAB_FOR_VALIDATE() {
   }
 }
 report.discovered = contracts.map((c) => c.name).sort()
+const diskNames = contractFiles.map((file) => relative(ROOT, file).split('/')[1]).sort()
+let matrixNames = []
+let vocabNames = []
+try {
+  matrixNames = Object.keys(JSON.parse(readFileSync(join(ROOT, 'test/spike/mini-skin/component-matrix.json'), 'utf8')).rows).sort()
+  vocabNames = Object.keys(requireTs(join(ROOT, 'services/skin/vocab.ts')).VOCAB.components ?? {}).sort()
+} catch (error) {
+  console.error(`FATAL: 读矩阵或落盘 vocab 失败: ${error instanceof Error ? error.message : String(error)}`)
+  failed = true
+}
+report.contractNames = { disk: diskNames, matrix: matrixNames, vocab: vocabNames }
+const namesEqual = JSON.stringify(diskNames) === JSON.stringify(matrixNames) && JSON.stringify(matrixNames) === JSON.stringify(vocabNames)
+if (!namesEqual || diskNames.length !== 23) {
+  console.error(`FATAL: contract 三元等号失败 ${JSON.stringify(report.contractNames)}`)
+  failed = true
+}
 if (versionProblems.length > 0) {
   report.versionProblems = versionProblems
   console.error('FATAL: contractVersion 格式失配：\n - ' + versionProblems.join('\n - '))

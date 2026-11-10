@@ -390,6 +390,13 @@ function vocabDefsFrom(vocab) {
   const defs = new Map()
   for (const [key, entry] of Object.entries(vocab.tokens)) defs.set(key, { light: entry.light, dark: entry.dark })
   for (const [key, entry] of Object.entries(vocab.surfaces ?? {})) defs.set(entry.emits, { light: entry.default, dark: entry.default })
+  for (const contract of Object.values(vocab.components ?? {})) {
+    for (const [key, domain] of Object.entries(contract?.vars ?? {})) {
+      if (domain !== null && typeof domain === 'object' && typeof domain.default === 'string') {
+        defs.set(key, { light: domain.default, dark: domain.default })
+      }
+    }
+  }
   return defs
 }
 
@@ -484,8 +491,17 @@ function compare(phase) {
       }
     }
   }
+  const ledgerPath = join(ROOT, 'test/spike/mini-skin/component-literal-ledger.json')
+  const ledgerDecls = existsSync(ledgerPath) ? JSON.parse(readFileSync(ledgerPath, 'utf8')).declarations ?? [] : []
   for (const now of points) {
     if (baselineByKey.has(now.key)) continue
+    // MS02：裸字面量改成无兜底 var() 时，解析值必须等于 P0 台账，不刷新 baseline pin。
+    const ledgerHit = ledgerDecls.find((d) => d.file === now.file && d.line === now.line && d.prop === now.prop)
+    const refs = parseVarRefs(now.raw)
+    if (ledgerHit !== undefined && refs.length === 1 && refs[0].fallback === undefined && now.light.ok && now.dark.ok && norm(now.light.value) === norm(ledgerHit.value) && norm(now.dark.value) === norm(ledgerHit.value)) {
+      intendedAdditions.push({ file: now.file, line: now.line, selector: now.selector, prop: now.prop, value: ledgerHit.value, reason: 'MS02-equal-literal' })
+      continue
+    }
     // P4 token-audit 清零把裸字面量换成 var()——新增消费点必须是「等值 tokenization」
     const auditText = auditByFileLine.get(`${now.file}:${now.line}`)
     if (auditText === undefined) {
