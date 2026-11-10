@@ -26,6 +26,7 @@ const OUT_SWEEPER = path.join(REPO, 'cloud/functions/sweeper/vendor/kernel.cjs')
 const OUT_HOST = path.join(REPO, 'cloud/functions/sweeper/vendor/host.cjs')
 const ENTRY = path.join(REPO, 'subpkg/kernel/.entry.ts')
 const MANIFEST = path.join(REPO, 'subpkg/kernel/manifest.json')
+const MANIFEST_JS = path.join(REPO, 'subpkg/kernel/manifest.js')
 const MAX_BYTES = 2 * 1024 * 1024
 const { renderEntry, exportNames } = await import(pathToFileURL(path.join(HERE, 'kernel-exports.mjs')).href)
 // esbuild 作为 spike 级 dev-dep 存于 test/spike/node_modules
@@ -154,12 +155,12 @@ const wasmAbsent = {
       path: 'web-tree-sitter',
       namespace: 'wasm-absent',
     }))
-    build.onResolve({ filter: /^(fs$|fs\/promises$|path$|os$|module$|child_process$)/ }, (args) => ({
+    build.onResolve({ filter: /^(node:)?(fs|fs\/promises|path|os|module|child_process|url)$/ }, (args) => ({
       path: args.path,
       namespace: 'node-absent',
     }))
     build.onLoad({ filter: /.*/, namespace: 'node-absent' }, () => ({
-      contents: 'const deny = () => { throw new Error("node-builtin-unavailable") }\nexport default new Proxy({}, { get: () => deny })\nexport const readFile = deny\nexport const promises = new Proxy({}, { get: () => deny })\n',
+      contents: 'const deny = () => { throw new Error("node-builtin-unavailable") }; module.exports = new Proxy({}, { get: () => deny });\n',
       loader: 'js',
     }))
   },
@@ -186,7 +187,7 @@ const banner = [
   `globalThis.__zod_globalConfig={jitless:true};`,
 ].join('\n')
 
-async function buildOne(entryPoint, outfile, extraBanner = '') {
+async function buildOne(entryPoint, outfile, extraBanner = '', extraExternal = []) {
   const result = await esbuild.build({
     entryPoints: [entryPoint],
     banner: { js: banner + extraBanner },
@@ -200,7 +201,7 @@ async function buildOne(entryPoint, outfile, extraBanner = '') {
     write: false,
     logLevel: 'silent',
     plugins: [wasmAbsent, haimang],
-    external: ['node:*', 'cloudflare:*'],
+    external: ['cloudflare:*', ...extraExternal],
     nodePaths: [SPIKE_NM],
     mainFields: ['module', 'main'],
   })
@@ -232,6 +233,8 @@ const manifest = {
   modules,
 }
 fs.writeFileSync(MANIFEST, `${JSON.stringify(manifest, null, 2)}\n`)
+// mp 不能 require JSON；同一份内容再出 JS 模块供 boot 组件读。
+fs.writeFileSync(MANIFEST_JS, `module.exports = ${JSON.stringify(manifest)}\n`)
 log(`kernel pin=${head.slice(0, 8)} bytes=${contents.length} sha256=${digest.slice(0, 16)}`)
 log(`  → ${path.relative(REPO, OUT_MP)}`)
 log(`  → ${path.relative(REPO, OUT_SWEEPER)}`)
@@ -239,7 +242,7 @@ log(`  → ${path.relative(REPO, OUT_SWEEPER)}`)
 if (WITH_HOST) {
   const hostSrc = path.join(REPO, 'services/nano-mini-host/pump.ts')
   if (!fs.existsSync(hostSrc)) fail('--host 需要 services/nano-mini-host/pump.ts（P2 建成后可用）')
-  const hostBuilt = await buildOne(hostSrc, OUT_HOST, '')
+  const hostBuilt = await buildOne(hostSrc, OUT_HOST, '', ['node:*', '../../subpkg/kernel/kernel.js'])
   if (hostBuilt.contents.length > MAX_BYTES) {
     log(`bytes=${hostBuilt.contents.length} exports=${exportNames().length}`)
     fail(`host bytes ${hostBuilt.contents.length} > ${MAX_BYTES} —— 不落盘`)

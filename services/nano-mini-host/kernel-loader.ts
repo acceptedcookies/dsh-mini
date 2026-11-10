@@ -9,6 +9,8 @@ import { installKernelShims } from './shims'
 import { reportSilent } from '../error-report'
 import type { KernelModule } from './types'
 
+declare const require: (path: string) => unknown
+
 /** 平铺产物。消费子集在 KernelModule；没有 kernel/executor 命名空间字段。 */
 export type KernelBundle = KernelModule
 
@@ -22,9 +24,20 @@ const HOST_CONSUMED = [
 ] as const
 
 let cached: KernelBundle | undefined
+let tried = false
 
 function globalBundle(): KernelBundle | undefined {
   return (globalThis as Record<string, unknown>).__dshKernelBundle as KernelBundle | undefined
+}
+
+/** 主包 require 分包在部分基础库可用、部分是模块隔离告警——只作启动期单次探测。 */
+function requireBundle(): KernelBundle | undefined {
+  try {
+    installKernelShims()
+    return require('../../subpkg/kernel/kernel.js') as KernelBundle
+  } catch {
+    return undefined
+  }
 }
 
 export function loadKernel(): KernelBundle | undefined {
@@ -33,21 +46,32 @@ export function loadKernel(): KernelBundle | undefined {
   if (bundle !== undefined) {
     installKernelShims()
     cached = bundle
+    return cached
+  }
+  if (!tried) {
+    tried = true
+    cached = requireBundle()
   }
   return cached
 }
 
 /**
- * 等 kernel 就绪：分包下载完成后 boot 组件在分包上下文 require 并挂
- * globalThis.__dshKernelBundle。主包只轮询这个槽，绝不跨包 require。
+ * 等 kernel 就绪：boot 组件在分包上下文 require 后挂 globalThis；
+ * 主包启动期只做 2s 一次的低频 require 探测（避免每 400ms 刷模块隔离告警）。
  */
 export async function loadKernelAsync(timeoutMs = 25000): Promise<KernelBundle | undefined> {
   const first = loadKernel()
   if (first !== undefined) return first
   const deadline = Date.now() + timeoutMs
+  let lastTry = Date.now()
   for (;;) {
     const probe = loadKernel()
     if (probe !== undefined) return probe
+    if (Date.now() - lastTry >= 2000) {
+      lastTry = Date.now()
+      cached = requireBundle()
+      if (cached !== undefined) return cached
+    }
     // boot 组件 require 硬失败（产物缺失/JSC 不兼容）——继续轮询无意义，早退可观察
     const loadErr = (globalThis as Record<string, unknown>).__dshKernelError
     if (loadErr !== undefined) {
@@ -81,6 +105,7 @@ export function kernelUsable(): boolean {
 /** 测试用：重置缓存（换产物后重测）。 */
 export function kernelLoaderReset(): void {
   cached = undefined
+  tried = false
   delete (globalThis as Record<string, unknown>).__dshKernelError
   delete (globalThis as Record<string, unknown>).__dshKernelBundle
   delete (globalThis as Record<string, unknown>).__dshKernelManifest

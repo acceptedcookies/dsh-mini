@@ -1,7 +1,7 @@
 {
   "kernelPin": "f72875054f65c2b1a4224192fd1fbe3b3ad6a3b0",
   "entry_hash": "d266137505a789693eef4d2b61a39bd9be39a1b3c499b9f0a169d2a5c0b030f3",
-  "bundle_sha256": "4bd78c7445627be3583a09d1ebc4296455173c90e0719799082d9cfc576810e8",
+  "bundle_sha256": "0d257107d965bb390c23ebfb2a285822e3ae265a682c745bae64c0e2712ca506",
   "exports": [
     "createInitialSessionState",
     "createKernelSnapshot",
@@ -86,7 +86,7 @@
     "MICRO_STALE_NUM",
     "PROTECTED_FRAGMENT_TAGS"
   ],
-  "bytes": 1973505,
+  "bytes": 1973826,
   "modules": [
     "context/nano-agent/packages/agent-execution/src/contracts/caller.ts",
     "context/nano-agent/packages/agent-execution/src/contracts/receiver.ts",
@@ -439,6 +439,9 @@
     "context/nano-agent/workers/context-core/src/budget/policy.ts",
     "context/nano-agent/workers/context-core/src/control-plane/token-meter.ts",
     "context/nano-agent/workers/context-core/src/microcompact/decide.ts",
+    "node-absent:node:fs",
+    "node-absent:node:path",
+    "node-absent:node:url",
     "subpkg/kernel/.entry.ts",
     "test/spike/node_modules/zod/index.js",
     "test/spike/node_modules/zod/v4/classic/checks.js",

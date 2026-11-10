@@ -10,7 +10,7 @@ Component({
     const tryLoad = () => {
       try {
         globalThis.__dshKernelBundle = require('../kernel.js')
-        globalThis.__dshKernelManifest = require('../manifest.json')
+        globalThis.__dshKernelManifest = require('../manifest.js')
       } catch (e) {
         attempts += 1
         if (attempts >= 12) {

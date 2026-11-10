@@ -9,7 +9,7 @@ Page({
     const tryLoad = () => {
       try {
         globalThis.__dshKernelBundle = require('../kernel.js')
-        globalThis.__dshKernelManifest = require('../manifest.json')
+        globalThis.__dshKernelManifest = require('../manifest.js')
         wx.navigateBack()
       } catch (e) {
         attempts += 1

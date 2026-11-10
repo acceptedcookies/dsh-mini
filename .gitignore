@@ -28,6 +28,7 @@ subpkg/fx/*.wasm.br
 
 # kernel 分包产物（由 scripts/build-kernel.mjs 再生成）
 subpkg/kernel/kernel.js
+subpkg/kernel/manifest.js
 cloud/functions/sweeper/vendor/
 
 # 由 .local.development.json 生成的小程序端 dev 配置
