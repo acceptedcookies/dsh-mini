@@ -50,6 +50,7 @@ const sim = cfg.sim ?? {};
 const cloud = cfg.cloud ?? {};
 const allowedModels = cfg.allowed_models ?? Object.keys(cfg.catalog ?? {});
 if (!allowedModels.includes(p.model)) throw new Error(`provider.model ${p.model} 不在 allowed_models`);
+const compact = cfg.compaction ?? null;
 const modelMeta = {};
 for (const m of allowedModels) {
   modelMeta[m] = { context_window: cfg.catalog?.[m]?.context_window ?? 256000, supports_tool_use: true, supports_vision: true };
@@ -81,6 +82,8 @@ export const upstreamBaseUrl = ${JSON.stringify(`${p.base_url}/v1`)}
 export const allowedModels = ${JSON.stringify(allowedModels)}
 /** allowedModels 对应的 provider model_metadata（context_window 取 catalog 快照）。 */
 export const modelMeta = ${JSON.stringify(modelMeta)}
+/** 本地 compaction fixture（业主 2026-11-10：512K 窗口 / async 水位 0.5）。 */
+export const compactPolicy = ${JSON.stringify(compact === null ? null : { contextWindow: compact.context_window, softTriggerPct: compact.buffer_size_async, healthTargetPct: compact.health_target_async })}
 
 export const fxEnv: Record<string, string> = {
   FX_PROVIDER: providerName,

@@ -188,7 +188,7 @@ async function runCompaction(
         content: `Summarize this agent conversation for continuation. Preserve durable facts, tool results and pending decisions; drop chatter. Conversation JSON:\n${JSON.stringify(msgs).slice(0, 60000)}`,
       }],
       steering: null,
-    })))
+    }), { internal: true }))
     const summaryText = sum.text ?? ''
     // 回放 artifact：被关闭 episode 的 step_decision JSONL（dropped 如实计数非静默丢）。
     let replaySha: string | undefined
@@ -236,6 +236,7 @@ async function runCompaction(
       summary_text: summaryInline,
       head_event_seq: headSeq,
     }, headSeq)
+    console.warn('[compact]', JSON.stringify({ sessionId, tokensBefore, tokensAfter, tokensFreed, triggerKind }))
     return { ep, messages: compacted, tokensFreed }
   } finally {
     try { await ctx.io.state.del(`${CL}/${ctx.owner}/compact-${sessionId}`) } catch { /* 标记靠 TTL 兜底 */ }
@@ -330,7 +331,14 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
     const signals: SchedulerSignals = {
       hasMoreToolCalls: (turn?.pendingToolCalls?.length ?? 0) > 0,
       // 宿主 compact 触发策略（非合同）：turn.messages 序列化逼近 256KB 行前压实。
-      compactRequired: (await evaluateCompact({ usage: lastUsage.get(sessionId) })).required,
+      compactRequired: (await evaluateCompact(
+        {
+          usage: lastUsage.get(sessionId),
+          maxTokens: ctx.io.modelMaxTokens,
+          triggerKind: ctx.io.compactPolicy === undefined ? undefined : 'structural',
+        },
+        ctx.io.compactPolicy,
+      )).required,
       cancelRequested: opts.cancelRequested?.() === true,
       timeoutReached: false,
       llmFinished: turn?.llmFinished ?? false,
@@ -374,7 +382,14 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
       }
       if (d.reason === 'compact_required') {
         // interrupt-taxonomy 死路径守卫（本 kernel build 不从此发 compact）——走同一正路。
-        const armed = await evaluateCompact({ usage: lastUsage.get(sessionId) })
+        const armed = await evaluateCompact(
+          {
+            usage: lastUsage.get(sessionId),
+            maxTokens: ctx.io.modelMaxTokens,
+            triggerKind: ctx.io.compactPolicy === undefined ? undefined : 'structural',
+          },
+          ctx.io.compactPolicy,
+        )
         const c = await runCompaction(ctx, sessionId, turn, ep, armed.triggerKind ?? null)
         if (c === null) {
           const wr = await saveSnap(ctx, sessionId, snap, etag, ep)
@@ -382,6 +397,8 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
         }
         ep = c.ep
         snap = ctx.kernel.applyAction(snap, { type: 'compact_done', tokensFreed: c.tokensFreed, messages: c.messages })
+        // 压缩后用旧 usage 再判会无限重压；清掉等下一次 llm 调用重新计量。
+        lastUsage.delete(sessionId)
         snap = ctx.kernel.applyAction(snap, { type: 'resume' })
         const wr = await saveSnap(ctx, sessionId, snap, etag, ep)
         if (typeof wr === 'object') return ret({ outcome: 'fenced', trace })
@@ -405,7 +422,15 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
     if (d.kind === 'compact') {
       // T-O-12 正路：kernel 发 compact 决策（signals.compactRequired）→ 宿主压实 →
       // compact_done 置换 messages → 新 episode checkpoint → 循环继续。
-      const c = await runCompaction(ctx, sessionId, turn, ep, null)
+      const armed = await evaluateCompact(
+        {
+          usage: lastUsage.get(sessionId),
+          maxTokens: ctx.io.modelMaxTokens,
+          triggerKind: ctx.io.compactPolicy === undefined ? undefined : 'structural',
+        },
+        ctx.io.compactPolicy,
+      )
+      const c = await runCompaction(ctx, sessionId, turn, ep, armed.triggerKind ?? null)
       if (c === null) {
         // 对手 compaction in-flight——不落盘动作、不推进步；如实 suspended 等下轮。
         const wr = await saveSnap(ctx, sessionId, snap, etag, ep)
@@ -413,6 +438,7 @@ export async function runPump(ctx: PumpCtx, sessionId: string, opts: PumpOptions
       }
       ep = c.ep
       snap = ctx.kernel.applyAction(snap, { type: 'compact_done', tokensFreed: c.tokensFreed, messages: c.messages })
+      lastUsage.delete(sessionId)
       const wr = await saveSnap(ctx, sessionId, snap, etag, ep)
       if (typeof wr === 'object') return ret({ outcome: 'fenced', trace })
       etag = wr

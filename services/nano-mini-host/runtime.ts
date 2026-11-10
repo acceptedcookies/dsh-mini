@@ -33,6 +33,7 @@ import { kernelUsable, loadKernelAsync } from './kernel-loader'
 import { runPump } from './pump'
 import { createIoTool } from './io/tool'
 import { createIoLlm } from './io/llm'
+import { foldTranscript } from '../context/compact-policy'
 import type { Io } from './types'
 
 declare const require: (path: string) => unknown
@@ -58,17 +59,40 @@ function fxLegacyKnob(): boolean {
 /** 跨轮历史：转录本中 user/assistant 行，截尾去本轮 input（已入 turn.messages），限量 20 条。
  *  用户行携带已解析 imageParts（https artifact URL）——前轮图片对后续轮可见（审查 B8）；
  *  data: 内联形态不沉淀（体积+时效面），local 车道跨轮仅文本——登记边界。 */
-function historyMessages(s: StoredSession): Array<{ role: string; content: unknown }> {
-  const msgs = s.items
-    .filter((i) => i.kind === 'user_message' || i.kind === 'assistant_message')
-    .map((i) => {
-      const role = i.kind === 'user_message' ? 'user' : 'assistant'
-      if (i.kind === 'user_message' && i.imageParts !== undefined && i.imageParts.length > 0) {
+function historyMessages(s: StoredSession): Array<Record<string, unknown>> {
+  let turnIndex = -1
+  const msgs: Array<Record<string, unknown>> = []
+  for (const i of s.items) {
+    if (i.kind === 'user_message') {
+      turnIndex += 1
+      if (i.imageParts !== undefined && i.imageParts.length > 0) {
         const parts = i.imageParts.filter((p) => p.url.startsWith('https://') || p.url.startsWith('http://'))
-        if (parts.length > 0) return { role, content: [...parts, ...(i.text.trim().length > 0 ? [{ kind: 'text', text: i.text }] : [])] }
+        if (parts.length > 0) {
+          msgs.push({ role: 'user', content: [...parts, ...(i.text.trim().length > 0 ? [{ kind: 'text', text: i.text }] : [])] })
+          continue
+        }
       }
-      return { role, content: i.text }
-    })
+      msgs.push({ role: 'user', content: i.text })
+      continue
+    }
+    if (i.kind === 'assistant_message') {
+      msgs.push({ role: 'assistant', content: i.text })
+      continue
+    }
+    if (i.kind === 'tool_result') {
+      // 声明三元组 + durable turn ordinal：micro-compact 只折叠这种 transcript 行。
+      msgs.push({
+        role: 'tool',
+        tool_call_id: i.id,
+        name: i.tool,
+        content: i.detail ?? i.summary ?? '',
+        declared: true,
+        context_layer: 'transcript',
+        context_property: 'tool-result',
+        source_turn_index: Math.max(0, turnIndex),
+      })
+    }
+  }
   return msgs.slice(0, -1).slice(-20)
 }
 
@@ -374,9 +398,18 @@ export class KernelMiniRuntime {
     // 本轮各 llm_call 步计量账本：usage=provider 计费 tokens、decodeMs=调用墙钟
     // ——composer dock 统计 pill（轮/步/tok·s/上下文占比）唯一真源。
     const callStats: Array<{ inputTokens?: number; outputTokens?: number; decodeMs?: number }> = []
+    // 模型窗口 + compaction fixture（dev config 真实文件；生产缺席→default 不压缩）
+    const devCfg = loadDevConfig()
+    const pickedModel = storage.getModel() ?? ''
+    const modelMaxTokens = devCfg?.modelMeta?.[pickedModel]?.context_window
+      ?? devCfg?.compactPolicy?.contextWindow
     const io: Io = {
       // durable lane 按会话引擎裁决：nano-agent→remoteCas（POD1），magpie→localCas
       state: ioStateFor(engine),
+      ...(modelMaxTokens !== undefined ? { modelMaxTokens } : {}),
+      ...(devCfg?.compactPolicy !== null && devCfg?.compactPolicy !== undefined
+        ? { compactPolicy: { policy: { softTriggerPct: devCfg.compactPolicy.softTriggerPct, ...(devCfg.compactPolicy.healthTargetPct !== undefined ? { healthTargetPct: devCfg.compactPolicy.healthTargetPct } : {}) }, source: 'watermark' as const } }
+        : {}),
       // compaction 账行挂账面（T-O-12）：vfsRemoteFor 缺位→null，pump 降级内嵌。
       artifacts: {
         async publishJson(obj) {
@@ -395,12 +428,18 @@ export class KernelMiniRuntime {
           return publish(obj)
         },
       },
-      llm: (context) => {
+      llm: (context, opts) => {
         const self = this
         return (async function* () {
         const t0 = Date.now()
+        const userTurns = s.items.filter((x) => x.kind === 'user_message').length
+        const micro = foldTranscript(historyMessages(s), Math.max(0, userTurns - 1), 1)
+        const foldedHistory = micro.messages
+        if (micro.receipt !== null && micro.receipt.compactedCount > 0) {
+          console.warn('[micro-compact]', JSON.stringify({ sessionId, folded: micro.receipt.compactedCount, ids: micro.receipt.toolCallIds.slice(0, 8) }))
+        }
         const transcript = [
-          ...historyMessages(s),
+          ...foldedHistory,
           ...context.messages.filter((message) => {
             if (message === null || typeof message !== 'object') return true
             const row = message as { role?: unknown }
@@ -415,9 +454,11 @@ export class KernelMiniRuntime {
           canonicalTextOverride: context.partitions.canonical_system_prompt?.bytes || undefined,
         }))) {
           if (chunk.kind === 'content' && chunk.text.length > 0) {
-            assistantText += chunk.text
-            deltaIndex += 1
-            self.emit({ type: 'assistant.delta', sessionId, attemptId, index: deltaIndex, text: chunk.text })
+            if (opts?.internal !== true) {
+              assistantText += chunk.text
+              deltaIndex += 1
+              self.emit({ type: 'assistant.delta', sessionId, attemptId, index: deltaIndex, text: chunk.text })
+            }
           } else if (chunk.kind === 'usage') {
             usage = chunk.usage
           }

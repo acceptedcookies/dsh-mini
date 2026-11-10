@@ -132,7 +132,15 @@ export interface IoState {
 }
 
 export interface Io {
-  llm(context: import('../context/assemble').AssembledContext): AsyncIterable<LlmChunk>
+  /** 内部调用（如 compaction 摘要）不投影到 UI/助手文本。 */
+  llm(context: import('../context/assemble').AssembledContext, opts?: { internal?: boolean }): AsyncIterable<LlmChunk>
+  /** 当前模型窗口（token）；来自 dev config fixture / provider catalog。 */
+  modelMaxTokens?: number
+  /** 本地 compaction fixture（gitignored dev config）。缺席时走 default 不压缩。 */
+  compactPolicy?: {
+    policy: { softTriggerPct: number; healthTargetPct?: number; hardFallbackPct?: number; disabled?: boolean }
+    source: 'watermark'
+  }
   tool(name: string, args: unknown): Promise<ToolCallResult>
   state: IoState
   /**

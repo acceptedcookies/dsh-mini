@@ -48,10 +48,13 @@ export async function evaluateCompact(input: {
   maxTokens?: number
   responseReserveTokens?: number
   triggerKind?: string
-}): Promise<CompactNeed> {
+}, injected?: { policy: { softTriggerPct: number; healthTargetPct?: number; hardFallbackPct?: number; disabled?: boolean }; source: 'watermark' }): Promise<CompactNeed> {
   const loaded = kernel()
   if (loaded === undefined) return { required: false, source: 'default' }
-  const resolution = await loaded.resolveCompactPolicyDetailed(undefined, {})
+  // dev fixture（真实配置文件）优先；生产无注入时走 tenant RPC/default。
+  const resolution = injected !== undefined
+    ? { source: 'watermark' as const, policy: injected.policy }
+    : await loaded.resolveCompactPolicyDetailed(undefined, {})
   if (resolution.source !== 'watermark') return { required: false, source: 'default' }
   const inputTokens = input.usage?.inputTokens
   const outputTokens = input.usage?.outputTokens

@@ -136,7 +136,7 @@ export function createIoLlm(deps: IoLlmDeps = {}): (context: AssembledContext) =
         kind: string
         reason?: string
         events?: ReadonlyArray<{ kind: string; payload: unknown }>
-        usage?: { inputTokens: number | null; outputTokens: number | null }
+        usage?: { inputTokens: number | null; outputTokens: number | null; providerPromptTokens?: number | null }
       }>
     } | undefined
     if (typeof kernel?.measureWireRequest !== 'function'
@@ -203,13 +203,19 @@ export function createIoLlm(deps: IoLlmDeps = {}): (context: AssembledContext) =
       }
     }
     const usage = outcome.usage
-    if (usage && (typeof usage.inputTokens === 'number' || typeof usage.outputTokens === 'number')) {
-      yield {
-        kind: 'usage',
-        usage: {
-          ...(typeof usage.inputTokens === 'number' ? { inputTokens: usage.inputTokens } : {}),
-          ...(typeof usage.outputTokens === 'number' ? { outputTokens: usage.outputTokens } : {}),
-        },
+    if (usage) {
+      // 水位用「总 prompt tokens」：缓存命中时 inputTokens 只是新鲜 token。
+      const promptTokens = typeof usage.providerPromptTokens === 'number'
+        ? usage.providerPromptTokens
+        : usage.inputTokens
+      if (typeof promptTokens === 'number' || typeof usage.outputTokens === 'number') {
+        yield {
+          kind: 'usage',
+          usage: {
+            ...(typeof promptTokens === 'number' ? { inputTokens: promptTokens } : {}),
+            ...(typeof usage.outputTokens === 'number' ? { outputTokens: usage.outputTokens } : {}),
+          },
+        }
       }
     }
     for (const call of toolCalls) yield { kind: 'tool_call', call }

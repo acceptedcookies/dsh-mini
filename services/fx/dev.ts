@@ -21,6 +21,8 @@ export interface DevConfig {
   upstreamBaseUrl: string
   allowedModels: string[]
   modelMeta: Record<string, { context_window: number; supports_tool_use: boolean; supports_vision: boolean }>
+  /** 本地 compaction fixture（gitignored dev-config；生产无此项）。 */
+  compactPolicy?: { contextWindow: number; softTriggerPct: number; healthTargetPct?: number } | null
   fxEnv: Record<string, string>
 }
 
