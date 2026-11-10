@@ -844,7 +844,7 @@
       "consumedVars": [],
       "verdict": "empty-asset",
       "contractFile": "components/dsh-icon/dsh-icon.contract.ts",
-      "verdictReason": "T-O-2 ④ empty-asset。证据 @components/dsh-icon/dsh-icon.ts:21 与 @components/dsh-icon/dsh-icon.less:1。路径与纯布局不进合约，less 不改。未升格子串 `flex: none`。"
+      "verdictReason": "T-O-2 ④ empty-asset。证据 @components/dsh-icon/dsh-icon.ts:42 与 @components/dsh-icon/dsh-icon.less:1。路径与纯布局不进合约，less 不改。未升格子串 `flex: none`。"
     },
     "dsh-menu": {
       "isolation": "apply-shared",
@@ -1572,7 +1572,7 @@
       "consumedVars": [],
       "verdict": "empty-service",
       "contractFile": "components/markdown-view/markdown-view.contract.ts",
-      "verdictReason": "T-O-2 ④ empty-service。证据 @components/markdown-view/markdown-view.ts:6 与 @services/markdown.ts:27。palette 留在 service，less 不改。未升格子串 `width: 24px`。"
+      "verdictReason": "T-O-2 ④ empty-service。证据 @components/markdown-view/markdown-view.ts:11 与 @services/markdown.ts:27。palette 留在 service，less 不改。未升格子串 `width: 24px`。"
     },
     "message-actions": {
       "isolation": "apply-shared",

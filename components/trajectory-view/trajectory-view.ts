@@ -1,4 +1,5 @@
 import type { ChatItem } from '../../types/protocol'
+import { engine } from '../../services/skin/engine'
 import {
   buildTrajectoryTimeline,
   buildTrajectoryTurns,
@@ -204,15 +205,25 @@ Component({
 
   lifetimes: {
     attached() {
+      ;(this as unknown as { _unwatchSkin?: () => void })._unwatchSkin = engine.watchMode(() => {
+        this.syncShell()
+      })
+      this.syncShell()
       this.refresh()
     },
     detached() {
+      const unwatch = (this as unknown as { _unwatchSkin?: () => void })._unwatchSkin
+      if (typeof unwatch === 'function') unwatch()
       const timer = this.data.closeTimer as ReturnType<typeof setTimeout> | 0
       if (timer !== 0) clearTimeout(timer)
     },
   },
 
   methods: {
+    syncShell() {
+      engine.componentVars('trajectory-view')
+      engine.componentLayout('trajectory-view')
+    },
     refresh() {
       const turns = buildTrajectoryTurns(this.data.items as ChatItem[])
       const cells = flattenCells(turns)

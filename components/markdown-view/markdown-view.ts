@@ -1,5 +1,6 @@
 import { markdownSegments, type MarkdownSegment } from '../../services/markdown'
 import { errorBus } from '../../services/error-report'
+import { engine } from '../../services/skin/engine'
 
 const COPIED_MS = 1200
 
@@ -16,9 +17,15 @@ Component({
   },
   lifetimes: {
     attached() {
+      ;(this as unknown as { _unwatchSkin?: () => void })._unwatchSkin = engine.watchMode(() => {
+        this.syncShell()
+      })
+      this.syncShell()
       this.render()
     },
     detached() {
+      const unwatch = (this as unknown as { _unwatchSkin?: () => void })._unwatchSkin
+      if (typeof unwatch === 'function') unwatch()
       const timer = this.data.copyTimer as ReturnType<typeof setTimeout> | 0
       if (timer !== 0) clearTimeout(timer)
     },
@@ -29,6 +36,10 @@ Component({
     },
   },
   methods: {
+    syncShell() {
+      engine.componentVars('markdown-view')
+      engine.componentLayout('markdown-view')
+    },
     render() {
       const text = this.properties.text
       const segments = text.length > 0

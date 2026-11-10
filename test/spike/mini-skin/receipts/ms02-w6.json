@@ -1,0 +1,33 @@
+{
+  "id": "ms02-w6",
+  "lane": "mini-skin",
+  "verdict": "PASS",
+  "reason": "three empty contracts stay version-only; subscribe without setData or shell binding; less unchanged vs BASE",
+  "envClass": "host-node",
+  "grade": "H1",
+  "at": "2026-11-10T06:46:20.734Z",
+  "headSha": "943cf8088bdbf44b2febc291ba6c14e8e71ad2ae",
+  "dirtyWorktree": true,
+  "device": null,
+  "counts": {
+    "nodeChecks": "95/95"
+  },
+  "timing": null,
+  "plants": [
+    {
+      "id": "empty-wxml-has-no-shellVars",
+      "fired": true,
+      "restored": true
+    }
+  ],
+  "budget": null,
+  "remoteOps": [],
+  "detail": {
+    "argv": [
+      "node test/spike/mini-skin/node-checks.mjs"
+    ],
+    "stdoutSha256": {
+      "nodeChecks": "08f444afc9254ace09c51fc5851c16b8dd01fa2f96fe5c2387df1580f3528454"
+    }
+  }
+}
